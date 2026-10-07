@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "GPL-3.0-or-later"
 dependencies = [
+    "mcap>=1.2",
     "mujoco>=3.2",
     "numpy>=2.0",
     "pydantic>=2.11",
