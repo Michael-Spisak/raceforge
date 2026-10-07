@@ -155,7 +155,10 @@ def _open_skeleton(p: CorridorParams, rng: np.random.Generator) -> Arr:
     heading = 0.0
     remaining = p.length_m
     while remaining > 0:
-        run = min(remaining, rng.uniform(4.0, 12.0))
+        first = len(pts) == 1
+        run = min(
+            remaining, rng.uniform(9.0, 14.0) if first else rng.uniform(4.0, 12.0)
+        )  # room for the grid
         pts.append(pts[-1] + run * np.array([math.cos(heading), math.sin(heading)]))
         remaining -= run
         heading += float(rng.choice([-1, 1])) * (
@@ -233,6 +236,9 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
     straight = curvature < 0.05
     margin = 3.0
 
+    occupied: list[tuple[float, float]] = []  # s-intervals used by doors/pillars/objects
+    clearance = 1.5  # keep features apart along the corridor so it stays passable
+
     def free_spot(length: float) -> int | None:
         for _ in range(30):
             i = int(rng.integers(0, n))
@@ -240,8 +246,12 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
             if lo < margin or hi > s[-1] - margin:
                 continue
             idx = (s >= lo) & (s <= hi)
-            if straight[idx].all() and not (depth[:, idx] > 0).any():
-                return i
+            if not straight[idx].all() or (depth[:, idx] > 0).any():
+                continue
+            if any(lo - clearance < b and a < hi + clearance for a, b in occupied):
+                continue
+            occupied.append((lo, hi))
+            return i
         return None
 
     def wall_point(i: int, side: int, extra: float = 0.0) -> Arr:

@@ -120,20 +120,21 @@ class Ultrasonic:
             self.RAYS,
             self.p.range_max_m + 0.5,
         )
+        # First echo: the nearest hit among rays that meet their surface steeply enough to reflect
+        # back (incidence <= 50°). Only if no ray qualifies the reading drops out.
         best: float | None = None
-        best_k = -1
         for k in range(self.RAYS):
-            if geomid[k] >= 0 and dist[k] >= 0 and (best is None or dist[k] < best):
-                best, best_k = float(dist[k]), k
+            if geomid[k] < 0 or dist[k] < 0 or dist[k] > self.p.range_max_m:
+                continue
+            n = normal[3 * k : 3 * k + 3]
+            norm = float(np.linalg.norm(n)) or 1.0
+            incidence = math.acos(min(1.0, abs(float(dirs[k] @ n)) / norm))
+            if incidence <= self.DROPOUT_INCIDENCE_RAD and (best is None or dist[k] < best):
+                best = float(dist[k])
         value: float | None = None
-        if best is not None and best <= self.p.range_max_m:
-            n = normal[3 * best_k : 3 * best_k + 3]
-            incidence = math.acos(
-                min(1.0, abs(float(dirs[best_k] @ n)) / (np.linalg.norm(n) or 1.0))
-            )
-            if incidence <= self.DROPOUT_INCIDENCE_RAD:
-                noisy = max(self.p.range_min_m, best + self.rng.normal(0.0, self.p.noise_std_m))
-                value = round(noisy, 3)
+        if best is not None:
+            noisy = max(self.p.range_min_m, best + self.rng.normal(0.0, self.p.noise_std_m))
+            value = round(noisy, 3)
         if others_firing and self.rng.random() < self.crosstalk_prob * others_firing:
             value = round(float(self.rng.uniform(self.p.range_min_m, 0.5)), 3)
         self.timing.push(t, value)

@@ -52,7 +52,8 @@ strict = ["src/raceforge/core", "src/raceforge/api", "src/raceforge/control"]
 testpaths = ["tests"]
 # Python ≥3.13 on macOS skips .pth files with the "hidden" flag (uv venvs may set it), so put src on the path explicitly.
 pythonpath = ["src"]
-addopts = "--cov=raceforge --cov-report=term-missing"
+addopts = "--cov=raceforge --cov-report=term-missing -m 'not slow'"
+markers = ["slow: long-running acceptance runs (nightly CI job; run with -m slow)"]
 
 [tool.importlinter]
 root_package = "raceforge"

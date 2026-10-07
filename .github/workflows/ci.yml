@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 2 * * *"  # nightly: slow acceptance runs
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -50,3 +53,14 @@ jobs:
         run: |
           PYTHONPATH=src uv run raceforge parts build-catalogue
           git diff --exit-code src/raceforge/parts/data/bboxes.yaml
+
+  slow-acceptance:
+    # Spec 0004 AC2: templates complete 3 laps on 20 generated corridors.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: PYTHONPATH=src uv run pytest -m slow -p no:cacheprovider --no-cov -q
