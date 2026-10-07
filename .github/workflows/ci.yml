@@ -20,3 +20,33 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - run: sh scripts/check.sh
+
+  ldraw-integration:
+    # Spec 0002 AC9: regenerate catalogue bounding boxes from the real LDraw library and
+    # fail if the committed bboxes.yaml is out of date.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/raceforge/ldraw
+          key: ldraw-complete-v1
+      - run: uv sync --locked
+      - name: Fetch LDraw library (cached)
+        id: fetch
+        run: |
+          if [ -d ~/.cache/raceforge/ldraw/parts ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          mkdir -p ~/.cache/raceforge
+          if curl -fsSL -A "RaceForge-CI (+https://github.com/Michael-Spisak/raceforge)" \
+               -o ~/.cache/raceforge/ldraw-complete.zip https://library.ldraw.org/library/updates/complete.zip; then
+            unzip -q ~/.cache/raceforge/ldraw-complete.zip -d ~/.cache/raceforge && echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::library.ldraw.org refused the download from this runner; bounding-box check skipped"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Bounding boxes up to date
+        if: steps.fetch.outputs.ok == 'true'
+        run: |
+          PYTHONPATH=src uv run raceforge parts build-catalogue
+          git diff --exit-code src/raceforge/parts/data/bboxes.yaml

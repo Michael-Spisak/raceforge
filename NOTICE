@@ -1,0 +1,13 @@
+RaceForge
+Copyright (C) 2026 Michael Spisak and contributors. Licensed under GPL-3.0-or-later (see LICENSE).
+
+Third-party data
+----------------
+- LDraw parts library (https://library.ldraw.org): part geometry used for bounding boxes and rendering.
+  Licensed under CC BY 2.0 / CC BY 4.0 by the LDraw contributors. LDraw is a trademark of the Estate of
+  James Jessiman. The library itself is downloaded on demand and not redistributed in this repository;
+  src/raceforge/parts/data/bboxes.yaml contains derived bounding boxes.
+- LDCad shadow library (https://github.com/RolandMelkert/LDCadShadowLibrary), CC BY-SA 4.0, will be
+  downloaded on demand for connector/snapping data (not redistributed).
+
+LEGO® is a trademark of the LEGO Group, which does not sponsor, authorize or endorse this project.

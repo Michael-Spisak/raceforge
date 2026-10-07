@@ -1,0 +1,119 @@
+# RaceForge curated parts catalogue (spec 0002).
+# Geometry references the LDraw library (CC BY 2.0/4.0, see NOTICE); bounding boxes are generated into
+# bboxes.yaml by `raceforge parts build-catalogue`. Masses are approximate BrickLink-style values entered
+# by hand (verified: false) until the BrickLink importer replaces them.
+# Connector positions/axes are in the part's LDraw frame (LDU, -Y up).
+# Auto connectors: beams `holes` -> pin_hole h1..hN along Z (20 LDU pitch, axis X);
+#                  axles/pins `length_studs` -> e1/e2 at the ends along X.
+
+# --- Beams -----------------------------------------------------------------------------------------
+- {key: "32523", ldraw_id: "32523", name: "Technic Beam 3", category: beam, holes: 3, mass_g: 0.85}
+- {key: "32316", ldraw_id: "32316", name: "Technic Beam 5", category: beam, holes: 5, mass_g: 1.40}
+- {key: "32524", ldraw_id: "32524", name: "Technic Beam 7", category: beam, holes: 7, mass_g: 1.95}
+- {key: "40490", ldraw_id: "40490", name: "Technic Beam 9", category: beam, holes: 9, mass_g: 2.50}
+- {key: "32525", ldraw_id: "32525", name: "Technic Beam 11", category: beam, holes: 11, mass_g: 3.05}
+- {key: "41239", ldraw_id: "41239", name: "Technic Beam 13", category: beam, holes: 13, mass_g: 3.60}
+- {key: "32278", ldraw_id: "32278", name: "Technic Beam 15", category: beam, holes: 15, mass_g: 4.15}
+
+# --- Axles -----------------------------------------------------------------------------------------
+- {key: "4519", ldraw_id: "4519", name: "Technic Axle 3", category: axle, length_studs: 3, mass_g: 0.40}
+- {key: "3705", ldraw_id: "3705", name: "Technic Axle 4", category: axle, length_studs: 4, mass_g: 0.55}
+- {key: "32073", ldraw_id: "32073", name: "Technic Axle 5", category: axle, length_studs: 5, mass_g: 0.68}
+- {key: "3706", ldraw_id: "3706", name: "Technic Axle 6", category: axle, length_studs: 6, mass_g: 0.82}
+- {key: "44294", ldraw_id: "44294", name: "Technic Axle 7", category: axle, length_studs: 7, mass_g: 0.96}
+- {key: "3707", ldraw_id: "3707", name: "Technic Axle 8", category: axle, length_studs: 8, mass_g: 1.10}
+- {key: "60485", ldraw_id: "60485", name: "Technic Axle 9", category: axle, length_studs: 9, mass_g: 1.24}
+- {key: "3737", ldraw_id: "3737", name: "Technic Axle 10", category: axle, length_studs: 10, mass_g: 1.38}
+- {key: "3708", ldraw_id: "3708", name: "Technic Axle 12", category: axle, length_studs: 12, mass_g: 1.66}
+
+# --- Pins, bushes, joiners -------------------------------------------------------------------------
+- {key: "2780", ldraw_id: "2780", name: "Technic Pin with Friction", category: pin, length_studs: 2, mass_g: 0.22}
+- {key: "6558", ldraw_id: "6558", name: "Technic Pin Long with Friction", category: pin, length_studs: 3, mass_g: 0.34}
+- {key: "3713", ldraw_id: "3713", name: "Technic Bush", category: bush, mass_g: 0.25,
+   connectors: [{id: hub, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female}]}
+- {key: "6538a", ldraw_id: "6538a", name: "Technic Axle Joiner", category: axle_joiner, mass_g: 0.45,
+   connectors: [{id: a, type: axle_hole, pos_ldu: [-10, 0, 0], axis_ld: [1, 0, 0], gender: female},
+                {id: b, type: axle_hole, pos_ldu: [10, 0, 0], axis_ld: [1, 0, 0], gender: female}]}
+
+# --- Gears and differential ------------------------------------------------------------------------
+- {key: "32270", ldraw_id: "32270", name: "Technic Gear 12 Tooth Double Bevel", category: gear, teeth: 12, mass_g: 0.60,
+   connectors: [{id: hub, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female}]}
+- {key: "32269", ldraw_id: "32269", name: "Technic Gear 20 Tooth Double Bevel", category: gear, teeth: 20, mass_g: 1.40,
+   connectors: [{id: hub, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female}]}
+- {key: "32498", ldraw_id: "32498", name: "Technic Gear 36 Tooth Double Bevel", category: gear, teeth: 36, mass_g: 4.00,
+   connectors: [{id: hub, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female}]}
+- {key: "62821", ldraw_id: "62821", name: "Technic Differential 28 Tooth Bevel", category: differential, teeth: 28, mass_g: 5.00,
+   connectors: [{id: axle_l, type: axle_hole, pos_ldu: [0, 0, -30], axis_ld: [0, 0, 1], gender: female},
+                {id: axle_r, type: axle_hole, pos_ldu: [0, 0, 30], axis_ld: [0, 0, 1], gender: female}]}
+
+# --- Steering --------------------------------------------------------------------------------------
+- {key: "32069", ldraw_id: "32069", name: "Technic Steering Arm with Connectors", category: steering_arm, mass_g: 2.00,
+   connectors: [{id: pivot, type: pin_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 1, 0], gender: female},
+                {id: stub, type: pin_hole, pos_ldu: [0, -10, 0], axis_ld: [0, 0, 1], gender: female},
+                {id: link, type: fixed_mount, pos_ldu: [0, -30, -15], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "32293", ldraw_id: "32293", name: "Technic Steering Link 9L", category: steering_link, mass_g: 1.80,
+   connectors: [{id: a, type: fixed_mount, pos_ldu: [0, 0, -80], axis_ld: [0, 1, 0], gender: neutral},
+                {id: b, type: fixed_mount, pos_ldu: [0, 0, 80], axis_ld: [0, 1, 0], gender: neutral},
+                {id: drive, type: fixed_mount, pos_ldu: [0, 0, 0], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "52730", ldraw_id: "52730", name: "Technic CV Joint Female with 3L Axle", category: cv_joint, mass_g: 1.00,
+   connectors: [{id: axle, type: axle, pos_ldu: [0, 0, 40], axis_ld: [0, 0, 1], gender: male},
+                {id: joint, type: fixed_mount, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: neutral}]}
+- {key: "52731", ldraw_id: "52731", name: "Technic CV Joint Male", category: cv_joint, mass_g: 0.70,
+   connectors: [{id: hub, type: axle_hole, pos_ldu: [0, 0, -10], axis_ld: [0, 0, 1], gender: female},
+                {id: joint, type: fixed_mount, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: neutral}]}
+
+# --- Wheels ----------------------------------------------------------------------------------------
+- {key: "56908", ldraw_id: "56908", name: "Wheel Rim 26 x 43 with 6 Spokes", category: wheel_rim, mass_g: 7.00,
+   connectors: [{id: hub, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
+                {id: tyre, type: fixed_mount, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: neutral}]}
+- {key: "55976", ldraw_id: "55976", name: "Tyre 26/52 x 30 Off Road", category: tyre, mass_g: 15.00,
+   wheel: {radius_mm: 28.4, width_mm: 25.6},
+   connectors: [{id: rim, type: fixed_mount, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: neutral}]}
+
+# --- EV3 devices -----------------------------------------------------------------------------------
+- {key: "95646c01", ldraw_id: "95646c01", name: "EV3 Intelligent Brick with Rechargeable Battery", category: ev3_brick, mass_g: 270,
+   device: {type: ev3_brick, model: "45500"},
+   connectors: [{id: m1, type: pin_hole, pos_ldu: [-60, 100, -120], axis_ld: [1, 0, 0], gender: female},
+                {id: m2, type: pin_hole, pos_ldu: [60, 100, -120], axis_ld: [1, 0, 0], gender: female},
+                {id: m3, type: pin_hole, pos_ldu: [-60, 100, 120], axis_ld: [1, 0, 0], gender: female},
+                {id: m4, type: pin_hole, pos_ldu: [60, 100, 120], axis_ld: [1, 0, 0], gender: female},
+                {id: top, type: fixed_mount, pos_ldu: [0, -19, 0], axis_ld: [0, 1, 0], gender: neutral},
+                {id: front, type: fixed_mount, pos_ldu: [0, 40, -139], axis_ld: [0, 0, 1], gender: neutral},
+                {id: rear, type: fixed_mount, pos_ldu: [0, 40, 139], axis_ld: [0, 0, 1], gender: neutral},
+                {id: bottom, type: fixed_mount, pos_ldu: [0, 108, 0], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "95658", ldraw_id: "95658", name: "EV3 Large Motor", category: motor, mass_g: 76,
+   device: {type: ev3_large_motor, model: "45502"},
+   connectors: [{id: out, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
+                {id: mount, type: pin_hole, pos_ldu: [0, -80, -200], axis_ld: [1, 0, 0], gender: female}]}
+- {key: "99455", ldraw_id: "99455", name: "EV3 Medium Motor", category: motor, mass_g: 36,
+   device: {type: ev3_medium_motor, model: "45503"},
+   connectors: [{id: out, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
+                {id: mount, type: pin_hole, pos_ldu: [0, 20, 150], axis_ld: [1, 0, 0], gender: female}]}
+- {key: "95652", ldraw_id: "95652", name: "EV3 Ultrasonic Sensor", category: sensor, mass_g: 26, sense_axis_ld: [0, 0, -1],
+   device: {type: ev3_ultrasonic, model: "45504"},
+   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female}]}
+- {key: "99380", ldraw_id: "99380", name: "EV3 Gyro Sensor", category: sensor, mass_g: 16,
+   device: {type: ev3_gyro, model: "45505"},
+   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female}]}
+- {key: "95648", ldraw_id: "95648", name: "EV3 Touch Sensor", category: sensor, mass_g: 15,
+   device: {type: ev3_touch, model: "45507"},
+   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female}]}
+
+# --- Non-LEGO placeholders (simple boxes; sizes in mm, centred on the part origin) ----------------
+- {key: "rpi5", name: "Raspberry Pi 5 in case", category: board, mass_g: 80, bbox_mm: [[-44, -30, -12], [44, 30, 12]],
+   device: {type: compute_board, model: "Raspberry Pi 5", params: {cpu_cores: 4, ram_gb: 8.0}},
+   connectors: [{id: mount, type: fixed_mount, pos_ldu: [0, 30, 0], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "orangepi5", name: "Orange Pi 5 in case", category: board, mass_g: 90, bbox_mm: [[-50, -32, -14], [50, 32, 14]],
+   device: {type: compute_board, model: "Orange Pi 5", params: {cpu_cores: 8, ram_gb: 8.0, has_npu: true}},
+   connectors: [{id: mount, type: fixed_mount, pos_ldu: [0, 35, 0], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "powerbank", name: "USB-C power bank 10 Ah", category: battery, mass_g: 180, bbox_mm: [[-50, -31, -11], [50, 31, 11]],
+   device: {type: battery, model: "generic 10 Ah PD", params: {nominal_v: 3.7, capacity_wh: 37.0, max_current_a: 3.0}},
+   connectors: [{id: mount, type: fixed_mount, pos_ldu: [0, 28, 0], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "servo", name: "Hobby servo (standard)", category: motor, mass_g: 40, bbox_mm: [[-20, -10, -19], [20, 10, 19]],
+   device: {type: dc_motor, model: "standard servo", params: {nominal_v: 6.0, stall_torque_nm: 0.9, no_load_speed_rad_s: 10.5}},
+   connectors: [{id: out, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 1, 0], gender: female},
+                {id: mount, type: fixed_mount, pos_ldu: [0, 25, 0], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "dcmotor", name: "Geared DC motor (generic)", category: motor, mass_g: 60, bbox_mm: [[-35, -12, -12], [35, 12, 12]],
+   device: {type: dc_motor, model: "generic 6V geared", params: {nominal_v: 6.0, stall_torque_nm: 0.3, no_load_speed_rad_s: 30.0}},
+   connectors: [{id: out, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
+                {id: mount, type: fixed_mount, pos_ldu: [0, 30, 0], axis_ld: [0, 1, 0], gender: neutral}]}
