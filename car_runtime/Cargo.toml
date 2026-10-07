@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["rf-proto", "rf-core", "rf-ev3"]
+members = ["rf-proto", "rf-core", "rf-ev3", "rf-log"]
 
 [workspace.package]
 version = "0.0.1"

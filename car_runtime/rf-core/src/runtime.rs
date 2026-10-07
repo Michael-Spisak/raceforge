@@ -101,6 +101,42 @@ pub struct RunReport {
     pub last_channels: BTreeMap<String, ChannelValue>,
 }
 
+/// Everything that happened in one tick, for logging (rf-log) and live telemetry.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TickRecord {
+    /// Monotonic time since runtime start.
+    pub mono_ns: u64,
+    /// Wall clock (UTC epoch ns) = `mono_ns + wall_offset_ns`, if the clock was set.
+    pub wall_offset_ns: Option<i64>,
+    pub seq: u64,
+    pub mode: Mode,
+    /// `fault`, `teleop`, `deadman_stop` or the controller's `state` channel (default `run`).
+    pub state: String,
+    pub faults: Vec<String>,
+    /// What was sent to the motors.
+    pub out: DriveOutput,
+    /// What the controller saw (`None` when sensors were not read, e.g. after a fault).
+    pub obs: Option<Observation>,
+    pub rate_hz: f64,
+    pub lateness_us: f64,
+    pub tick_us: f64,
+    pub deadline_misses: u64,
+    pub channels: BTreeMap<String, ChannelValue>,
+}
+
+/// Receives tick records and events. Called on the control thread: must never block
+/// (hand the data to another thread and drop it when that thread falls behind).
+pub trait TickSink: Send + Sync {
+    fn tick(&self, rec: &TickRecord);
+    fn event(&self, mono_ns: u64, e: &Event);
+}
+
+struct Outcome {
+    obs: Option<Observation>,
+    out: DriveOutput,
+    state: &'static str,
+}
+
 pub struct Runtime<S: Sensors, A: Actuators + 'static> {
     cfg: RuntimeConfig,
     sensors: Arc<S>,
@@ -115,6 +151,9 @@ pub struct Runtime<S: Sensors, A: Actuators + 'static> {
     lateness_us: Vec<f64>,
     step_us: Vec<f64>,
     last_channels: BTreeMap<String, ChannelValue>,
+    sinks: Vec<Arc<dyn TickSink>>,
+    wall_offset_ns: Option<i64>,
+    deadline_misses: u64,
 }
 
 impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
@@ -141,7 +180,18 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             lateness_us: Vec::new(),
             step_us: Vec::new(),
             last_channels: BTreeMap::new(),
+            sinks: Vec::new(),
+            wall_offset_ns: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .ok()
+                .and_then(|d| i64::try_from(d.as_nanos()).ok()),
+            deadline_misses: 0,
         })
+    }
+
+    /// Add a consumer of tick records and events (MCAP logger, telemetry server).
+    pub fn add_sink(&mut self, sink: Arc<dyn TickSink>) {
+        self.sinks.push(sink);
     }
 
     pub fn fault(&self) -> Option<&Fault> {
@@ -153,12 +203,16 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
     }
 
     fn event(&mut self, kind: &str, detail: String) {
-        let t_s = self.t_s();
-        self.events.push(Event {
-            t_s,
+        let mono_ns = self.start.elapsed().as_nanos() as u64;
+        let e = Event {
+            t_s: mono_ns as f64 * 1e-9,
             kind: kind.to_string(),
             detail,
-        });
+        };
+        for s in &self.sinks {
+            s.event(mono_ns, &e);
+        }
+        self.events.push(e);
     }
 
     /// Stop the motors right now and latch `fault`.
@@ -211,8 +265,11 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
                 self.trip(Fault::LoopStall, true);
             }
             let t = self.t_s();
-            self.tick(t, t - last_t);
+            let outcome = self.tick(t, t - last_t);
             last_t = t;
+            if !self.sinks.is_empty() {
+                self.publish(ticks, t, outcome, started, scheduled);
+            }
             ticks += 1;
         }
 
@@ -233,20 +290,50 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         }
     }
 
-    fn tick(&mut self, t_s: f64, dt_s: f64) {
+    fn publish(&self, tick: u64, t_s: f64, o: Outcome, started: Instant, scheduled: Instant) {
+        let state = match (o.state, self.last_channels.get("state")) {
+            ("run", Some(ChannelValue::Text(s))) if !s.is_empty() && s.len() <= 64 => s.clone(),
+            (s, _) => s.to_string(),
+        };
+        let rec = TickRecord {
+            mono_ns: (t_s * 1e9) as u64,
+            wall_offset_ns: self.wall_offset_ns,
+            seq: tick,
+            mode: self.cfg.mode,
+            state,
+            faults: self.fault.iter().map(|f| format!("{f:?}")).collect(),
+            out: o.out,
+            obs: o.obs,
+            rate_hz: self.cfg.info.control_rate_hz,
+            lateness_us: started.saturating_duration_since(scheduled).as_secs_f64() * 1e6,
+            tick_us: started.elapsed().as_secs_f64() * 1e6,
+            deadline_misses: self.deadline_misses,
+            channels: self.last_channels.clone(),
+        };
+        for s in &self.sinks {
+            s.tick(&rec);
+        }
+    }
+
+    fn tick(&mut self, t_s: f64, dt_s: f64) -> Outcome {
+        let fault_stop = |obs| Outcome {
+            obs,
+            out: DriveOutput::FAULT_STOP,
+            state: "fault",
+        };
         if self.fault.is_some() {
             // Keep commanding stop so the EV3 failsafe never sees a gap.
             self.act.send(DriveOutput::FAULT_STOP);
-            return;
+            return fault_stop(None);
         }
         let snap = self.sensors.snapshot();
         if snap.estop {
             self.trip(Fault::EStop, false);
-            return;
+            return fault_stop(None);
         }
         if let Some(what) = snap.link_lost {
             self.trip(Fault::LinkLost(what), false);
-            return;
+            return fault_stop(None);
         }
         let obs = Observation {
             t_s,
@@ -265,6 +352,7 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         let seq = self.seq;
         self.seq += 1;
         let sent = Instant::now();
+        let logged_obs = (!self.sinks.is_empty()).then(|| obs.clone());
         let cmd = match self.link.step(seq, obs, sent + self.cfg.deadline) {
             Ok(reply) => {
                 self.step_us.push(sent.elapsed().as_secs_f64() * 1e6);
@@ -276,7 +364,10 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             }
             Err(e) => {
                 let fault = match e {
-                    LinkError::Timeout => Fault::Deadline { seq },
+                    LinkError::Timeout => {
+                        self.deadline_misses += 1;
+                        Fault::Deadline { seq }
+                    }
                     LinkError::Controller(detail) => Fault::Controller { seq, detail },
                     LinkError::Closed => Fault::LinkClosed { seq },
                     LinkError::Protocol(detail) => Fault::Protocol { seq, detail },
@@ -286,7 +377,7 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
                     },
                 };
                 self.trip(fault, true);
-                return;
+                return fault_stop(logged_obs);
             }
         };
         let teleop = self
@@ -310,11 +401,21 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             info.max_speed_m_s,
             self.cfg.test_speed_limit_m_s,
         );
-        self.act.send(DriveOutput {
+        let out = DriveOutput {
             steering_rad: c.steering_rad,
             speed_m_s: c.speed_m_s,
             stop: teleop == Teleop::Expired,
             fault: false,
-        });
+        };
+        self.act.send(out);
+        Outcome {
+            obs: logged_obs,
+            out,
+            state: match teleop {
+                Teleop::Off => "run",
+                Teleop::Drive(_) => "teleop",
+                Teleop::Expired => "deadman_stop",
+            },
+        }
     }
 }

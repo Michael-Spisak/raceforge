@@ -245,6 +245,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-log"
+version = "0.0.1"
+dependencies = [
+ "rf-core",
+ "rf-proto",
+ "serde_json",
+]
+
+[[package]]
 name = "rf-proto"
 version = "0.0.1"
 dependencies = [
