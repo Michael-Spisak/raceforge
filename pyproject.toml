@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "GPL-3.0-or-later"
 dependencies = [
+    "mujoco>=3.2",
+    "numpy>=2.0",
     "pydantic>=2.11",
     "pyyaml>=6",
 ]
@@ -66,4 +68,11 @@ name = "core depends on nothing else in raceforge"
 type = "forbidden"
 source_modules = ["raceforge.core"]
 forbidden_modules = ["raceforge.control", "raceforge.sim", "raceforge.train", "raceforge.api", "raceforge.cli", "raceforge.mcp", "raceforge.backend"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "construct and parts do not depend on sim, train or front-ends"
+type = "forbidden"
+source_modules = ["raceforge.construct", "raceforge.parts"]
+forbidden_modules = ["raceforge.sim", "raceforge.train", "raceforge.cli", "raceforge.mcp", "raceforge.backend"]
 allow_indirect_imports = true

@@ -28,7 +28,7 @@ trackscout_ios/**/DerivedData/
 secrets/
 
 # Data never belongs in the repo (lives on the backend)
-data/
+/data/
 *.tscan
 *.mcap
 *.onnx
