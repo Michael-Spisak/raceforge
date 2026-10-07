@@ -1,0 +1,24 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "full_name": {
+      "title": "Full Name",
+      "type": "string"
+    },
+    "schema_": {
+      "default": "dummy",
+      "title": "Schema",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": 2,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "full_name"
+  ],
+  "title": "DummyV2",
+  "type": "object"
+}

@@ -5,7 +5,7 @@ Detail questions are asked just-in-time while writing each spec.
 
 | # | Spec | Week | Status |
 |---|------|------|--------|
-| 0001 | Core schemas (vehicle/assembly, track, run log, telemetry frame) | 1–2 | to write |
+| 0001 | Core schemas (vehicle/assembly, track, run log, telemetry frame) | 1–2 | implemented (PR) |
 | 0002 | Parametric quick-start → MJCF | 2 | to write |
 | 0003 | Sim: MuJoCo car, sensors (EV3 ultrasonic/gyro, 2D LiDAR), procedural corridor | 2–3 | to write |
 | 0004 | RobotIO + controller SDK (for Java/C# devs) | 2–3 | to write |

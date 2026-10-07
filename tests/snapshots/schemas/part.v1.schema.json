@@ -1,0 +1,1515 @@
+{
+  "$defs": {
+    "Battery": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/BatteryParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "battery",
+          "default": "battery",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "params"
+      ],
+      "title": "Battery",
+      "type": "object"
+    },
+    "BatteryParams": {
+      "additionalProperties": false,
+      "properties": {
+        "capacity_wh": {
+          "exclusiveMinimum": 0,
+          "title": "Capacity Wh",
+          "type": "number"
+        },
+        "internal_resistance_ohm": {
+          "default": 0.05,
+          "minimum": 0,
+          "title": "Internal Resistance Ohm",
+          "type": "number"
+        },
+        "max_current_a": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "title": "Max Current A",
+          "type": "number"
+        },
+        "nominal_v": {
+          "exclusiveMinimum": 0,
+          "title": "Nominal V",
+          "type": "number"
+        }
+      },
+      "required": [
+        "nominal_v",
+        "capacity_wh"
+      ],
+      "title": "BatteryParams",
+      "type": "object"
+    },
+    "BlobRef": {
+      "additionalProperties": false,
+      "properties": {
+        "media_type": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "title": "BlobRef",
+      "type": "object"
+    },
+    "Camera": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/CameraParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "camera",
+          "default": "camera",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Camera",
+      "type": "object"
+    },
+    "CameraIntrinsics": {
+      "additionalProperties": false,
+      "properties": {
+        "cx": {
+          "title": "Cx",
+          "type": "number"
+        },
+        "cy": {
+          "title": "Cy",
+          "type": "number"
+        },
+        "distortion": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 14,
+          "title": "Distortion",
+          "type": "array"
+        },
+        "fx": {
+          "exclusiveMinimum": 0,
+          "title": "Fx",
+          "type": "number"
+        },
+        "fy": {
+          "exclusiveMinimum": 0,
+          "title": "Fy",
+          "type": "number"
+        }
+      },
+      "required": [
+        "fx",
+        "fy",
+        "cx",
+        "cy"
+      ],
+      "title": "CameraIntrinsics",
+      "type": "object"
+    },
+    "CameraParams": {
+      "additionalProperties": false,
+      "properties": {
+        "fov_h_rad": {
+          "default": 1.1519173063162575,
+          "exclusiveMinimum": 0,
+          "title": "Fov H Rad",
+          "type": "number"
+        },
+        "height_px": {
+          "default": 480,
+          "exclusiveMinimum": 0,
+          "title": "Height Px",
+          "type": "integer"
+        },
+        "intrinsics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CameraIntrinsics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rate_hz": {
+          "default": 30.0,
+          "exclusiveMinimum": 0,
+          "title": "Rate Hz",
+          "type": "number"
+        },
+        "rolling_shutter": {
+          "default": true,
+          "title": "Rolling Shutter",
+          "type": "boolean"
+        },
+        "width_px": {
+          "default": 640,
+          "exclusiveMinimum": 0,
+          "title": "Width Px",
+          "type": "integer"
+        }
+      },
+      "title": "CameraParams",
+      "type": "object"
+    },
+    "ColorSensorParams": {
+      "additionalProperties": false,
+      "properties": {
+        "rate_hz": {
+          "default": 100.0,
+          "exclusiveMinimum": 0,
+          "title": "Rate Hz",
+          "type": "number"
+        }
+      },
+      "title": "ColorSensorParams",
+      "type": "object"
+    },
+    "ComputeBoard": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/ComputeBoardParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "compute_board",
+          "default": "compute_board",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "ComputeBoard",
+      "type": "object"
+    },
+    "ComputeBoardParams": {
+      "additionalProperties": false,
+      "properties": {
+        "cpu_cores": {
+          "default": 4,
+          "exclusiveMinimum": 0,
+          "title": "Cpu Cores",
+          "type": "integer"
+        },
+        "has_npu": {
+          "default": false,
+          "title": "Has Npu",
+          "type": "boolean"
+        },
+        "ram_gb": {
+          "default": 4.0,
+          "exclusiveMinimum": 0,
+          "title": "Ram Gb",
+          "type": "number"
+        }
+      },
+      "title": "ComputeBoardParams",
+      "type": "object"
+    },
+    "Connector": {
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/UnitVec3"
+        },
+        "gender": {
+          "$ref": "#/$defs/Gender"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "length_m": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Length M"
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose"
+        },
+        "type": {
+          "$ref": "#/$defs/ConnectorType"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "gender"
+      ],
+      "title": "Connector",
+      "type": "object"
+    },
+    "ConnectorType": {
+      "enum": [
+        "pin_hole",
+        "axle_hole",
+        "pin",
+        "axle",
+        "stud",
+        "anti_stud",
+        "screw_hole",
+        "fixed_mount"
+      ],
+      "title": "ConnectorType",
+      "type": "string"
+    },
+    "DcMotor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/MotorParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "dc_motor",
+          "default": "dc_motor",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "params"
+      ],
+      "title": "DcMotor",
+      "type": "object"
+    },
+    "EmergencyStop": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/NoParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "emergency_stop",
+          "default": "emergency_stop",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "EmergencyStop",
+      "type": "object"
+    },
+    "Encoder": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/EncoderParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "encoder",
+          "default": "encoder",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "params"
+      ],
+      "title": "Encoder",
+      "type": "object"
+    },
+    "EncoderParams": {
+      "additionalProperties": false,
+      "properties": {
+        "counts_per_rev": {
+          "exclusiveMinimum": 0,
+          "title": "Counts Per Rev",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "counts_per_rev"
+      ],
+      "title": "EncoderParams",
+      "type": "object"
+    },
+    "Ev3Brick": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/NoParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "ev3_brick",
+          "default": "ev3_brick",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Ev3Brick",
+      "type": "object"
+    },
+    "Ev3ColorSensor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/ColorSensorParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "ev3_color",
+          "default": "ev3_color",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Ev3ColorSensor",
+      "type": "object"
+    },
+    "Ev3GyroSensor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/GyroParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "ev3_gyro",
+          "default": "ev3_gyro",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Ev3GyroSensor",
+      "type": "object"
+    },
+    "Ev3LargeMotor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/MotorParams",
+          "default": {
+            "gear_ratio": 1.0,
+            "has_encoder": true,
+            "no_load_speed_rad_s": 17.3,
+            "nominal_v": 9.0,
+            "stall_torque_nm": 0.4
+          }
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "ev3_large_motor",
+          "default": "ev3_large_motor",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Ev3LargeMotor",
+      "type": "object"
+    },
+    "Ev3MediumMotor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/MotorParams",
+          "default": {
+            "gear_ratio": 1.0,
+            "has_encoder": true,
+            "no_load_speed_rad_s": 27.2,
+            "nominal_v": 9.0,
+            "stall_torque_nm": 0.12
+          }
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "ev3_medium_motor",
+          "default": "ev3_medium_motor",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Ev3MediumMotor",
+      "type": "object"
+    },
+    "Ev3TouchSensor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/NoParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "ev3_touch",
+          "default": "ev3_touch",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Ev3TouchSensor",
+      "type": "object"
+    },
+    "Ev3UltrasonicSensor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/RangeSensorParams",
+          "default": {
+            "fov_rad": 0.5235987755982988,
+            "noise_std_m": 0.01,
+            "range_max_m": 2.55,
+            "range_min_m": 0.03,
+            "rate_hz": 20.0
+          }
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "ev3_ultrasonic",
+          "default": "ev3_ultrasonic",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Ev3UltrasonicSensor",
+      "type": "object"
+    },
+    "Gender": {
+      "enum": [
+        "male",
+        "female",
+        "neutral"
+      ],
+      "title": "Gender",
+      "type": "string"
+    },
+    "GyroParams": {
+      "additionalProperties": false,
+      "properties": {
+        "drift_rad_s": {
+          "default": 0.001,
+          "minimum": 0,
+          "title": "Drift Rad S",
+          "type": "number"
+        },
+        "noise_std_rad_s": {
+          "default": 0.005,
+          "minimum": 0,
+          "title": "Noise Std Rad S",
+          "type": "number"
+        },
+        "rate_hz": {
+          "default": 100.0,
+          "exclusiveMinimum": 0,
+          "title": "Rate Hz",
+          "type": "number"
+        }
+      },
+      "title": "GyroParams",
+      "type": "object"
+    },
+    "ImuParams": {
+      "additionalProperties": false,
+      "properties": {
+        "accel_noise_std_m_s2": {
+          "default": 0.02,
+          "minimum": 0,
+          "title": "Accel Noise Std M S2",
+          "type": "number"
+        },
+        "gyro_noise_std_rad_s": {
+          "default": 0.002,
+          "minimum": 0,
+          "title": "Gyro Noise Std Rad S",
+          "type": "number"
+        },
+        "rate_hz": {
+          "default": 200.0,
+          "exclusiveMinimum": 0,
+          "title": "Rate Hz",
+          "type": "number"
+        }
+      },
+      "title": "ImuParams",
+      "type": "object"
+    },
+    "ImuSensor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/ImuParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "imu",
+          "default": "imu",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "ImuSensor",
+      "type": "object"
+    },
+    "Lidar2D": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/Lidar2DParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "lidar_2d",
+          "default": "lidar_2d",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Lidar2D",
+      "type": "object"
+    },
+    "Lidar2DParams": {
+      "additionalProperties": false,
+      "properties": {
+        "angular_res_rad": {
+          "default": 0.013962634015954637,
+          "exclusiveMinimum": 0,
+          "title": "Angular Res Rad",
+          "type": "number"
+        },
+        "noise_std_m": {
+          "default": 0.01,
+          "minimum": 0,
+          "title": "Noise Std M",
+          "type": "number"
+        },
+        "range_max_m": {
+          "default": 12.0,
+          "exclusiveMinimum": 0,
+          "title": "Range Max M",
+          "type": "number"
+        },
+        "range_min_m": {
+          "default": 0.02,
+          "minimum": 0,
+          "title": "Range Min M",
+          "type": "number"
+        },
+        "rate_hz": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "title": "Rate Hz",
+          "type": "number"
+        }
+      },
+      "title": "Lidar2DParams",
+      "type": "object"
+    },
+    "Material": {
+      "additionalProperties": false,
+      "properties": {
+        "density_kg_m3": {
+          "exclusiveMinimum": 0,
+          "title": "Density Kg M3",
+          "type": "number"
+        },
+        "infill": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Infill",
+          "type": "number"
+        },
+        "kind": {
+          "$ref": "#/$defs/MaterialKind"
+        }
+      },
+      "required": [
+        "kind",
+        "density_kg_m3",
+        "infill"
+      ],
+      "title": "Material",
+      "type": "object"
+    },
+    "MaterialKind": {
+      "enum": [
+        "PLA",
+        "PETG",
+        "TPU",
+        "ABS",
+        "other"
+      ],
+      "title": "MaterialKind",
+      "type": "string"
+    },
+    "Money": {
+      "additionalProperties": false,
+      "description": "Amount in integer minor units (cents).",
+      "properties": {
+        "cents": {
+          "minimum": 0,
+          "title": "Cents",
+          "type": "integer"
+        },
+        "currency": {
+          "default": "EUR",
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cents"
+      ],
+      "title": "Money",
+      "type": "object"
+    },
+    "MotorParams": {
+      "additionalProperties": false,
+      "properties": {
+        "gear_ratio": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Gear Ratio",
+          "type": "number"
+        },
+        "has_encoder": {
+          "default": true,
+          "title": "Has Encoder",
+          "type": "boolean"
+        },
+        "no_load_speed_rad_s": {
+          "exclusiveMinimum": 0,
+          "title": "No Load Speed Rad S",
+          "type": "number"
+        },
+        "nominal_v": {
+          "exclusiveMinimum": 0,
+          "title": "Nominal V",
+          "type": "number"
+        },
+        "stall_torque_nm": {
+          "exclusiveMinimum": 0,
+          "title": "Stall Torque Nm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "nominal_v",
+        "stall_torque_nm",
+        "no_load_speed_rad_s"
+      ],
+      "title": "MotorParams",
+      "type": "object"
+    },
+    "NoParams": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoParams",
+      "type": "object"
+    },
+    "PartSource": {
+      "enum": [
+        "lego_ldraw",
+        "printed",
+        "device",
+        "other"
+      ],
+      "title": "PartSource",
+      "type": "string"
+    },
+    "PortAssignment": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "pattern": "^(ev3:[1-4]|board)$",
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Port",
+          "type": "string"
+        }
+      },
+      "required": [
+        "host",
+        "port"
+      ],
+      "title": "PortAssignment",
+      "type": "object"
+    },
+    "Pose": {
+      "additionalProperties": false,
+      "description": "Position + orientation relative to the parent frame (right-handed, Z-up, metres).",
+      "properties": {
+        "orientation": {
+          "$ref": "#/$defs/Quat"
+        },
+        "position": {
+          "$ref": "#/$defs/Vec3"
+        }
+      },
+      "title": "Pose",
+      "type": "object"
+    },
+    "PriceInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "observed_on": {
+          "format": "date",
+          "title": "Observed On",
+          "type": "string"
+        },
+        "price": {
+          "$ref": "#/$defs/Money"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        }
+      },
+      "required": [
+        "price",
+        "observed_on"
+      ],
+      "title": "PriceInfo",
+      "type": "object"
+    },
+    "Quat": {
+      "additionalProperties": false,
+      "description": "Unit quaternion (w, x, y, z); normalised on validation if within tolerance.",
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Quat",
+      "type": "object"
+    },
+    "RadioModule": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/RadioParams"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "radio",
+          "default": "radio",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "params"
+      ],
+      "title": "RadioModule",
+      "type": "object"
+    },
+    "RadioParams": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "wifi",
+            "bluetooth",
+            "espnow"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "removable": {
+          "default": true,
+          "title": "Removable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "RadioParams",
+      "type": "object"
+    },
+    "RangeSensorParams": {
+      "additionalProperties": false,
+      "properties": {
+        "fov_rad": {
+          "exclusiveMinimum": 0,
+          "title": "Fov Rad",
+          "type": "number"
+        },
+        "noise_std_m": {
+          "default": 0.01,
+          "minimum": 0,
+          "title": "Noise Std M",
+          "type": "number"
+        },
+        "range_max_m": {
+          "exclusiveMinimum": 0,
+          "title": "Range Max M",
+          "type": "number"
+        },
+        "range_min_m": {
+          "minimum": 0,
+          "title": "Range Min M",
+          "type": "number"
+        },
+        "rate_hz": {
+          "exclusiveMinimum": 0,
+          "title": "Rate Hz",
+          "type": "number"
+        }
+      },
+      "required": [
+        "range_min_m",
+        "range_max_m",
+        "rate_hz",
+        "fov_rad"
+      ],
+      "title": "RangeSensorParams",
+      "type": "object"
+    },
+    "TofSensor": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/RangeSensorParams",
+          "default": {
+            "fov_rad": 0.47123889803846897,
+            "noise_std_m": 0.005,
+            "range_max_m": 4.0,
+            "range_min_m": 0.04,
+            "rate_hz": 50.0
+          }
+        },
+        "port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "tof",
+          "default": "tof",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "TofSensor",
+      "type": "object"
+    },
+    "UnitVec3": {
+      "additionalProperties": false,
+      "description": "A direction vector; normalised on validation if within tolerance.",
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "UnitVec3",
+      "type": "object"
+    },
+    "Vec3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Vec3",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "connectors": {
+      "items": {
+        "$ref": "#/$defs/Connector"
+      },
+      "title": "Connectors",
+      "type": "array"
+    },
+    "device": {
+      "anyOf": [
+        {
+          "discriminator": {
+            "mapping": {
+              "battery": "#/$defs/Battery",
+              "camera": "#/$defs/Camera",
+              "compute_board": "#/$defs/ComputeBoard",
+              "dc_motor": "#/$defs/DcMotor",
+              "emergency_stop": "#/$defs/EmergencyStop",
+              "encoder": "#/$defs/Encoder",
+              "ev3_brick": "#/$defs/Ev3Brick",
+              "ev3_color": "#/$defs/Ev3ColorSensor",
+              "ev3_gyro": "#/$defs/Ev3GyroSensor",
+              "ev3_large_motor": "#/$defs/Ev3LargeMotor",
+              "ev3_medium_motor": "#/$defs/Ev3MediumMotor",
+              "ev3_touch": "#/$defs/Ev3TouchSensor",
+              "ev3_ultrasonic": "#/$defs/Ev3UltrasonicSensor",
+              "imu": "#/$defs/ImuSensor",
+              "lidar_2d": "#/$defs/Lidar2D",
+              "radio": "#/$defs/RadioModule",
+              "tof": "#/$defs/TofSensor"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Ev3Brick"
+            },
+            {
+              "$ref": "#/$defs/Ev3UltrasonicSensor"
+            },
+            {
+              "$ref": "#/$defs/Ev3GyroSensor"
+            },
+            {
+              "$ref": "#/$defs/Ev3TouchSensor"
+            },
+            {
+              "$ref": "#/$defs/Ev3ColorSensor"
+            },
+            {
+              "$ref": "#/$defs/Ev3LargeMotor"
+            },
+            {
+              "$ref": "#/$defs/Ev3MediumMotor"
+            },
+            {
+              "$ref": "#/$defs/DcMotor"
+            },
+            {
+              "$ref": "#/$defs/Encoder"
+            },
+            {
+              "$ref": "#/$defs/Lidar2D"
+            },
+            {
+              "$ref": "#/$defs/Camera"
+            },
+            {
+              "$ref": "#/$defs/TofSensor"
+            },
+            {
+              "$ref": "#/$defs/ImuSensor"
+            },
+            {
+              "$ref": "#/$defs/Battery"
+            },
+            {
+              "$ref": "#/$defs/ComputeBoard"
+            },
+            {
+              "$ref": "#/$defs/EmergencyStop"
+            },
+            {
+              "$ref": "#/$defs/RadioModule"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Device"
+    },
+    "ldraw_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ldraw Id"
+    },
+    "mass_kg": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mass Kg"
+    },
+    "mass_measured_kg": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mass Measured Kg"
+    },
+    "material": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Material"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mesh_ref": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlobRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "price": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PriceInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "schema": {
+      "const": "part",
+      "default": "part",
+      "title": "Schema",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/PartSource"
+    },
+    "verified": {
+      "default": false,
+      "title": "Verified",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "source",
+    "name"
+  ],
+  "title": "Part",
+  "type": "object"
+}

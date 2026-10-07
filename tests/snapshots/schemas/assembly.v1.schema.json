@@ -1,0 +1,443 @@
+{
+  "$defs": {
+    "Axis": {
+      "enum": [
+        "x",
+        "y",
+        "z"
+      ],
+      "title": "Axis",
+      "type": "string"
+    },
+    "Connection": {
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/ConnectorPath"
+        },
+        "b": {
+          "$ref": "#/$defs/ConnectorPath"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "Connection",
+      "type": "object"
+    },
+    "ConnectorPath": {
+      "additionalProperties": false,
+      "description": "Instance chain from the root submodel to a part instance, plus the connector id.",
+      "properties": {
+        "connector": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Connector",
+          "type": "string"
+        },
+        "instances": {
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Instances",
+          "type": "array"
+        }
+      },
+      "required": [
+        "instances",
+        "connector"
+      ],
+      "title": "ConnectorPath",
+      "type": "object"
+    },
+    "JointKind": {
+      "enum": [
+        "steering_pivot",
+        "wheel_axle",
+        "drive_motor",
+        "steering_motor",
+        "gear_mesh"
+      ],
+      "title": "JointKind",
+      "type": "string"
+    },
+    "JointRole": {
+      "additionalProperties": false,
+      "properties": {
+        "connection": {
+          "minimum": 0,
+          "title": "Connection",
+          "type": "integer"
+        },
+        "gear_ratio": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gear Ratio"
+        },
+        "role": {
+          "$ref": "#/$defs/JointKind"
+        }
+      },
+      "required": [
+        "connection",
+        "role"
+      ],
+      "title": "JointRole",
+      "type": "object"
+    },
+    "MeasuredOverrides": {
+      "additionalProperties": false,
+      "properties": {
+        "cog": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Vec3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mass_kg": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mass Kg"
+        }
+      },
+      "title": "MeasuredOverrides",
+      "type": "object"
+    },
+    "PartInstance": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Color"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "part",
+          "default": "part",
+          "title": "Kind",
+          "type": "string"
+        },
+        "part": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose"
+        }
+      },
+      "required": [
+        "id",
+        "part"
+      ],
+      "title": "PartInstance",
+      "type": "object"
+    },
+    "Pose": {
+      "additionalProperties": false,
+      "description": "Position + orientation relative to the parent frame (right-handed, Z-up, metres).",
+      "properties": {
+        "orientation": {
+          "$ref": "#/$defs/Quat"
+        },
+        "position": {
+          "$ref": "#/$defs/Vec3"
+        }
+      },
+      "title": "Pose",
+      "type": "object"
+    },
+    "Quat": {
+      "additionalProperties": false,
+      "description": "Unit quaternion (w, x, y, z); normalised on validation if within tolerance.",
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Quat",
+      "type": "object"
+    },
+    "Submodel": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "part": "#/$defs/PartInstance",
+                "submodel": "#/$defs/SubmodelInstance"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/PartInstance"
+              },
+              {
+                "$ref": "#/$defs/SubmodelInstance"
+              }
+            ]
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SubmodelRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Submodel",
+      "type": "object"
+    },
+    "SubmodelInstance": {
+      "additionalProperties": false,
+      "description": "Linked instance of another submodel.\n\n``mirrored`` reflects it across the plane normal to the given axis.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "submodel",
+          "default": "submodel",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mirrored": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Axis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose"
+        },
+        "submodel": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Submodel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "submodel"
+      ],
+      "title": "SubmodelInstance",
+      "type": "object"
+    },
+    "SubmodelRole": {
+      "enum": [
+        "steering",
+        "drive",
+        "chassis",
+        "sensor_mast",
+        "electronics",
+        "other"
+      ],
+      "title": "SubmodelRole",
+      "type": "string"
+    },
+    "Vec3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Vec3",
+      "type": "object"
+    },
+    "VersionRef": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "object_id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Object Id",
+          "type": "string"
+        },
+        "semver": {
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "title": "Semver",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_id",
+        "semver",
+        "content_hash"
+      ],
+      "title": "VersionRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "connections": {
+      "items": {
+        "$ref": "#/$defs/Connection"
+      },
+      "title": "Connections",
+      "type": "array"
+    },
+    "joints": {
+      "items": {
+        "$ref": "#/$defs/JointRole"
+      },
+      "title": "Joints",
+      "type": "array"
+    },
+    "measured": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MeasuredOverrides"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "root": {
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+      "title": "Root",
+      "type": "string"
+    },
+    "rules": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rules"
+    },
+    "schema": {
+      "const": "assembly",
+      "default": "assembly",
+      "title": "Schema",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "submodels": {
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9_-]{0,63}$": {
+          "$ref": "#/$defs/Submodel"
+        }
+      },
+      "title": "Submodels",
+      "type": "object"
+    }
+  },
+  "required": [
+    "root",
+    "submodels"
+  ],
+  "title": "Assembly",
+  "type": "object"
+}

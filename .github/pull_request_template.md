@@ -7,7 +7,7 @@ Closes #…  ·  Spec: docs/specs/…
 
 ## Checklist
 - [ ] Tests written/extended from acceptance criteria first
-- [ ] `ruff format --check`, `ruff check`, `pyright`, `lint-imports`, `pytest` pass
+- [ ] `scripts/check.sh` passes
 - [ ] No contract change, or contract change approved in spec
 - [ ] No secrets/data added
 - [ ] Screenshots attached (UI changes)
