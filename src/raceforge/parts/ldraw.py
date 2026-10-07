@@ -13,6 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 
 LDRAW_URL = "https://library.ldraw.org/library/updates/complete.zip"
+USER_AGENT = "RaceForge/0.0 (+https://github.com/Michael-Spisak/raceforge)"
 _SEARCH_DIRS = ("parts", "p", "models", "parts/s", "p/48")
 
 type Vec = tuple[float, float, float]
