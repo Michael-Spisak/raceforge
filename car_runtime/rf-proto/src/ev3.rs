@@ -348,3 +348,61 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+mod golden {
+    use super::*;
+
+    /// The same bytes are asserted by the EV3-side Python implementation
+    /// (tests/ev3_side/test_protocol.py), so both ends stay byte-compatible.
+    pub const COMMAND_HEX: &str = "46520101070000006400000034125efe05010200c66e";
+    pub const SENSOR_HEX: &str = "465201020a000000c80000000700000040e201001000000000000000000000000000000000000000a401ffff00000000d2fff9ffffff0803b81e01007f78";
+
+    fn hex(b: &[u8]) -> String {
+        b.iter().map(|x| format!("{x:02x}")).collect()
+    }
+
+    pub fn command() -> CommandFrame {
+        CommandFrame {
+            seq: 7,
+            t_ms: 100,
+            steer_target_cdeg: 0x1234,
+            drive_speed_cps: -418,
+            flags: 5,
+            led: 1,
+            lcd: 2,
+        }
+    }
+
+    pub fn sensor() -> SensorFrame {
+        let mut motors = [Motor::default(); 4];
+        motors[0] = Motor {
+            tacho: 123_456,
+            speed_cps: 16,
+        };
+        SensorFrame {
+            seq: 10,
+            t_ms: 200,
+            ack_seq: 7,
+            motors,
+            ultrasonic_mm: [420, NO_ECHO, 0, 0],
+            gyro_rate_dps: -46,
+            gyro_angle_deg: -7,
+            touch: 8,
+            buttons: 3,
+            battery_mv: 7864,
+            flags: 1,
+        }
+    }
+
+    #[test]
+    fn golden_frames_match_python() {
+        println!(
+            "COMMAND {}\nSENSOR {}",
+            hex(&command().encode()),
+            hex(&sensor().encode())
+        );
+        assert_eq!(hex(&command().encode()), COMMAND_HEX);
+        assert_eq!(hex(&sensor().encode()), SENSOR_HEX);
+    }
+}

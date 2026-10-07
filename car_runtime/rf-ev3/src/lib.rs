@@ -19,6 +19,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+/// UDP port the EV3 program listens on (`ev3_side/raceforge_ev3/__init__.py` uses the same).
+pub const DEFAULT_PORT: u16 = 47100;
+
 /// LCD status codes shown by the EV3 program.
 pub mod lcd {
     pub const RUN: u8 = 0;

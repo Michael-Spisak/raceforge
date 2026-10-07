@@ -1,0 +1,8 @@
+# ev3dev (stretch) ships Python 3.5: no f-strings, no variable annotations, no dataclasses.
+# Ruff cannot target 3.5, so use its oldest target and skip the "upgrade syntax" rules;
+# tests/ev3_side/test_py35_syntax.py enforces the 3.5 subset.
+extend = "../pyproject.toml"
+target-version = "py37"
+
+[lint]
+ignore = ["UP", "RUF005", "SIM105", "B904"]

@@ -43,7 +43,8 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src", "tests", "ev3_side"]
+extraPaths = ["src", "ev3_side"]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
 strict = ["src/raceforge/core", "src/raceforge/api", "src/raceforge/control"]
@@ -51,7 +52,7 @@ strict = ["src/raceforge/core", "src/raceforge/api", "src/raceforge/control"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Python ≥3.13 on macOS skips .pth files with the "hidden" flag (uv venvs may set it), so put src on the path explicitly.
-pythonpath = ["src"]
+pythonpath = ["src", "ev3_side"]
 addopts = "--cov=raceforge --cov-report=term-missing -m 'not slow'"
 markers = ["slow: long-running acceptance runs (nightly CI job; run with -m slow)"]
 
