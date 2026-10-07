@@ -62,6 +62,42 @@ def _cmd_quickstart(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_sim(args: argparse.Namespace) -> int:
+    import time
+
+    from raceforge.sim.runner import SimOptions, run_once
+
+    opts = SimOptions(
+        controller=Path(args.controller),
+        params=Path(args.params) if args.params else None,
+        track=args.track,
+        loop=not args.open,
+        length_m=args.length,
+        laps=args.laps,
+        opponents=args.opponents,
+        seed=args.seed,
+        record=Path(args.record) if args.record else None,
+        quickstart=Path(args.quickstart) if args.quickstart else None,
+        max_time_s=args.max_time,
+    )
+    if not args.watch:
+        return 0 if run_once(opts, print) else 1
+    print(f"watching {opts.controller} - save the file to re-run, Ctrl+C to stop")
+    last = None
+    try:
+        while True:
+            mtime = opts.controller.stat().st_mtime
+            if mtime != last:
+                last = mtime
+                try:
+                    run_once(opts, print)
+                except Exception as exc:  # show controller errors and keep watching
+                    print(f"error: {exc}")
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="raceforge", description="RaceForge command-line interface"
@@ -86,6 +122,33 @@ def main(argv: list[str] | None = None) -> int:
     qs.add_argument("--params", help="YAML file with QuickStartParams (defaults if omitted)")
     qs.add_argument("--out", default="quickstart-car", help="output directory")
     qs.set_defaults(func=_cmd_quickstart)
+
+    simp = sub.add_parser("sim", help="drive a controller in the simulator")
+    simp.add_argument(
+        "--controller", required=True, help="Python file with one Controller subclass"
+    )
+    simp.add_argument("--params", help="YAML parameters (default: <controller>.yaml if present)")
+    simp.add_argument(
+        "--track", default="seed:0", help="seed:<n> for a generated corridor or a track JSON"
+    )
+    simp.add_argument(
+        "--open", action="store_true", help="point-to-point corridor instead of a loop"
+    )
+    simp.add_argument(
+        "--length", type=float, default=40.0, help="corridor length for generated tracks (m)"
+    )
+    simp.add_argument("--laps", type=int, default=3)
+    simp.add_argument("--opponents", type=int, default=0)
+    simp.add_argument("--seed", type=int, default=0, help="simulation seed (sensor noise, doors)")
+    simp.add_argument(
+        "--quickstart", help="YAML QuickStartParams for the car (default car otherwise)"
+    )
+    simp.add_argument("--record", help="directory for runlog.json + run.mcap")
+    simp.add_argument("--max-time", type=float, default=900.0, help="simulated time limit (s)")
+    simp.add_argument(
+        "--watch", action="store_true", help="re-run whenever the controller file changes"
+    )
+    simp.set_defaults(func=_cmd_sim)
 
     args = parser.parse_args(argv)
     if not hasattr(args, "func"):
