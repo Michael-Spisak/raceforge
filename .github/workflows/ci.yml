@@ -34,8 +34,19 @@ jobs:
           key: ldraw-complete-v1
       - run: uv sync --locked
       - name: Fetch LDraw library (cached)
-        run: test -d ~/.cache/raceforge/ldraw/parts || PYTHONPATH=src uv run raceforge parts fetch
+        id: fetch
+        run: |
+          if [ -d ~/.cache/raceforge/ldraw/parts ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          mkdir -p ~/.cache/raceforge
+          if curl -fsSL -A "RaceForge-CI (+https://github.com/Michael-Spisak/raceforge)" \
+               -o ~/.cache/raceforge/ldraw-complete.zip https://library.ldraw.org/library/updates/complete.zip; then
+            unzip -q ~/.cache/raceforge/ldraw-complete.zip -d ~/.cache/raceforge && echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::library.ldraw.org refused the download from this runner; bounding-box check skipped"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Bounding boxes up to date
+        if: steps.fetch.outputs.ok == 'true'
         run: |
           PYTHONPATH=src uv run raceforge parts build-catalogue
           git diff --exit-code src/raceforge/parts/data/bboxes.yaml
