@@ -1,0 +1,636 @@
+{
+  "$defs": {
+    "BlobRef": {
+      "additionalProperties": false,
+      "properties": {
+        "media_type": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "title": "BlobRef",
+      "type": "object"
+    },
+    "CheckMeasurement": {
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "b": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "measured_m": {
+          "exclusiveMinimum": 0,
+          "title": "Measured M",
+          "type": "number"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "measured_m"
+      ],
+      "title": "CheckMeasurement",
+      "type": "object"
+    },
+    "ClassDef": {
+      "additionalProperties": false,
+      "properties": {
+        "builtin": {
+          "default": false,
+          "title": "Builtin",
+          "type": "boolean"
+        },
+        "camera_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Camera Hint"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "lidar_reflectivity": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lidar Reflectivity"
+        },
+        "material": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Material"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ClassDef",
+      "type": "object"
+    },
+    "DoorState": {
+      "enum": [
+        "open",
+        "closed",
+        "random"
+      ],
+      "title": "DoorState",
+      "type": "string"
+    },
+    "LabelLayerRef": {
+      "additionalProperties": false,
+      "properties": {
+        "blob": {
+          "$ref": "#/$defs/BlobRef"
+        }
+      },
+      "required": [
+        "blob"
+      ],
+      "title": "LabelLayerRef",
+      "type": "object"
+    },
+    "OccupancyGridRef": {
+      "additionalProperties": false,
+      "properties": {
+        "blob": {
+          "$ref": "#/$defs/BlobRef"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "origin": {
+          "$ref": "#/$defs/Pose2D"
+        },
+        "resolution_m": {
+          "exclusiveMinimum": 0,
+          "title": "Resolution M",
+          "type": "number"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "blob",
+        "resolution_m",
+        "origin",
+        "width",
+        "height"
+      ],
+      "title": "OccupancyGridRef",
+      "type": "object"
+    },
+    "Polygon2D": {
+      "additionalProperties": false,
+      "properties": {
+        "points": {
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "minItems": 3,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "title": "Polygon2D",
+      "type": "object"
+    },
+    "Pose": {
+      "additionalProperties": false,
+      "description": "Position + orientation relative to the parent frame (right-handed, Z-up, metres).",
+      "properties": {
+        "orientation": {
+          "$ref": "#/$defs/Quat"
+        },
+        "position": {
+          "$ref": "#/$defs/Vec3"
+        }
+      },
+      "title": "Pose",
+      "type": "object"
+    },
+    "Pose2D": {
+      "additionalProperties": false,
+      "properties": {
+        "theta": {
+          "default": 0.0,
+          "title": "Theta",
+          "type": "number"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Pose2D",
+      "type": "object"
+    },
+    "Quat": {
+      "additionalProperties": false,
+      "description": "Unit quaternion (w, x, y, z); normalised on validation if within tolerance.",
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Quat",
+      "type": "object"
+    },
+    "RaceSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoints": {
+          "items": {
+            "$ref": "#/$defs/Segment2D"
+          },
+          "title": "Checkpoints",
+          "type": "array"
+        },
+        "direction": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "door_states": {
+          "patternProperties": {
+            "^[a-z0-9][a-z0-9_-]{0,63}$": {
+              "$ref": "#/$defs/DoorState"
+            }
+          },
+          "title": "Door States",
+          "type": "object"
+        },
+        "finish_line": {
+          "$ref": "#/$defs/Segment2D"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "laps": {
+          "default": 3,
+          "minimum": 1,
+          "title": "Laps",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "no_go_zones": {
+          "items": {
+            "$ref": "#/$defs/Polygon2D"
+          },
+          "title": "No Go Zones",
+          "type": "array"
+        },
+        "start_grid": {
+          "items": {
+            "$ref": "#/$defs/Pose2D"
+          },
+          "title": "Start Grid",
+          "type": "array"
+        },
+        "start_line": {
+          "$ref": "#/$defs/Segment2D"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "start_line",
+        "finish_line",
+        "direction"
+      ],
+      "title": "RaceSetup",
+      "type": "object"
+    },
+    "RandomRange": {
+      "additionalProperties": false,
+      "properties": {
+        "position_xy_m": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Position Xy M",
+          "type": "number"
+        },
+        "presence_prob": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Presence Prob",
+          "type": "number"
+        },
+        "scale": {
+          "default": 0.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "yaw_rad": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Yaw Rad",
+          "type": "number"
+        }
+      },
+      "title": "RandomRange",
+      "type": "object"
+    },
+    "Segment2D": {
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "b": {
+          "$ref": "#/$defs/Vec2"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "Segment2D",
+      "type": "object"
+    },
+    "SurfaceRegion": {
+      "additionalProperties": false,
+      "properties": {
+        "friction": {
+          "exclusiveMinimum": 0,
+          "title": "Friction",
+          "type": "number"
+        },
+        "lidar_reflectivity": {
+          "default": 0.8,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Lidar Reflectivity",
+          "type": "number"
+        },
+        "material": {
+          "title": "Material",
+          "type": "string"
+        },
+        "polygon": {
+          "$ref": "#/$defs/Polygon2D"
+        }
+      },
+      "required": [
+        "polygon",
+        "friction",
+        "material"
+      ],
+      "title": "SurfaceRegion",
+      "type": "object"
+    },
+    "TrackObject": {
+      "additionalProperties": false,
+      "properties": {
+        "class_id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Class Id",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose"
+        },
+        "randomisation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RandomRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "size": {
+          "$ref": "#/$defs/Vec3"
+        },
+        "static": {
+          "default": true,
+          "title": "Static",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "class_id",
+        "pose",
+        "size"
+      ],
+      "title": "TrackObject",
+      "type": "object"
+    },
+    "Vec2": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Vec2",
+      "type": "object"
+    },
+    "Vec3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Vec3",
+      "type": "object"
+    },
+    "Wall": {
+      "additionalProperties": false,
+      "properties": {
+        "height_m": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Height M",
+          "type": "number"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "title": "Wall",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "check_measurements": {
+      "items": {
+        "$ref": "#/$defs/CheckMeasurement"
+      },
+      "title": "Check Measurements",
+      "type": "array"
+    },
+    "classes": {
+      "items": {
+        "$ref": "#/$defs/ClassDef"
+      },
+      "title": "Classes",
+      "type": "array"
+    },
+    "floor": {
+      "$ref": "#/$defs/Polygon2D"
+    },
+    "frame_origin_note": {
+      "default": "",
+      "title": "Frame Origin Note",
+      "type": "string"
+    },
+    "labels": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LabelLayerRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mesh": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlobRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "objects": {
+      "items": {
+        "$ref": "#/$defs/TrackObject"
+      },
+      "title": "Objects",
+      "type": "array"
+    },
+    "occupancy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OccupancyGridRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "race_setups": {
+      "items": {
+        "$ref": "#/$defs/RaceSetup"
+      },
+      "title": "Race Setups",
+      "type": "array"
+    },
+    "schema": {
+      "const": "track",
+      "default": "track",
+      "title": "Schema",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "splat": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlobRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "surfaces": {
+      "items": {
+        "$ref": "#/$defs/SurfaceRegion"
+      },
+      "title": "Surfaces",
+      "type": "array"
+    },
+    "walls": {
+      "items": {
+        "$ref": "#/$defs/Wall"
+      },
+      "title": "Walls",
+      "type": "array"
+    }
+  },
+  "required": [
+    "floor"
+  ],
+  "title": "Track",
+  "type": "object"
+}

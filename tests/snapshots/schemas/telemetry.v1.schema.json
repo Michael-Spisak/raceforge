@@ -1,0 +1,585 @@
+{
+  "$defs": {
+    "BlobRef": {
+      "additionalProperties": false,
+      "properties": {
+        "media_type": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "title": "BlobRef",
+      "type": "object"
+    },
+    "BoolReading": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "bool",
+          "default": "bool",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "BoolReading",
+      "type": "object"
+    },
+    "CameraFrameRef": {
+      "additionalProperties": false,
+      "properties": {
+        "blob": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BlobRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "frame_index": {
+          "minimum": 0,
+          "title": "Frame Index",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "camera_frame",
+          "default": "camera_frame",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "frame_index"
+      ],
+      "title": "CameraFrameRef",
+      "type": "object"
+    },
+    "Command": {
+      "additionalProperties": false,
+      "properties": {
+        "speed_m_s": {
+          "title": "Speed M S",
+          "type": "number"
+        },
+        "steering_rad": {
+          "title": "Steering Rad",
+          "type": "number"
+        }
+      },
+      "required": [
+        "steering_rad",
+        "speed_m_s"
+      ],
+      "title": "Command",
+      "type": "object"
+    },
+    "ImuSample": {
+      "additionalProperties": false,
+      "properties": {
+        "accel_m_s2": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Vec3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "imu",
+          "default": "imu",
+          "title": "Kind",
+          "type": "string"
+        },
+        "yaw_rate_rad_s": {
+          "title": "Yaw Rate Rad S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "yaw_rate_rad_s"
+      ],
+      "title": "ImuSample",
+      "type": "object"
+    },
+    "LoopStats": {
+      "additionalProperties": false,
+      "properties": {
+        "deadline_misses": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Deadline Misses",
+          "type": "integer"
+        },
+        "jitter_ms": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Jitter Ms",
+          "type": "number"
+        },
+        "last_tick_ms": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Last Tick Ms",
+          "type": "number"
+        },
+        "rate_hz": {
+          "minimum": 0,
+          "title": "Rate Hz",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rate_hz"
+      ],
+      "title": "LoopStats",
+      "type": "object"
+    },
+    "Measured": {
+      "additionalProperties": false,
+      "properties": {
+        "sensors": {
+          "patternProperties": {
+            "^[a-z0-9][a-z0-9_-]{0,63}$": {
+              "discriminator": {
+                "mapping": {
+                  "bool": "#/$defs/BoolReading",
+                  "camera_frame": "#/$defs/CameraFrameRef",
+                  "imu": "#/$defs/ImuSample",
+                  "range": "#/$defs/RangeReading",
+                  "range_array": "#/$defs/RangeArray"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/RangeReading"
+                },
+                {
+                  "$ref": "#/$defs/RangeArray"
+                },
+                {
+                  "$ref": "#/$defs/ImuSample"
+                },
+                {
+                  "$ref": "#/$defs/BoolReading"
+                },
+                {
+                  "$ref": "#/$defs/CameraFrameRef"
+                }
+              ]
+            }
+          },
+          "title": "Sensors",
+          "type": "object"
+        },
+        "speed_m_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Speed M S"
+        },
+        "steering_rad": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Steering Rad"
+        },
+        "yaw_rate_rad_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Yaw Rate Rad S"
+        }
+      },
+      "title": "Measured",
+      "type": "object"
+    },
+    "Mode": {
+      "enum": [
+        "test",
+        "race",
+        "sim",
+        "hil"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "Pose2D": {
+      "additionalProperties": false,
+      "properties": {
+        "theta": {
+          "default": 0.0,
+          "title": "Theta",
+          "type": "number"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Pose2D",
+      "type": "object"
+    },
+    "Pose2DEstimate": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose2D"
+        }
+      },
+      "required": [
+        "pose",
+        "confidence"
+      ],
+      "title": "Pose2DEstimate",
+      "type": "object"
+    },
+    "PowerStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "board_battery_v": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Board Battery V"
+        },
+        "board_cpu_load": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Board Cpu Load"
+        },
+        "board_cpu_temp_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Board Cpu Temp C"
+        },
+        "ev3_battery_v": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ev3 Battery V"
+        },
+        "motor_battery_v": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Motor Battery V"
+        }
+      },
+      "title": "PowerStatus",
+      "type": "object"
+    },
+    "RangeArray": {
+      "additionalProperties": false,
+      "properties": {
+        "angle_increment_rad": {
+          "title": "Angle Increment Rad",
+          "type": "number"
+        },
+        "angle_min_rad": {
+          "title": "Angle Min Rad",
+          "type": "number"
+        },
+        "kind": {
+          "const": "range_array",
+          "default": "range_array",
+          "title": "Kind",
+          "type": "string"
+        },
+        "ranges": {
+          "items": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Ranges",
+          "type": "array"
+        }
+      },
+      "required": [
+        "angle_min_rad",
+        "angle_increment_rad",
+        "ranges"
+      ],
+      "title": "RangeArray",
+      "type": "object"
+    },
+    "RangeReading": {
+      "additionalProperties": false,
+      "properties": {
+        "distance_m": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Distance M"
+        },
+        "kind": {
+          "const": "range",
+          "default": "range",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "distance_m"
+      ],
+      "title": "RangeReading",
+      "type": "object"
+    },
+    "Timestamp": {
+      "additionalProperties": false,
+      "description": "Monotonic nanoseconds plus optional offset to wall-clock time (UTC epoch ns).",
+      "properties": {
+        "mono_ns": {
+          "minimum": 0,
+          "title": "Mono Ns",
+          "type": "integer"
+        },
+        "wall_offset_ns": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wall Offset Ns"
+        }
+      },
+      "required": [
+        "mono_ns"
+      ],
+      "title": "Timestamp",
+      "type": "object"
+    },
+    "Vec3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Vec3",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "channels": {
+      "maxProperties": 64,
+      "patternProperties": {
+        "^[a-z][a-z0-9_.]{0,63}$": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "title": "Channels",
+      "type": "object"
+    },
+    "cmd": {
+      "$ref": "#/$defs/Command"
+    },
+    "faults": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Faults",
+      "type": "array"
+    },
+    "loop": {
+      "$ref": "#/$defs/LoopStats"
+    },
+    "meas": {
+      "$ref": "#/$defs/Measured"
+    },
+    "mode": {
+      "$ref": "#/$defs/Mode"
+    },
+    "pose_est": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Pose2DEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "power": {
+      "$ref": "#/$defs/PowerStatus"
+    },
+    "schema": {
+      "const": "telemetry",
+      "default": "telemetry",
+      "title": "Schema",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "seq": {
+      "minimum": 0,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "state": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "State",
+      "type": "string"
+    },
+    "t": {
+      "$ref": "#/$defs/Timestamp"
+    }
+  },
+  "required": [
+    "t",
+    "seq",
+    "mode",
+    "state",
+    "cmd",
+    "loop"
+  ],
+  "title": "TelemetryFrame",
+  "type": "object"
+}

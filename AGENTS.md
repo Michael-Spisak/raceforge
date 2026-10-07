@@ -31,10 +31,7 @@ Full plan: [`docs/PLAN.md`](docs/PLAN.md). Decisions: [`docs/adr/`](docs/adr/). 
 
 ## Before you finish a task, run
 ```bash
-uv run ruff format --check .
-uv run ruff check .
-uv run pyright
-uv run pytest
+scripts/check.sh   # ruff format/check, pyright, import-linter, pytest (same as CI)
 ```
 All must pass. Then open a PR using the template; include risks and, for UI work, screenshots.
 
