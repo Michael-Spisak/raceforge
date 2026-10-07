@@ -22,6 +22,8 @@ pub struct SensorSnapshot {
     pub battery_v: Option<f64>,
     /// Hardware emergency stop input is active.
     pub estop: bool,
+    /// A critical sensor link (e.g. the EV3) delivered no valid data within its timeout.
+    pub link_lost: Option<String>,
 }
 
 pub trait Sensors: Send + Sync {

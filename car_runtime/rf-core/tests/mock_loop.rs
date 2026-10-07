@@ -222,6 +222,21 @@ fn estop_latches_without_calling_controller() {
 }
 
 #[test]
+fn lost_sensor_link_latches_fault() {
+    let (mut rt, act, sensors) = runtime(
+        RuntimeConfig::new(info(), Mode::Test),
+        mock_host(|_| Act::Reply(DRIVE)),
+    );
+    sensors.set(SensorSnapshot {
+        link_lost: Some("ev3".into()),
+        ..Default::default()
+    });
+    let report = rt.run(&AtomicBool::new(false), Some(3));
+    assert_eq!(report.fault, Some(Fault::LinkLost("ev3".into())));
+    assert!(act.outputs().iter().all(|(_, o)| o.stop));
+}
+
+#[test]
 fn ac6_speed_limit_enforced_regardless_of_controller() {
     let mut cfg = RuntimeConfig::new(info(), Mode::Test);
     cfg.test_speed_limit_m_s = 0.5;

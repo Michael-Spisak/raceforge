@@ -54,6 +54,7 @@ pub enum Fault {
     LinkClosed { seq: u64 },
     Protocol { seq: u64, detail: String },
     EStop,
+    LinkLost(String),
     LoopStall,
 }
 
@@ -241,6 +242,10 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         let snap = self.sensors.snapshot();
         if snap.estop {
             self.trip(Fault::EStop, false);
+            return;
+        }
+        if let Some(what) = snap.link_lost {
+            self.trip(Fault::LinkLost(what), false);
             return;
         }
         let obs = Observation {

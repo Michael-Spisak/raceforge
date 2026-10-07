@@ -237,6 +237,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-ev3"
+version = "0.0.1"
+dependencies = [
+ "rf-core",
+ "rf-proto",
+]
+
+[[package]]
 name = "rf-proto"
 version = "0.0.1"
 dependencies = [
