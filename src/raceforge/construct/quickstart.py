@@ -60,8 +60,8 @@ class Layout(StrEnum):
 
 class SensorSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    kind: Literal["ev3_ultrasonic", "ev3_gyro", "ev3_touch"]
-    preset: Literal["front", "left", "right", "rear", "center"]
+    kind: Literal["ev3_ultrasonic", "ev3_gyro", "ev3_touch", "lidar_2d"]
+    preset: Literal["front", "left", "right", "rear", "center", "top"]
     offset_mm: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
 
@@ -473,7 +473,16 @@ def generate(params: QuickStartParams, cat: Catalogue | None = None) -> QuickSta
         b.connect(pb, "mount", brick, "rear")
 
     # --- Sensors
-    key_of = {"ev3_ultrasonic": "95652", "ev3_gyro": "99380", "ev3_touch": "95648"}
+    key_of = {
+        "ev3_ultrasonic": "95652",
+        "ev3_gyro": "99380",
+        "ev3_touch": "95648",
+        "lidar_2d": "ld06",
+    }
+    board_h = 0.0
+    if params.board != "none":
+        bk = "rpi5" if params.board == "raspberry_pi_5" else "orangepi5"
+        board_h = cat.bbox(bk)[1][2] - cat.bbox(bk)[0][2]
     for spec in params.sensors:
         preset: dict[str, tuple[V3, float, int]] = {
             "front": (((wb + 2) * STUD, 0.0, r + 2 * STUD), 90.0, wb + 1),
@@ -482,10 +491,15 @@ def generate(params: QuickStartParams, cat: Catalogue | None = None) -> QuickSta
             "right": ((wb / 2 * STUD, -rail_y - 2.5 * STUD, r + 2 * STUD), 0.0, wb // 2 - 2),
             "center": ((wb / 2 * STUD, 0.0, r + 2 * STUD), 0.0, wb // 2),
         }
+        offset = (spec.offset_mm[0] / 1000, spec.offset_mm[1] / 1000, spec.offset_mm[2] / 1000)
+        if spec.preset == "top":  # on top of the electronics stack: free 360° view
+            llo, lhi = cat.bbox(key_of[spec.kind])
+            z = top_z + board_h + (lhi[2] - llo[2]) / 2 + 0.002
+            s = b.place("sensors", key_of[spec.kind], _add((front_x / 2, 0.0, z), offset))
+            b.connect(s, "mount", brick, "top")
+            continue
         center, yaw, hole_x = preset[spec.preset]
-        center = _add(
-            center, (spec.offset_mm[0] / 1000, spec.offset_mm[1] / 1000, spec.offset_mm[2] / 1000)
-        )
+        center = _add(center, offset)
         s = b.place("sensors", key_of[spec.kind], center, rot_z(yaw))
         side = -1 if spec.preset == "right" else 1
         rid, hole = rail_hole(side, max(-1, min(wb + 1, hole_x)))

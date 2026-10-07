@@ -117,3 +117,7 @@
    device: {type: dc_motor, model: "generic 6V geared", params: {nominal_v: 6.0, stall_torque_nm: 0.3, no_load_speed_rad_s: 30.0}},
    connectors: [{id: out, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
                 {id: mount, type: fixed_mount, pos_ldu: [0, 30, 0], axis_ld: [0, 1, 0], gender: neutral}]}
+- {key: "ld06", name: "LDROBOT LD06 2D LiDAR", category: sensor, mass_g: 42, bbox_mm: [[-19, -19, -17], [19, 19, 17]],
+   sense_axis_ld: [1, 0, 0],
+   device: {type: lidar_2d, model: "LD06", params: {rate_hz: 10.0, angular_res_rad: 0.01396, range_min_m: 0.02, range_max_m: 12.0, noise_std_m: 0.01}},
+   connectors: [{id: mount, type: fixed_mount, pos_ldu: [0, 42, 0], axis_ld: [0, 1, 0], gender: neutral}]}

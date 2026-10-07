@@ -89,7 +89,9 @@ class _UnionFind:
             self.parent[max(ra, rb)] = min(ra, rb)
 
 
-def build_mjcf(assembly: Assembly, cat: Catalogue, spec: VehicleSpec) -> tuple[str, ModelInfo]:
+def build_mjcf(
+    assembly: Assembly, cat: Catalogue, spec: VehicleSpec, standalone: bool = True
+) -> tuple[str, ModelInfo]:
     """Return deterministic MJCF XML and the names needed to drive the model."""
     parts = placed_parts(assembly, cat)
     by_path = {p.path: p for p in parts}
@@ -239,7 +241,7 @@ def _box_geoms(el: ET.Element, parts: list[PlacedPart], frame_origin: Mat) -> No
             quat=_vec(q),
             size=_vec(np.maximum(p.size / 2, 1e-4)),
             contype="2",
-            conaffinity="1",
+            conaffinity="3",
             group="1",
             rgba="0.6 0.6 0.65 1",
         )
@@ -289,6 +291,7 @@ def _emit(
     wheel_parent: dict[str, str],
     wheel_axis: dict[str, Mat],
     derived: object,
+    standalone: bool = True,
 ) -> tuple[str, ModelInfo]:
     from raceforge.construct.derive import DerivedData
 
@@ -298,32 +301,9 @@ def _emit(
     ET.SubElement(root, "option", timestep=_f(TIMESTEP), integrator="implicitfast")
     default = ET.SubElement(root, "default")
     ET.SubElement(default, "joint", damping="0.0005", armature="0.0001")
-    asset = ET.SubElement(root, "asset")
-    ET.SubElement(
-        asset,
-        "texture",
-        name="grid",
-        type="2d",
-        builtin="checker",
-        width="256",
-        height="256",
-        rgb1="0.85 0.85 0.85",
-        rgb2="0.75 0.75 0.75",
-    )
-    ET.SubElement(asset, "material", name="floor", texture="grid", texrepeat="20 20")
     world = ET.SubElement(root, "worldbody")
-    ET.SubElement(world, "light", pos="0 0 3", dir="0 0 -1", directional="true")
-    ET.SubElement(
-        world,
-        "geom",
-        name="floor",
-        type="plane",
-        size="25 25 0.1",
-        material="floor",
-        contype="1",
-        conaffinity="6",
-        friction=_vec((spec.tyre_friction, 0.005, 0.0001)),
-    )
+    if standalone:
+        add_floor(root, world, spec.tyre_friction)
 
     origin = np.zeros(3)
     car = ET.SubElement(world, "body", name="chassis", pos="0 0 0.002")
@@ -402,8 +382,9 @@ def _emit(
                 pos=_vec(t.center - c),
                 zaxis=_vec(axis),
                 size=_vec((radius, half_w)),
-                contype="4",
-                conaffinity="1",
+                contype="2",
+                group="3",
+                conaffinity="3",
                 condim="6",
                 friction=_vec((spec.tyre_friction, 0.005, 0.0001)),
                 rgba="0.1 0.1 0.1 1",
@@ -411,6 +392,16 @@ def _emit(
         wheel_joints[wb.name] = jname
 
     # Equalities: Ackermann coupling, locked axles.
+    # Cars collide with the world (contype 1) and with other cars (contype 2); parts of the same car
+    # must not collide with each other, so exclude every pair involving the chassis.
+    contact = ET.SubElement(root, "contact")
+    for other in sorted({*wheel_joints, *(kb.name for kb in knuckles.values())}):
+        ET.SubElement(contact, "exclude", body1="chassis", body2=other)
+    wheel_names = sorted(wheel_joints)
+    for i, w1 in enumerate(wheel_names):
+        for w2 in wheel_names[i + 1 :]:
+            ET.SubElement(contact, "exclude", body1=w1, body2=w2)
+
     equality = ET.SubElement(root, "equality")
     poly = _ackermann_poly(spec, derived.wheelbase_m, derived.track_m)
     ET.SubElement(
@@ -504,6 +495,38 @@ def _emit(
         steer_rate_rad_s=sm.no_load_speed_rad_s,
     )
     return xml, info
+
+
+def add_floor(root: ET.Element, world: ET.Element, friction: float) -> None:
+    """Checkered floor plane + light (used for standalone cars and by the world builder)."""
+    asset = root.find("asset")
+    if asset is None:
+        asset = ET.Element("asset")
+        root.insert(list(root).index(world), asset)
+    ET.SubElement(
+        asset,
+        "texture",
+        name="grid",
+        type="2d",
+        builtin="checker",
+        width="256",
+        height="256",
+        rgb1="0.85 0.85 0.85",
+        rgb2="0.75 0.75 0.75",
+    )
+    ET.SubElement(asset, "material", name="floor", texture="grid", texrepeat="20 20")
+    ET.SubElement(world, "light", pos="0 0 3", dir="0 0 -1", directional="true")
+    ET.SubElement(
+        world,
+        "geom",
+        name="floor",
+        type="plane",
+        size="100 100 0.1",
+        material="floor",
+        contype="1",
+        conaffinity="6",
+        friction=_vec((friction, 0.005, 0.0001)),
+    )
 
 
 class RateLimiter:
