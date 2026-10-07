@@ -1,0 +1,7 @@
+# High-risk paths always need the owner's approval (see AGENTS.md merge policy).
+/src/raceforge/core/     @Michael-Spisak
+/src/raceforge/api/      @Michael-Spisak
+/src/raceforge/mcp/      @Michael-Spisak
+/src/raceforge/backend/  @Michael-Spisak
+/car_runtime/            @Michael-Spisak
+/AGENTS.md               @Michael-Spisak

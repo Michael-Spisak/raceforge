@@ -1,0 +1,44 @@
+name: Task (AI-implementable)
+description: A small, well-specified task for Claude Code or the Copilot coding agent
+labels: ["task"]
+body:
+  - type: input
+    id: spec
+    attributes:
+      label: Spec
+      description: Link to docs/specs/… section
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria (become tests)
+      value: |
+        - [ ] Given … when … then …
+    validations:
+      required: true
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: Files in scope
+    validations:
+      required: true
+  - type: textarea
+    id: out_scope
+    attributes:
+      label: Files out of scope (do not touch)
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk class
+      options:
+        - low (auto-merge allowed)
+        - high (human approval required)
+    validations:
+      required: true

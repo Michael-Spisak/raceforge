@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Rust
+target/
+
+# Xcode
+trackscout_ios/**/xcuserdata/
+trackscout_ios/**/DerivedData/
+
+# Local config and secrets — never commit
+.env
+.env.*
+*.local.yaml
+secrets/
+
+# Data never belongs in the repo (lives on the backend)
+data/
+*.tscan
+*.mcap
+*.onnx
+*.ckpt
+
+# OS
+.DS_Store
