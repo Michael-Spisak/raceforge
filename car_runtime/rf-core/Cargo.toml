@@ -1,0 +1,15 @@
+[package]
+name = "rf-core"
+description = "RaceForge car runtime core: control loop, controller watchdog, safety limits"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rf-proto = { path = "../rf-proto" }
+serde_json = "1"
+thiserror = "2"
+
+[lints]
+workspace = true

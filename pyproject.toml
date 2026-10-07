@@ -73,6 +73,13 @@ forbidden_modules = ["raceforge.control", "raceforge.sim", "raceforge.train", "r
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
+name = "car host runs controllers only: no sim, train or front-ends"
+type = "forbidden"
+source_modules = ["raceforge.car"]
+forbidden_modules = ["raceforge.sim", "raceforge.train", "raceforge.construct", "raceforge.cli", "raceforge.mcp", "raceforge.backend"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "construct and parts do not depend on sim, train or front-ends"
 type = "forbidden"
 source_modules = ["raceforge.construct", "raceforge.parts"]
