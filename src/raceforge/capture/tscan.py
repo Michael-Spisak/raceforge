@@ -172,7 +172,14 @@ class TscanPass:
         self.manifest = Manifest.model_validate(raw)
         if verify:
             self.verify()
-        self._frames = np.frombuffer(self._zip.read("frames.bin"), dtype=FRAME_DTYPE)
+        try:
+            self._frames = np.frombuffer(self._zip.read("frames.bin"), dtype=FRAME_DTYPE)
+        except KeyError as exc:
+            raise TscanError("frames.bin missing") from exc
+        except ValueError as exc:
+            raise TscanError("frames.bin has the wrong size") from exc
+        if len(self._frames) and int(self._frames["segment"].max()) >= len(self.manifest.segments):
+            raise TscanError("frames.bin refers to a segment missing in the manifest")
 
     def __enter__(self) -> "TscanPass":
         return self
@@ -210,10 +217,12 @@ class TscanPass:
         return len(self._frames)
 
     def kept_mask(self) -> NDArray[np.bool_]:
-        return np.array(
-            [not self._discarded(float(r["t"]), int(r["segment"])) for r in self._frames],
-            dtype=bool,
-        )
+        t, seg = self._frames["t"], self._frames["segment"]
+        dropped = np.zeros(len(self._frames), dtype=bool)
+        for i, s in enumerate(self.manifest.segments):
+            for t0, t1 in s.discarded:
+                dropped |= (seg == i) & (t >= t0) & (t <= t1)
+        return ~dropped
 
     def poses(self, include_discarded: bool = False) -> tuple[Floats, Floats]:
         """(t, Nx4x4 poses in the RaceForge frame) — fast path without depth."""
@@ -233,8 +242,6 @@ class TscanPass:
                     if seg not in streams:
                         streams[seg] = self._zip.open(self.manifest.segments[seg].depth)
                     depth, conf = _read_depth(streams[seg], n, d.height, d.width)
-                elif r["has_depth"] and seg in streams:
-                    _skip_depth(streams[seg])
                 t = float(r["t"])
                 if not include_discarded and self._discarded(t, seg):
                     continue
@@ -275,9 +282,7 @@ class TscanPass:
         m = self.manifest
         kept = self.kept_mask()
         recorded = sum(s.end_s - s.start_s for s in m.segments)
-        discarded = sum(
-            max(0.0, min(t1, s.end_s) - t0) for s in m.segments for t0, t1 in s.discarded
-        )
+        discarded = sum(_covered(s.discarded, s.start_s, s.end_s) for s in m.segments)
         return {
             "project": m.project.name,
             "pass": m.pass_.type,
@@ -316,8 +321,15 @@ def _read_depth(
     return depth, conf
 
 
-def _skip_depth(stream: IO[bytes]) -> None:
-    stream.read(int.from_bytes(stream.read(4), "little"))
+def _covered(ranges: list[tuple[float, float]], start: float, end: float) -> float:
+    """Seconds of [start, end] covered by the (possibly overlapping) ranges."""
+    total, reach = 0.0, start
+    for t0, t1 in sorted(ranges):
+        t0, t1 = max(t0, reach), min(t1, end)
+        if t1 > t0:
+            total += t1 - t0
+            reach = t1
+    return total
 
 
 def read_ply(data: bytes) -> Mesh:
@@ -328,11 +340,20 @@ def read_ply(data: bytes) -> Mesh:
     header = data[:end].decode("ascii").splitlines()
     if "format binary_little_endian 1.0" not in header:
         raise TscanError("PLY must be binary little-endian")
-    counts = {parts[1]: int(parts[2]) for line in header if (parts := line.split())[0] == "element"}
+    try:
+        counts = {
+            parts[1]: int(parts[2])
+            for line in header
+            if len(parts := line.split()) == 3 and parts[0] == "element"
+        }
+    except ValueError as exc:
+        raise TscanError("PLY header damaged") from exc
     nv, nf = counts.get("vertex", 0), counts.get("face", 0)
     body = data[end + len(b"end_header\n") :]
-    verts = np.frombuffer(body, dtype="<f4", count=nv * 3).reshape(nv, 3).astype(np.float64)
     face_dt = np.dtype([("n", "u1"), ("idx", "<u4", (3,)), ("cls", "u1")])
+    if len(body) < nv * 12 + nf * face_dt.itemsize:
+        raise TscanError("PLY mesh is truncated")
+    verts = np.frombuffer(body, dtype="<f4", count=nv * 3).reshape(nv, 3).astype(np.float64)
     faces = np.frombuffer(body, dtype=face_dt, count=nf, offset=nv * 12)
     if nf and not np.all(faces["n"] == 3):
         raise TscanError("only triangle meshes are supported")
