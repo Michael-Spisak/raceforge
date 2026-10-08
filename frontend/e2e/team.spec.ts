@@ -40,9 +40,9 @@ test("team: login with 2FA, workspace, save as version, history, invite", async 
   await page.getByTestId("save-slug").fill("car-e2e");
   await page.getByTestId("save-message").fill("first e2e car");
   await page.getByTestId("save-version").click();
-  await expect(page.getByTestId("save-note")).toContainText("1.0.0");
+  await expect(page.getByTestId("save-note")).toContainText("1.0.0", { timeout: 60_000 }); // first save also syncs (slow on Windows CI)
   await page.getByTestId("save-version").click();
-  await expect(page.getByTestId("save-note")).toContainText("1.0.1");
+  await expect(page.getByTestId("save-note")).toContainText("1.0.1", { timeout: 60_000 });
 
   // History
   await page.getByTestId("tab-team").click();
