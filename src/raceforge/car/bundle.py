@@ -76,6 +76,8 @@ class Ev3Spec(_Model):
     gyro: bool = True
     estop_touch_port: SensorPort | None = None
     link_timeout_ms: int = Field(default=100, ge=20, le=1000)
+    # EV3 button that restarts the controller after a fault when held for 1 s.
+    resume_button: Literal["up", "down", "left", "right", "enter", "backspace"] = "enter"
 
 
 class LidarSpec(_Model):

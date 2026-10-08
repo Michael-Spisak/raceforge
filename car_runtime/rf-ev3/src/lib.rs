@@ -23,6 +23,25 @@ use std::time::{Duration, Instant};
 pub const DEFAULT_PORT: u16 = 47100;
 
 /// LCD status codes shown by the EV3 program.
+/// EV3 brick buttons as bits of `SensorFrame::buttons` (`ev3_side/raceforge_ev3/hw.py` uses the
+/// same numbering).
+pub const BUTTONS: [(&str, u8); 6] = [
+    ("up", 0),
+    ("down", 1),
+    ("left", 2),
+    ("right", 3),
+    ("enter", 4),
+    ("backspace", 5),
+];
+
+/// Bit mask of a button by name.
+pub fn button_mask(name: &str) -> Option<u8> {
+    BUTTONS
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, bit)| 1 << bit)
+}
+
 pub mod lcd {
     pub const RUN: u8 = 0;
     pub const STOPPED: u8 = 1;
@@ -46,6 +65,8 @@ pub struct Ev3Config {
     pub gyro: bool,
     /// Sensor port index of a touch sensor used as hardware emergency stop.
     pub estop_touch_port: Option<usize>,
+    /// EV3 button(s) that resume after a fault when held (default: centre button "enter").
+    pub resume_buttons: u8,
     /// No valid frame for this long -> `link_lost` (the runtime then stops; spec: EV3 itself
     /// stops after 150 ms).
     pub link_timeout: Duration,
@@ -63,6 +84,7 @@ impl Default for Ev3Config {
             ultrasonic: BTreeMap::new(),
             gyro: true,
             estop_touch_port: None,
+            resume_buttons: 1 << 4,
             link_timeout: Duration::from_millis(100),
             keepalive: Duration::from_millis(10),
         }
@@ -127,6 +149,7 @@ impl Ev3Config {
             estop: f.flags & status_flags::ESTOP_PRESSED != 0
                 || self.estop_touch_port.is_some_and(touch),
             link_lost: None,
+            resume: f.buttons & self.resume_buttons != 0,
             ..SensorSnapshot::default()
         }
     }
@@ -409,6 +432,19 @@ mod tests {
         });
         assert_eq!(f.steer_target_cdeg, i16::MAX);
         assert_eq!(f.drive_speed_cps, 0);
+    }
+
+    #[test]
+    fn resume_button_mapping() {
+        assert_eq!(button_mask("enter"), Some(1 << 4));
+        assert_eq!(button_mask("nope"), None);
+        let c = cfg();
+        let mut f = SensorFrame::default();
+        assert!(!c.snapshot(&f).resume);
+        f.buttons = 1 << 4;
+        assert!(c.snapshot(&f).resume);
+        f.buttons = 1; // "up" is not the resume button
+        assert!(!c.snapshot(&f).resume);
     }
 
     #[test]

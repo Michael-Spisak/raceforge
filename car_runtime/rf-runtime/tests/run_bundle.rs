@@ -8,7 +8,7 @@ use rf_proto::ev3::{CommandFrame, SensorFrame};
 use rf_runtime::{run, AppError, Options};
 use std::net::{SocketAddr, UdpSocket};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -36,6 +36,14 @@ fn tmp(name: &str) -> PathBuf {
 /// Mock EV3: a receiver thread records commands and the board's address; a separate sender
 /// thread sends 100 Hz sensor frames with a corridor (a busy receiver cannot starve them).
 fn mock_ev3(done: Arc<AtomicBool>) -> (String, Arc<Mutex<Vec<CommandFrame>>>) {
+    mock_ev3_with(done, Arc::new(AtomicU8::new(0)))
+}
+
+/// Mock EV3 whose button bits (`SensorFrame.buttons`) the test can change while it runs.
+fn mock_ev3_with(
+    done: Arc<AtomicBool>,
+    buttons: Arc<AtomicU8>,
+) -> (String, Arc<Mutex<Vec<CommandFrame>>>) {
     let sock = UdpSocket::bind("127.0.0.1:0").expect("bind");
     let addr = sock.local_addr().expect("addr").to_string();
     sock.set_read_timeout(Some(Duration::from_millis(5)))
@@ -68,6 +76,7 @@ fn mock_ev3(done: Arc<AtomicBool>) -> (String, Arc<Mutex<Vec<CommandFrame>>>) {
                     ack_seq: ack,
                     ultrasonic_mm: [2000, 400, 800, 0xFFFF],
                     battery_mv: 7900,
+                    buttons: buttons.load(Ordering::Acquire),
                     ..Default::default()
                 };
                 let _ = tx.send_to(&f.encode(), p);
@@ -84,6 +93,18 @@ fn build_bundle(py: &str, dir: &Path, ev3_addr: &str, mode: &str) {
 
 /// `telemetry` is a Python expression, e.g. `TelemetrySpec(bind='127.0.0.1:9000')` or `None`.
 fn build_bundle_with(py: &str, dir: &Path, ev3_addr: &str, mode: &str, telemetry: &str) {
+    let ctrl = repo().join("controllers/templates/wall_follow.py");
+    build_bundle_ctrl(py, dir, &ctrl, ev3_addr, mode, telemetry);
+}
+
+fn build_bundle_ctrl(
+    py: &str,
+    dir: &Path,
+    ctrl: &Path,
+    ev3_addr: &str,
+    mode: &str,
+    telemetry: &str,
+) {
     let script = format!(
         "from pathlib import Path\n\
          from raceforge.car.bundle import *\n\
@@ -94,9 +115,7 @@ fn build_bundle_with(py: &str, dir: &Path, ev3_addr: &str, mode: &str, telemetry
                    drive_counts_per_m=1000.0, ultrasonic={{'front':'1','left':'2','right':'3'}}),\n\
            RuntimeSpec(mode='{mode}', test_speed_limit_m_s=0.25), telemetry={telemetry})\n",
         dir = dir.display(),
-        ctrl = repo()
-            .join("controllers/templates/wall_follow.py")
-            .display(),
+        ctrl = ctrl.display(),
     );
     let out = std::process::Command::new(py)
         .env("PYTHONPATH", repo().join("src"))
@@ -169,6 +188,72 @@ fn runs_python_built_bundle_end_to_end() {
         String::from_utf8_lossy(&check.stderr)
     );
     assert_eq!(String::from_utf8_lossy(&check.stdout).trim(), "50");
+}
+
+#[test]
+fn resume_button_restarts_a_crashed_controller_end_to_end() {
+    let _serial = serial();
+    let Ok(py) = std::env::var("RF_PYTHON") else {
+        eprintln!("RF_PYTHON not set: skipping");
+        return;
+    };
+    let dir = tmp("resume");
+    // Crashes once (10th step of the first process), then drives normally after the restart.
+    let marker = dir.join("crashed");
+    let ctrl = dir.join("crash_once.py");
+    std::fs::write(
+        &ctrl,
+        format!(
+            "from pathlib import Path\n\
+             from raceforge.control import Command, Controller, ControllerParams, Observation\n\n\
+             class CrashOnce(Controller[ControllerParams]):\n    \
+                 n = 0\n\n    \
+                 def step(self, obs: Observation) -> Command:\n        \
+                     self.n += 1\n        \
+                     marker = Path(r'{}')\n        \
+                     if self.n == 10 and not marker.exists():\n            \
+                         marker.touch()\n            \
+                         raise RuntimeError('boom')\n        \
+                     return Command(steering_rad=0.0, speed_m_s=0.2)\n",
+            marker.display()
+        ),
+    )
+    .expect("controller");
+    let done = Arc::new(AtomicBool::new(false));
+    // The EV3 centre button is held for the whole run: the hold only counts while faulted.
+    let buttons = Arc::new(AtomicU8::new(1 << 4));
+    let (ev3_addr, cmds) = mock_ev3_with(done.clone(), buttons);
+    build_bundle_ctrl(&py, &dir.join("bundle"), &ctrl, &ev3_addr, "test", "None");
+
+    let mut o = opts(&dir.join("bundle"), &py, &dir.join("logs"));
+    o.max_ticks = Some(250); // 5 s: crash at 0.2 s, 1 s hold, controller restart
+    let out = run(&o, &AtomicBool::new(false)).expect("run");
+    done.store(true, Ordering::Release);
+
+    assert!(marker.exists(), "the controller crashed once");
+    let kinds: Vec<_> = out.report.events.iter().map(|e| e.kind.as_str()).collect();
+    let at = |k: &str| kinds.iter().position(|x| *x == k);
+    let (fault, resuming, resumed) = (at("fault"), at("resuming"), at("resumed"));
+    assert!(
+        fault.is_some() && fault < resuming && resuming < resumed,
+        "{kinds:?}"
+    );
+    assert!(out.report.fault.is_none(), "{:?}", out.report.fault);
+    // Stopped while faulted, driving again afterwards.
+    let cmds = cmds.lock().expect("lock").clone();
+    let drove = cmds
+        .iter()
+        .position(|c| c.drive_speed_cps > 0)
+        .expect("drove");
+    let stopped = drove
+        + cmds[drove..]
+            .iter()
+            .position(|c| c.drive_speed_cps == 0)
+            .expect("stopped");
+    assert!(
+        cmds[stopped..].iter().any(|c| c.drive_speed_cps > 0),
+        "drives again after the resume"
+    );
 }
 
 fn hand_bundle(name: &str, mode: &str, ev3_addr: &str) -> PathBuf {

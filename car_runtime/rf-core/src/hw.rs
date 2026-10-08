@@ -22,6 +22,8 @@ pub struct SensorSnapshot {
     pub battery_v: Option<f64>,
     /// Hardware emergency stop input is active.
     pub estop: bool,
+    /// The resume button is pressed (restart after a fault when held long enough).
+    pub resume: bool,
     /// A critical sensor link (e.g. the EV3) delivered no valid data within its timeout.
     pub link_lost: Option<String>,
     /// When the LiDAR revolution in `lidar` finished (the runtime converts it to `t_s`).

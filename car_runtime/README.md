@@ -47,6 +47,12 @@ The EV3 side lives in [`../ev3_side`](../ev3_side/README.md).
    The runtime checks every bundle file's SHA-256, waits for the EV3 link, starts the controller host
    and logs to `logs/run-<time>-<name>.mcap`. `--ticks N` stops after N control steps.
 
+After a driving fault the car stays stopped and the runtime keeps running. Holding the EV3 centre
+button for 1 s (`Ev3Spec(resume_button=...)`, default `"enter"`) restarts the controller host from the
+same bundle; driving resumes once it answers (event `resumed`, or `resume_failed` and the car stays
+stopped). The resume is refused while the e-stop is pressed or a link is lost. A new deploy is the
+only other way out of a fault.
+
 With a `lidar` section in the bundle (`LidarSpec`: device, mount offset, policy `critical` or
 `optional`), the runtime also waits for the first LiDAR scan.
 

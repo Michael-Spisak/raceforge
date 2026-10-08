@@ -399,3 +399,173 @@ fn operator_stop_and_notes_from_another_thread() {
     assert!(stop_at > 0, "drove before the stop");
     assert!(outs[stop_at..].iter().all(|(_, o)| o.stop));
 }
+
+fn resume_cfg() -> RuntimeConfig {
+    let mut cfg = RuntimeConfig::new(info(), Mode::Test);
+    cfg.resume_hold = Duration::from_millis(200);
+    cfg.restart_timeout = Duration::from_secs(1);
+    cfg
+}
+
+/// Presses the resume button from `at` for `hold`, optionally with the e-stop pressed.
+fn press(
+    sensors: Arc<MockSensors>,
+    at: Duration,
+    hold: Duration,
+    estop: bool,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        std::thread::sleep(at);
+        sensors.set(SensorSnapshot {
+            resume: true,
+            estop,
+            ..Default::default()
+        });
+        std::thread::sleep(hold);
+        sensors.set(SensorSnapshot::default());
+    })
+}
+
+#[test]
+fn resume_button_restarts_the_controller_after_a_fault() {
+    let _serial = serial();
+    let (mut rt, act, sensors) = runtime(
+        resume_cfg(),
+        mock_host(|seq| {
+            if seq < 5 {
+                Act::Reply(DRIVE)
+            } else {
+                Act::Raise
+            }
+        }),
+    );
+    let restarts = Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let counter = restarts.clone();
+    rt.set_restart(Box::new(move || {
+        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(mock_host(|_| {
+            Act::Reply(Command {
+                steering_rad: -0.1,
+                speed_m_s: 0.5,
+            })
+        }))
+    }));
+    // Fault at tick 5 (~0.1 s); button held 0.4 s from 0.3 s (hold time 0.2 s).
+    let button = press(
+        sensors,
+        Duration::from_millis(300),
+        Duration::from_millis(400),
+        false,
+    );
+    let report = rt.run(&AtomicBool::new(false), Some(60));
+    button.join().expect("join");
+    assert!(report.fault.is_none(), "{:?}", report.fault);
+    assert_eq!(
+        restarts.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "one restart per press"
+    );
+    let kinds: Vec<&str> = report.events.iter().map(|e| e.kind.as_str()).collect();
+    let pos = |k: &str| kinds.iter().position(|x| *x == k).unwrap_or(usize::MAX);
+    assert!(
+        pos("fault") < pos("resuming") && pos("resuming") < pos("resumed"),
+        "{kinds:?}"
+    );
+    let resumed = report
+        .events
+        .iter()
+        .find(|e| e.kind == "resumed")
+        .expect("resumed");
+    assert!(resumed.detail.contains("Controller"), "{}", resumed.detail);
+    // The old controller drove at 1.0 m/s, the restarted one at 0.5 m/s, stop in between.
+    let outs = act.outputs();
+    let first_new = outs
+        .iter()
+        .position(|(_, o)| o.speed_m_s == 0.5)
+        .expect("new controller drove");
+    let fault_at = outs.iter().position(|(_, o)| o.fault).expect("fault");
+    assert!(fault_at < first_new);
+    assert!(outs[fault_at..first_new].iter().all(|(_, o)| o.stop));
+}
+
+#[test]
+fn short_press_does_nothing() {
+    let _serial = serial();
+    let (mut rt, _, sensors) = runtime(resume_cfg(), mock_host(|_| Act::Raise));
+    rt.set_restart(Box::new(|| Ok(mock_host(|_| Act::Reply(DRIVE)))));
+    let button = press(
+        sensors,
+        Duration::from_millis(100),
+        Duration::from_millis(100),
+        false,
+    );
+    let report = rt.run(&AtomicBool::new(false), Some(25));
+    button.join().expect("join");
+    assert!(report.fault.is_some());
+    assert!(!report.events.iter().any(|e| e.kind.starts_with("resum")));
+}
+
+#[test]
+fn resume_refused_while_estop_pressed_or_without_restart() {
+    let _serial = serial();
+    let (mut rt, _, sensors) = runtime(resume_cfg(), mock_host(|_| Act::Raise));
+    rt.set_restart(Box::new(|| Ok(mock_host(|_| Act::Reply(DRIVE)))));
+    let button = press(
+        sensors,
+        Duration::from_millis(100),
+        Duration::from_millis(400),
+        true,
+    );
+    let report = rt.run(&AtomicBool::new(false), Some(30));
+    button.join().expect("join");
+    assert!(report.fault.is_some());
+    assert!(report
+        .events
+        .iter()
+        .any(|e| e.kind == "resume_refused" && e.detail.contains("e-stop")));
+
+    let (mut rt, _, sensors) = runtime(resume_cfg(), mock_host(|_| Act::Raise));
+    let button = press(
+        sensors,
+        Duration::from_millis(100),
+        Duration::from_millis(400),
+        false,
+    );
+    let report = rt.run(&AtomicBool::new(false), Some(30));
+    button.join().expect("join");
+    assert!(report.fault.is_some());
+    assert!(report
+        .events
+        .iter()
+        .any(|e| e.kind == "resume_refused" && e.detail.contains("redeploy")));
+}
+
+#[test]
+fn failed_restart_keeps_the_car_stopped() {
+    let _serial = serial();
+    let (mut rt, act, sensors) = runtime(resume_cfg(), mock_host(|_| Act::Raise));
+    let attempts = Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let counter = attempts.clone();
+    rt.set_restart(Box::new(move || {
+        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Err(rf_core::link::LinkError::Timeout)
+    }));
+    // Held for 0.8 s: still only one attempt (one trigger per press).
+    let button = press(
+        sensors,
+        Duration::from_millis(100),
+        Duration::from_millis(800),
+        false,
+    );
+    let report = rt.run(&AtomicBool::new(false), Some(60));
+    button.join().expect("join");
+    assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert!(report.fault.is_some());
+    assert!(report.events.iter().any(|e| e.kind == "resume_failed"));
+    let fault_at = act
+        .outputs()
+        .iter()
+        .position(|(_, o)| o.fault)
+        .expect("fault");
+    assert!(act.outputs()[fault_at..].iter().all(|(_, o)| o.stop));
+}

@@ -6,7 +6,7 @@
 //! fault; the controller is killed and only restarted by a resume/new deploy (not by this loop).
 //! A supervisor thread stops the motors if the loop itself stalls.
 
-use crate::hw::{Actuators, DriveOutput, Sensors};
+use crate::hw::{Actuators, DriveOutput, SensorSnapshot, Sensors};
 use crate::link::{ControllerLink, LinkError};
 use crate::safety::{self, DeadMan, Teleop};
 use rf_proto::ipc::{ChannelValue, Command, Mode, Observation, RobotInfo};
@@ -26,6 +26,10 @@ pub struct RuntimeConfig {
     pub deadman_timeout: Duration,
     /// Supervisor stops the motors if a tick has not started for this long.
     pub stall_timeout: Duration,
+    /// How long the resume button must be held to restart after a fault.
+    pub resume_hold: Duration,
+    /// How long a restarted controller host may take until it is ready.
+    pub restart_timeout: Duration,
 }
 
 impl RuntimeConfig {
@@ -39,6 +43,8 @@ impl RuntimeConfig {
             deadline,
             deadman_timeout: Duration::from_millis(300),
             stall_timeout: period + deadline + Duration::from_millis(20),
+            resume_hold: Duration::from_secs(1),
+            restart_timeout: Duration::from_secs(20),
         }
     }
 
@@ -173,6 +179,18 @@ pub trait TickSink: Send + Sync {
     fn event(&self, mono_ns: u64, e: &Event);
 }
 
+/// Starts a fresh controller host (used to restart the controller after a fault).
+pub type ControllerFactory = Box<dyn FnMut() -> Result<ControllerLink, LinkError> + Send>;
+
+/// Resume button handling: hold time, one trigger per press, restart in the background.
+#[derive(Default)]
+struct Resume {
+    factory: Option<Arc<Mutex<ControllerFactory>>>,
+    held_since: Option<Instant>,
+    fired: bool,
+    pending: Option<std::thread::JoinHandle<Result<ControllerLink, LinkError>>>,
+}
+
 struct Outcome {
     obs: Option<Observation>,
     out: DriveOutput,
@@ -202,6 +220,8 @@ pub struct Runtime<S: Sensors, A: Actuators + 'static> {
     wall_offset_ns: Option<i64>,
     deadline_misses: u64,
     degraded: Vec<String>,
+    stalled: Arc<AtomicBool>,
+    resume: Resume,
 }
 
 impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
@@ -236,7 +256,15 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
                 .and_then(|d| i64::try_from(d.as_nanos()).ok()),
             deadline_misses: 0,
             degraded: Vec::new(),
+            stalled: Arc::new(AtomicBool::new(false)),
+            resume: Resume::default(),
         })
+    }
+
+    /// Allow the resume button to restart the controller after a fault (spec 0005: the
+    /// controller is restarted only by the resume button or a new deploy).
+    pub fn set_restart(&mut self, factory: ControllerFactory) {
+        self.resume.factory = Some(Arc::new(Mutex::new(factory)));
     }
 
     /// Add a consumer of tick records and events (MCAP logger, telemetry server).
@@ -265,6 +293,75 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         self.events.push(e);
     }
 
+    /// While a fault is latched: watch the resume button, restart the controller host in the
+    /// background (the loop keeps ticking and commanding stop), clear the fault once it is ready.
+    fn handle_resume(&mut self, snap: &SensorSnapshot) {
+        if let Some(h) = self.resume.pending.take() {
+            if !h.is_finished() {
+                self.resume.pending = Some(h);
+                return;
+            }
+            match h.join() {
+                Ok(Ok(link)) => {
+                    let old = std::mem::replace(&mut self.link, link);
+                    drop(old); // ends the previous host process, if any
+                    let prev = self
+                        .fault
+                        .take()
+                        .map(|f| format!("{f:?}"))
+                        .unwrap_or_default();
+                    self.stalled.store(false, Ordering::Release);
+                    if let Ok(mut d) = self.teleop.lock() {
+                        d.release(); // a stale teleop session must not take over
+                    }
+                    self.event("resumed", prev);
+                }
+                Ok(Err(e)) => self.event("resume_failed", e.to_string()),
+                Err(_) => self.event("resume_failed", "restart thread panicked".into()),
+            }
+            return;
+        }
+        if !snap.resume {
+            self.resume.held_since = None;
+            self.resume.fired = false;
+            return;
+        }
+        let since = *self.resume.held_since.get_or_insert_with(Instant::now);
+        if self.resume.fired || since.elapsed() < self.cfg.resume_hold {
+            return;
+        }
+        self.resume.fired = true; // one trigger per press: release before trying again
+        let refused = if snap.estop {
+            Some("e-stop is pressed".to_string())
+        } else if let Some(what) = &snap.link_lost {
+            Some(format!("sensor link lost: {what}"))
+        } else if self.resume.factory.is_none() {
+            Some("no controller restart available (redeploy)".to_string())
+        } else {
+            None
+        };
+        if let Some(why) = refused {
+            self.event("resume_refused", why);
+            return;
+        }
+        let Some(factory) = self.resume.factory.clone() else {
+            return;
+        };
+        self.link.kill();
+        let (info, timeout) = (self.cfg.info.clone(), self.cfg.restart_timeout);
+        self.resume.pending = Some(std::thread::spawn(move || {
+            let mut link = {
+                let mut f = factory
+                    .lock()
+                    .map_err(|_| LinkError::Protocol("factory poisoned".into()))?;
+                (*f)()?
+            };
+            link.hello(&info, timeout)?;
+            Ok(link)
+        }));
+        self.event("resuming", "resume button held".into());
+    }
+
     /// Stop the motors right now and latch `fault`.
     fn trip(&mut self, fault: Fault, kill_controller: bool) {
         self.act.send(DriveOutput::FAULT_STOP);
@@ -279,7 +376,7 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
     pub fn run(&mut self, stop: &AtomicBool, max_ticks: Option<u64>) -> RunReport {
         let period = self.cfg.period();
         let heartbeat = Arc::new(AtomicU64::new(0));
-        let stalled = Arc::new(AtomicBool::new(false));
+        let stalled = self.stalled.clone();
         let done = Arc::new(AtomicBool::new(false));
         let supervisor = {
             let (heartbeat, stalled, done) = (heartbeat.clone(), stalled.clone(), done.clone());
@@ -392,7 +489,25 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         if self.fault.is_some() {
             // Keep commanding stop so the EV3 failsafe never sees a gap.
             self.act.send(DriveOutput::FAULT_STOP);
-            return fault_stop(None);
+            let snap = self.sensors.snapshot();
+            self.handle_resume(&snap);
+            if self.fault.is_some() {
+                return Outcome {
+                    obs: None,
+                    out: DriveOutput::FAULT_STOP,
+                    state: if self.resume.pending.is_some() {
+                        "resuming"
+                    } else {
+                        "fault"
+                    },
+                };
+            }
+            // Resumed: the fresh controller drives from the next tick on.
+            return Outcome {
+                obs: None,
+                out: DriveOutput::STOP,
+                state: "resumed",
+            };
         }
         let snap = self.sensors.snapshot();
         if snap.estop {

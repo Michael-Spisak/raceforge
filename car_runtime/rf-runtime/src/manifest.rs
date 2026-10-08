@@ -46,6 +46,13 @@ pub struct Ev3Spec {
     pub gyro: bool,
     pub estop_touch_port: Option<String>,
     pub link_timeout_ms: u64,
+    /// EV3 button that resumes after a fault when held (`rf_ev3::BUTTONS` names).
+    #[serde(default = "default_resume_button")]
+    pub resume_button: String,
+}
+
+fn default_resume_button() -> String {
+    "enter".into()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -216,6 +223,9 @@ impl Manifest {
             gyro: e.gyro,
             estop_touch_port: e.estop_touch_port.as_deref().map(sensor_port).transpose()?,
             link_timeout: Duration::from_millis(e.link_timeout_ms),
+            resume_buttons: rf_ev3::button_mask(&e.resume_button).ok_or_else(|| {
+                BundleError::Invalid(format!("resume button {:?}", e.resume_button))
+            })?,
             ..Ev3Config::default()
         })
     }
@@ -370,6 +380,10 @@ mod tests {
             sample(&h).replace("\"C\"", "\"E\""),
             sample(&h).replace("\"4\"", "\"9\""),
             sample(&h).replace("\"car_bundle\"", "\"other\""),
+            sample(&h).replace(
+                "\"link_timeout_ms\": 100",
+                "\"link_timeout_ms\": 100, \"resume_button\": \"power\"",
+            ),
             sample(&h).replace("\"controller.py\"", "\"../etc/passwd\""),
             sample(&h).replace("10.42.0.3:47100", "not-an-address"),
             sample(&h).replace("\"gyro\": true", "\"gyro\": true, \"extra\": 1"),

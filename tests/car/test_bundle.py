@@ -1,8 +1,9 @@
 """Spec 0005 deploy bundle: build, hash check, manifest shape (read by rf-runtime)."""
 
 import json
+import re
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 from pydantic import ValidationError
@@ -19,7 +20,8 @@ from raceforge.car.bundle import (
     verify_bundle,
 )
 
-TEMPLATES = Path(__file__).parents[2] / "controllers" / "templates"
+ROOT = Path(__file__).parents[2]
+TEMPLATES = ROOT / "controllers" / "templates"
 
 ROBOT = RobotSpec(
     car_name="car",
@@ -76,11 +78,28 @@ def test_invalid_specs_rejected() -> None:
     with pytest.raises(ValidationError):
         Ev3Spec(steer_motor_deg_per_rad=1, drive_counts_per_m=1, steer_motor="E")  # type: ignore[arg-type]
     with pytest.raises(ValidationError):
+        Ev3Spec(steer_motor_deg_per_rad=1, drive_counts_per_m=1, resume_button="power")  # type: ignore[arg-type]
+    with pytest.raises(ValidationError):
         RuntimeSpec(deadline_ms=100)
     with pytest.raises(ValidationError):
         RuntimeSpec(radio_usb_ids=["0BDA-8179"])
     with pytest.raises(ValidationError):
         RobotSpec(**{**ROBOT.model_dump(), "control_rate_hz": 500})
+
+
+def test_resume_button_names_match_runtime_and_ev3_program() -> None:
+    """The bundle's button names, rf-ev3's bit table and the EV3 program's bits agree."""
+    assert EV3.resume_button == "enter"  # the EV3 centre button
+    rust = (ROOT / "car_runtime" / "rf-ev3" / "src" / "lib.rs").read_text(encoding="utf-8")
+    table = re.search(r"pub const BUTTONS: .*?= \[(.*?)\];", rust, re.S)
+    assert table is not None
+    runtime = {n: int(b) for n, b in re.findall(r'\("(\w+)",\s*(\d+)\)', table.group(1))}
+    ev3 = (ROOT / "ev3_side" / "raceforge_ev3" / "hw.py").read_text(encoding="utf-8")
+    bits = re.search(r"^BUTTON_BITS = (\{.*\})$", ev3, re.M)
+    assert bits is not None
+    program = {n: int(b) for n, b in re.findall(r'"(\w+)": (\d+)', bits.group(1))}
+    field = Ev3Spec.model_fields["resume_button"].annotation
+    assert runtime == program and set(get_args(field)) == set(runtime)
 
 
 def test_race_mode_and_speed_limit_round_trip(tmp_path: Path) -> None:

@@ -140,17 +140,30 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
         lidar,
     });
 
-    let mut host = Command::new(&opts.python);
-    host.args(["-m", "raceforge.car.host", "--controller"])
-        .arg(opts.bundle.join(&manifest.controller.file));
-    if let Some(p) = &manifest.params {
-        host.arg("--params").arg(opts.bundle.join(&p.file));
-    }
-    if let Some(pp) = &opts.pythonpath {
-        host.env("PYTHONPATH", pp);
-    }
-    let sock = std::env::temp_dir().join(format!("rf-runtime-{}.sock", std::process::id()));
-    let link = ControllerLink::spawn(host, &sock, opts.setup_timeout)?;
+    // Starts a controller host process; also used by the resume button after a fault.
+    let mut spawn_host = {
+        let (python, pythonpath) = (opts.python.clone(), opts.pythonpath.clone());
+        let controller = opts.bundle.join(&manifest.controller.file);
+        let params = manifest.params.as_ref().map(|p| opts.bundle.join(&p.file));
+        let timeout = opts.setup_timeout;
+        let mut n = 0u32;
+        move || -> Result<ControllerLink, LinkError> {
+            n += 1;
+            let mut host = Command::new(&python);
+            host.args(["-m", "raceforge.car.host", "--controller"])
+                .arg(&controller);
+            if let Some(p) = &params {
+                host.arg("--params").arg(p);
+            }
+            if let Some(pp) = &pythonpath {
+                host.env("PYTHONPATH", pp);
+            }
+            let sock =
+                std::env::temp_dir().join(format!("rf-runtime-{}-{n}.sock", std::process::id()));
+            ControllerLink::spawn(host, &sock, timeout)
+        }
+    };
+    let link = spawn_host()?;
 
     std::fs::create_dir_all(&opts.log_dir)?;
     let stamp = std::time::SystemTime::now()
@@ -171,6 +184,7 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
         cfg.test_speed_limit_m_s = v;
     }
     let mut rt = Runtime::new(cfg, sensors, ev3.clone(), link, opts.setup_timeout)?;
+    rt.set_restart(Box::new(spawn_host));
     rt.add_sink(logger.clone());
     // Live telemetry + teleop: test mode only. In race mode nothing listens (spec 0005 AC5).
     if let (Mode::Test, Some(t)) = (mode, &manifest.telemetry) {
