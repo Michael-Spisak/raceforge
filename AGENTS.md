@@ -12,7 +12,7 @@ Full plan: [`docs/PLAN.md`](docs/PLAN.md). Decisions: [`docs/adr/`](docs/adr/). 
    serialisation round-trips and the main happy path of each feature. Skip tests for UI polish, layout, simple
    glue code and trivial getters; the owner tests the app manually and reports bugs. A reported bug gets a
    regression test when it is fixed.
-3. **Never weaken, skip or delete tests to make CI pass.** Fix the code or ask.
+3. **Never weaken, skip or delete tests to make checks pass.** Fix the code or ask.
 4. **Stay in scope.** Only touch files listed as in-scope in the issue. Out-of-scope improvements become new issues.
 5. **No new dependency without an ADR** (`docs/adr/`). Check licence compatibility with GPL-3.0.
 6. **Contracts are human-owned.** Do not change `src/raceforge/core/` schemas, the REST/OpenAPI schema, MCP tool schemas or the telemetry frame format without an approved spec change.
@@ -35,12 +35,12 @@ Full plan: [`docs/PLAN.md`](docs/PLAN.md). Decisions: [`docs/adr/`](docs/adr/). 
 
 ## Before you finish a task, run
 ```bash
-scripts/check.sh   # ruff format/check, pyright, import-linter, pytest (same as CI)
+scripts/check.sh   # ruff format/check, pyright, import-linter, pytest
 ```
-All must pass. Then open a PR using the template; include risks and, for UI work, screenshots.
+All must pass. There is no automatic CI (owner decision 2026-10-08): this local run is the gate. Then open a PR using the template; include risks and, for UI work, screenshots.
 
 ## Merge policy
-- **Agents may merge their own PRs** once all CI gates are green and a Claude `/code-review` found no open
+- **Agents may merge their own PRs** once `scripts/check.sh` passes locally and a Claude `/code-review` found no open
   correctness issues. No human approval is needed for that.
 - Human approval is still required for: safety and race-mode rules, backend auth/security, and breaking changes to
   contracts (`src/raceforge/core/` schemas, REST/OpenAPI, MCP tool schemas, telemetry frame format).

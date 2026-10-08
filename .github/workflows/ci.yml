@@ -1,11 +1,8 @@
 name: CI
 
+# Owner decision 2026-10-08: no automatic CI runs (speed first; the owner tests manually).
+# Start it by hand from the Actions tab if needed.
 on:
-  push:
-    branches: [main]
-  pull_request:
-  schedule:
-    - cron: "0 2 * * *"  # nightly: slow acceptance runs, cargo-deny advisories; Sundays: long fuzzing
   workflow_dispatch:
 
 permissions:

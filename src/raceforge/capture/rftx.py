@@ -172,7 +172,10 @@ async def pull(
                 offset += len(data)
                 if progress:
                     progress(entry.id, offset, entry.size)
-        inbox.complete(entry.id)
+        try:
+            inbox.complete(entry.id)
+        except ValueError:
+            continue  # damaged: discarded, the next pull fetches it again
         await m.send_json(Msg.DONE, {"id": entry.id, "sha256": entry.sha256})
         done.append(entry.id)
     return done

@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Run every quality gate (same as CI). Usage: scripts/check.sh
+# Run every quality gate (the merge gate; CI only runs on manual dispatch). Usage: scripts/check.sh
 set -e
 cd "$(dirname "$0")/.."
 # PYTHONPATH: Python >= 3.13 on macOS skips "hidden" .pth files that uv may create.
@@ -11,7 +11,7 @@ git ls-files -z '*.sh' deploy/raceforge-admin | xargs -0 uv run shellcheck -S st
 uv run pyright
 uv run lint-imports
 uv run pytest "$@"
-# Frontend (spec 0008): lint, types, unit tests, build. E2E/Electron run in CI (see ci.yml).
+# Frontend (spec 0008): lint, types, unit tests, build. E2E/Electron: manual CI dispatch (see ci.yml).
 if command -v npm >/dev/null 2>&1 && [ -d frontend/node_modules ]; then
   (cd frontend && npm run --silent check)
 else
