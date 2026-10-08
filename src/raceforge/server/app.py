@@ -181,6 +181,13 @@ def create_app(
                     paused = {"pause": True, "resume": False}.get(msg.type, paused)
                     if msg.type == "speed" and msg.speed:
                         speed = msg.speed
+                    elif msg.type == "teleop":
+                        session.teleop.drive(msg.steer or 0.0, msg.speed or 0.0)
+                        speed, paused = 1.0, False  # a human drives in real time
+                    elif msg.type == "teleop_release":
+                        session.teleop.release()
+                    elif msg.type == "stop_car":
+                        session.teleop.stop()
                 tick = time.perf_counter()
                 if not paused:
                     if speed >= 100:  # as fast as possible: compute for most of a frame

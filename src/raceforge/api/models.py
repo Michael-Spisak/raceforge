@@ -114,7 +114,9 @@ class ReplaySummary(ApiModel):
 
 class SimStart(ApiModel):
     type: Literal["start"] = "start"
-    controller: str
+    controller: (
+        str  # path of a controller file, or "none" (stand still, drive by teleop; spec 0010)
+    )
     params_path: str | None = None
     corridor: CorridorParams = Field(default_factory=CorridorParams)
     laps: int = Field(default=1, ge=1, le=20)
@@ -126,8 +128,11 @@ class SimStart(ApiModel):
 
 
 class SimControl(ApiModel):
-    type: Literal["pause", "resume", "stop", "speed"]
+    """``speed``: time factor for "speed", m/s for "teleop" (spec 0010, same JSON as the car)."""
+
+    type: Literal["pause", "resume", "stop", "speed", "teleop", "teleop_release", "stop_car"]
     speed: float | None = None
+    steer: float | None = None  # rad, "teleop" only
 
 
 class UltrasonicView(ApiModel):

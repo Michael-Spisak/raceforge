@@ -2166,6 +2166,7 @@
       },
       "SimControl": {
         "additionalProperties": false,
+        "description": "``speed``: time factor for \"speed\", m/s for \"teleop\" (spec 0010, same JSON as the car).",
         "properties": {
           "speed": {
             "anyOf": [
@@ -2178,12 +2179,26 @@
             ],
             "title": "Speed"
           },
+          "steer": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steer"
+          },
           "type": {
             "enum": [
               "pause",
               "resume",
               "stop",
-              "speed"
+              "speed",
+              "teleop",
+              "teleop_release",
+              "stop_car"
             ],
             "title": "Type",
             "type": "string"

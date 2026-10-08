@@ -1,6 +1,7 @@
 """SimIO: RobotIO backed by the simulator, plus a simulated race runner (spec 0004)."""
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -111,6 +112,9 @@ class RaceSession:
         self.recorder = Recorder(record) if record else None
         self.seq = 0
         self.last_cmd = Command()
+        self.last_state = "run"
+        # Teleop (spec 0010): (command, state) replacing the controller for this step, or None.
+        self.override: Callable[[], tuple[Command, str] | None] | None = None
         # Deterministic lateral offsets for opponents (alternating sides by start order).
         others = [c for c in sorted(sim.cars) if c != car]
         self.offsets = {name: (0.25 if i % 2 else -0.25) for i, name in enumerate(others)}
@@ -122,7 +126,14 @@ class RaceSession:
 
     def step(self) -> None:
         sim = self.sim
-        self.last_cmd = cmd = self.host.step()
+        manual = self.override() if self.override is not None else None
+        if manual is None:
+            self.last_cmd = cmd = self.host.step()
+            self.last_state = self.controller.state
+        else:
+            cmd, self.last_state = manual
+            self.io.write(cmd)
+            self.last_cmd = self.io.last_cmd
         for other, offset in self.offsets.items():
             sim.command(other, centreline_follower(sim, other, self.opponent_speed_m_s, offset))
         sim.step()
@@ -130,8 +141,8 @@ class RaceSession:
             frame = frame_from(
                 self.seq,
                 sim.readings(self.car),
-                CarCommand(cmd.steering_rad, cmd.speed_m_s),
-                self.controller.state,
+                CarCommand(self.last_cmd.steering_rad, self.last_cmd.speed_m_s),
+                self.last_state,
                 1 / sim.control_dt,
                 dict(self.io.channels),
             )
