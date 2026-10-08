@@ -7,7 +7,11 @@ Full plan: [`docs/PLAN.md`](docs/PLAN.md). Decisions: [`docs/adr/`](docs/adr/). 
 
 ## Golden rules
 1. **No code without a spec.** Every task links an issue that links a spec in `docs/specs/`. If the spec is missing or unclear, stop and ask.
-2. **Tests first.** Write or extend tests from the spec's acceptance criteria before implementing.
+2. **Tests for the critical paths only.** Speed of delivery has priority: write tests only for the most important
+   behaviour — core schemas/contracts, physics/mass/CoG maths, controller logic, safety and race-mode rules,
+   serialisation round-trips and the main happy path of each feature. Skip tests for UI polish, layout, simple
+   glue code and trivial getters; the owner tests the app manually and reports bugs. A reported bug gets a
+   regression test when it is fixed.
 3. **Never weaken, skip or delete tests to make CI pass.** Fix the code or ask.
 4. **Stay in scope.** Only touch files listed as in-scope in the issue. Out-of-scope improvements become new issues.
 5. **No new dependency without an ADR** (`docs/adr/`). Check licence compatibility with GPL-3.0.
@@ -36,8 +40,10 @@ scripts/check.sh   # ruff format/check, pyright, import-linter, pytest (same as 
 All must pass. Then open a PR using the template; include risks and, for UI work, screenshots.
 
 ## Merge policy
-- Auto-merge allowed (green gates + Claude `/code-review` + Copilot review) for: UI polish, docs, tests, reports, i18n strings.
-- Human approval always required for: `src/raceforge/core/`, API/MCP schemas, `car_runtime/`, race mode, safety, backend auth.
+- **Agents may merge their own PRs** once all CI gates are green and a Claude `/code-review` found no open
+  correctness issues. No human approval is needed for that.
+- Human approval is still required for: safety and race-mode rules, backend auth/security, and breaking changes to
+  contracts (`src/raceforge/core/` schemas, REST/OpenAPI, MCP tool schemas, telemetry frame format).
 
 ## Lessons learned
 Repeated agent mistakes are turned into new rules here at every milestone review.

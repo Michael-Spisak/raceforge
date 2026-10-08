@@ -1,0 +1,11 @@
+# Installs a bundle from the USB stick partition %I (spec 0005 "Deploy"); started by
+# 90-raceforge-usb-deploy.rules. See raceforge-usb-deploy.sh.
+[Unit]
+Description=RaceForge: install a bundle from USB stick %I
+BindsTo=dev-%i.device
+After=dev-%i.device
+
+[Service]
+Type=oneshot
+ExecStart=/opt/raceforge/bin/raceforge-usb-deploy /dev/%I
+TimeoutStartSec=120

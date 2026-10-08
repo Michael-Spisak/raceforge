@@ -1,0 +1,33 @@
+# Fuzz targets for the car runtime parsers (spec 0005 AC1, ADR-0025). Its own workspace: needs a
+# nightly compiler, never part of the runtime build. Run from car_runtime/:
+#   cargo +nightly-2026-09-24 fuzz run ev3_frames -- -max_total_time=60
+[package]
+name = "rf-fuzz"
+version = "0.0.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.13"
+rf-proto = { path = "../rf-proto" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "ev3_frames"
+path = "fuzz_targets/ev3_frames.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ld06_stream"
+path = "fuzz_targets/ld06_stream.rs"
+test = false
+doc = false
+bench = false
