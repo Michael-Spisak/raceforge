@@ -85,6 +85,8 @@ the bundle). Otherwise it exits with code 5 before opening the EV3 link. Prepare
 limit is lifted and teleop is refused. Stopping the process (Ctrl-C/kill) is safe:
 the EV3 brakes after 150 ms without frames and the log stays readable up to the last record.
 
+First drive on the real car: the AC10 checklist in [`FIRST_DRIVE.md`](FIRST_DRIVE.md).
+
 ## Develop
 The Rust version is pinned in `rust-toolchain.toml` (rustup installs it automatically).
 
