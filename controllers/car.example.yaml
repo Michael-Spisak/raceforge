@@ -1,0 +1,41 @@
+# Car config for `raceforge bundle` (spec 0005 "Deploy"): the car's half of a bundle. Copy it
+# (e.g. to car.yaml), fill in your car's values, then:
+#
+#   raceforge bundle controllers/templates/wall_follow.py --car car.yaml --out bundle
+#   raceforge deploy bundle --ssh car-1.local      # or --usb /media/STICK
+#
+# SI units. Fields and defaults: raceforge.car.bundle (RobotSpec, Ev3Spec, LidarSpec,
+# RuntimeSpec, TelemetrySpec). Values marked PLACEHOLDER must be measured on the real car.
+
+robot:  # what the controller sees as RobotInfo (same as in the simulator)
+  car_name: car-1
+  sensors: [front, left, right, gyro]
+  max_steer_rad: 0.45  # PLACEHOLDER: full steering lock
+  max_speed_m_s: 1.5  # PLACEHOLDER
+  wheelbase_m: 0.20  # PLACEHOLDER
+  track_m: 0.15  # PLACEHOLDER
+  control_rate_hz: 50
+
+ev3:  # wiring and motor units (the EV3 program: ev3_side/)
+  steer_motor: A
+  drive_motor: B
+  steer_motor_deg_per_rad: 171.9  # PLACEHOLDER: motor degrees per radian of steering (sign!)
+  drive_counts_per_m: 2046.0  # PLACEHOLDER: tacho degrees per metre driven (sign!)
+  ultrasonic: {front: "1", left: "2", right: "3"}  # sensor name -> EV3 port
+  gyro: true
+  estop_touch_port: "4"  # touch sensor used as emergency stop (null: none)
+  resume_button: enter  # held 1 s after a fault: restart the controller
+
+# lidar:  # LD06/LD19 on the board's UART (omit when the car has none)
+#   device: /dev/ttyUSB0
+#   mount_offset_rad: 0.0  # CCW angle of the sensor's zero mark from the car's forward axis
+#   policy: critical  # critical: no scan -> stop; optional: continue at half speed
+
+runtime:
+  mode: test  # `raceforge bundle --race` switches to race mode
+  test_speed_limit_m_s: 0.8  # test mode only; omit for the car's maximum
+
+# telemetry:  # live telemetry + teleop in test mode (ws://<car>:8765/?token=...)
+#   bind: 0.0.0.0:8765
+#   # The token is a secret and this repository is public: set RACEFORGE_TELEMETRY_TOKEN
+#   # instead of writing it here.

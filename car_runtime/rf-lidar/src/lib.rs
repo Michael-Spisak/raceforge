@@ -43,8 +43,9 @@ pub struct LidarStats {
     pub bad_packets: u64,
     pub revolutions: u64,
     pub short_revolutions: u64,
-    /// Partial revolutions dropped because the angle never wrapped (e.g. stalled motor).
-    pub overflowed_revolutions: u64,
+    /// Revolutions dropped because the angle stopped advancing (e.g. a stalled scan motor);
+    /// see `rf_proto::ld06::MAX_REVOLUTION_POINTS`.
+    pub dropped_revolutions: u64,
     /// Rotation speed reported by the last packet (degrees per second; nominal 3600 = 10 Hz).
     pub speed_dps: u16,
     /// The reader stopped (end of stream or read error).
@@ -94,7 +95,7 @@ impl Lidar {
                 for p in &packets {
                     s.stats.speed_dps = p.speed_dps;
                     let rev = revs.push(p);
-                    s.stats.overflowed_revolutions = revs.dropped;
+                    s.stats.dropped_revolutions = revs.dropped;
                     let Some(rev) = rev else { continue };
                     if first {
                         first = false; // started mid-revolution
