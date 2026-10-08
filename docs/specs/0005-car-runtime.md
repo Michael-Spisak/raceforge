@@ -118,28 +118,40 @@ system OpenSSH, dedicated deploy user).*
 - Runtime start to "ready" < 30 s after boot (no hard requirement per plan; tracked).
 
 ## Acceptance criteria (→ tests)
-- [ ] AC1: Protocol encode/decode round-trips; property tests; CRC rejects corrupted frames; `cargo fuzz`
+- [x] AC1: Protocol encode/decode round-trips; property tests; CRC rejects corrupted frames; `cargo fuzz`
       targets for EV3 and LD06 parsers run in CI (short) without crashes.
-- [ ] AC2: LD06 driver decodes recorded sample packets into correct angles/ranges.
-- [ ] AC3: With a mock EV3 and mock LiDAR (in-process), the loop runs at 50 Hz, builds Observations, calls a
+      → `rf-proto` proptests (`ev3.rs`, `ld06.rs`, `ipc.rs`) and CRC tests; CI `fuzz` job (`car_runtime/fuzz/`, ADR-0019).
+- [x] AC2: LD06 driver decodes recorded sample packets into correct angles/ranges.
+      → `rf-proto` `ld06::decodes_sample_packet` (vendor sample), `rf-lidar/tests/stream.rs`.
+- [x] AC3: With a mock EV3 and mock LiDAR (in-process), the loop runs at 50 Hz, builds Observations, calls a
       Python template controller through the controller host process and sends commands; jitter stats
       reported.
-- [ ] AC4: Watchdog: a controller that sleeps 100 ms or raises → stop command within 50 ms; fault logged.
-- [ ] AC5: Race mode refuses to arm while a (mocked) wireless interface is up or a radio USB id is present;
+      → Covered by several tests, not one test with every part together: `rf-core/tests/mock_loop.rs` `ac3_loop_runs_at_50hz_and_forwards_commands` (LiDAR in the observation: `lidar_scan_time_is_converted_to_the_runtime_clock`); `rf-core/tests/python_host.rs` `ac3_wall_follow_template_through_python_host`; `rf-ev3/tests/loop_with_ev3.rs` (mock EV3 over UDP); `tests/car/test_host.py` (LiDAR mapping in the host).
+- [x] AC4: Watchdog: a controller that sleeps 100 ms or raises → stop command within 50 ms; fault logged.
+      → `mock_loop.rs` `ac4_hanging_controller_stops_within_50ms`, `ac4_raising_controller_stops_and_logs`; `python_host.rs` `ac4_sleeping_python_controller_is_stopped`, `ac4_raising_python_controller_is_stopped`.
+- [x] AC5: Race mode refuses to arm while a (mocked) wireless interface is up or a radio USB id is present;
       in race mode the WebSocket server is not listening and teleop is refused.
-- [ ] AC6: Speed limit and dead-man are enforced by Rust regardless of controller output.
-- [ ] AC7: MCAP written by the runtime opens with the Python reader from spec 0003 (`read_frames`).
-- [ ] AC8: `ev3_side` unit tests (protocol, failsafe timer) run on the dev machine with mocked ev3dev.
-- [ ] AC9: Cross-compiled aarch64 build in CI; `clippy -D warnings`, `cargo deny`, `cargo test` green.
-- [ ] AC10 (hardware, manual checklist): on the real car — link up, sensors read, template `wall_follow`
+      → `rf-runtime/tests/radio_check.rs`; `run_bundle.rs` `race_mode_refuses_to_arm_with_wifi_up_before_touching_the_ev3`, `race_mode_never_listens_for_telemetry`; `rf-telemetry` refuses to start in race mode.
+- [x] AC6: Speed limit and dead-man are enforced by Rust regardless of controller output.
+      → `mock_loop.rs` `ac6_speed_limit_enforced_regardless_of_controller`, `ac6_teleop_dead_man_stops_when_not_refreshed`.
+- [x] AC7: MCAP written by the runtime opens with the Python reader from spec 0003 (`read_frames`).
+      → `rf-log/tests/runtime_log.rs` `ac7_runtime_log_readable_by_python`, `ac7_edge_case_values_stay_valid_for_the_python_model`.
+- [x] AC8: `ev3_side` unit tests (protocol, failsafe timer) run on the dev machine with mocked ev3dev.
+      → `tests/ev3_side/` (protocol, failsafe, bridge, Python 3.5 syntax).
+- [x] AC9: Cross-compiled aarch64 build in CI; `clippy -D warnings`, `cargo deny`, `cargo test` green.
+      → CI `rust` (fmt, clippy, tests, cargo-deny, aarch64 musl build) and `rust-arm64` (tests on arm64); ADR-0020, ADR-0021.
+- [ ] AC10 (hardware, manual checklist: `car_runtime/FIRST_DRIVE.md`): on the real car — link up, sensors read, template `wall_follow`
       drives 10 m in a corridor in test mode, emergency stop cuts motors, MCAP recorded and replayable.
-- [ ] AC11: The installer refuses a bundle with a wrong hash, an unsafe tar member or a missing file
+- [x] AC11: The installer refuses a bundle with a wrong hash, an unsafe tar member or a missing file
       without touching the running bundle; a good bundle is swapped in atomically, two previous ones are
       kept, and a bundle the runtime rejects (exit 4) is rolled back automatically.
-- [ ] AC12: `raceforge deploy --ssh` round trip (tests: fake `ssh` running the real installer) installs the
+      → `tests/car/test_install.py`.
+- [x] AC12: `raceforge deploy --ssh` round trip (tests: fake `ssh` running the real installer) installs the
       bundle and checks the reported digest; `--usb` writes a verified copy that the installer accepts.
-- [ ] AC13: `setup-board.sh --deploy-key` creates the deploy user whose key and sudo rule allow only the
+      → `tests/car/test_deploy.py`.
+- [x] AC13: `setup-board.sh --deploy-key` creates the deploy user whose key and sudo rule allow only the
       installer, plus the USB auto-install rule; the bundle directory becomes the symlink layout.
+      → `tests/car/test_setup_board.py`.
 
 ## Open questions
 - Exact board (Pi 5 vs Orange Pi 5) is decided mid-January; v1 targets generic aarch64 Linux.

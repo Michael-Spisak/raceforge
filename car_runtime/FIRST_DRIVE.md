@@ -112,9 +112,11 @@ spec's targets need. Paste the results table at the end into the PR or issue tha
    jit = sorted(f.loop.jitter_ms for f in frames)
    p99 = jit[min(len(jit) - 1, int(0.99 * len(jit)))]
    dur = (frames[-1].t.mono_ns - frames[0].t.mono_ns) / 1e9
-   print(f"{len(frames)} ticks in {dur:.1f} s, jitter p99 {p99:.2f} ms (target < 2 ms), "
-         f"deadline misses {frames[-1].loop.deadline_misses}, "
-         f"faults {sorted({x for f in frames for x in f.faults})}")
+   print(
+       f"{len(frames)} ticks in {dur:.1f} s, jitter p99 {p99:.2f} ms (target < 2 ms), "
+       f"deadline misses {frames[-1].loop.deadline_misses}, "
+       f"faults {sorted({x for f in frames for x in f.faults})}"
+   )
    sent, rtt, seqs, bad = {}, [], [], 0
    with log.open("rb") as fh:
        for _, _, m in make_reader(fh).iter_messages(topics=["/ev3_raw"]):
@@ -128,9 +130,11 @@ spec's targets need. Paste the results table at the end into the PR or issue tha
            else:
                bad += 1
    lost = sum(b - a - 1 for a, b in zip(seqs, seqs[1:]) if b > a)
-   print(f"EV3 link: {len(seqs)} frames in, loss {100 * lost / max(1, len(seqs) + lost):.2f} % "
-         f"(target < 0.1 %), {bad} bad, round trip median {statistics.median(rtt):.1f} ms "
-         f"(one way ~ half; target < 10 ms)")
+   print(
+       f"EV3 link: {len(seqs)} frames in, loss {100 * lost / max(1, len(seqs) + lost):.2f} % "
+       f"(target < 0.1 %), {bad} bad, round trip median {statistics.median(rtt):.1f} ms "
+       f"(one way ~ half; target < 10 ms)"
+   )
    ```
 
 ## 7. Results (paste into the PR or issue)
