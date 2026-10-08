@@ -2,12 +2,17 @@
 # Board setup for the RaceForge car runtime (spec 0005 "Board setup", ADR-0016 v1).
 #
 # Run once as root on Raspberry Pi OS or Armbian (aarch64); safe to run again:
-#   sudo ./setup-board.sh [--binary PATH] [--python-pkg SPEC] [--cores 2,3] [--start]
+#   sudo ./setup-board.sh [--binary PATH] [--python-pkg SPEC] [--cores 2,3] [--race|--no-race]
+#                         [--start]
 #
 #   --binary PATH      install this rf-runtime binary to /opt/raceforge/bin
 #   --python-pkg SPEC  pip-install raceforge into /opt/raceforge/venv (wheel path or package spec)
 #   --cores LIST       cores reserved for the runtime (default 2,3; on an RK3588 board such as the
 #                      Orange Pi 5 use big cores, e.g. 6,7)
+#   --race             switch all radios off for good, so race mode can arm (spec 0005 AC5):
+#                      Raspberry Pi config.txt overlays disable-wifi/disable-bt, Bluetooth services
+#                      off, rfkill soft-block now and at every boot (raceforge-radios-off.service)
+#   --no-race          undo --race (Wi-Fi/Bluetooth usable again, e.g. for test-mode telemetry)
 #   --start            start the service now (default: enabled for the next boot only)
 #   --test-root DIR    test mode: edit files below DIR, print commands instead of running them
 #
@@ -18,6 +23,7 @@
 #   4. kernel arguments isolcpus=<cores> (+ nohz_full if the kernel supports it)
 #   5. /opt/raceforge/{bin,bundle,venv}, the rf-runtime binary, the Python package
 #   6. systemd unit rf-runtime.service (+ CPUAffinity drop-in when --cores is not 2,3)
+#   7. with --race / --no-race: radios off / back on (without either, radios are left as they are)
 # Kernel arguments take effect after a reboot; the script says when one is needed.
 
 set -euo pipefail
@@ -30,9 +36,12 @@ PYTHON_PKG=""
 START=0
 ROOT=""   # file-system prefix (test mode)
 TEST=0
-REBOOT=0
+REBOOT=""  # reasons a reboot is needed (space separated)
+RACE=""   # "on" (--race), "off" (--no-race), "" (leave radios as they are)
+RACE_BEGIN="# >>> raceforge race mode: radios off (setup-board.sh --race)"
+RACE_END="# <<< raceforge race mode"
 
-usage() { sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; }
 log() { printf '[setup-board] %s\n' "$*"; }
 die() { printf '[setup-board] error: %s\n' "$*" >&2; exit 1; }
 
@@ -65,6 +74,8 @@ while [ $# -gt 0 ]; do
         --binary) BINARY="${2:?--binary needs a path}"; shift 2 ;;
         --python-pkg) PYTHON_PKG="${2:?--python-pkg needs a spec}"; shift 2 ;;
         --cores) CORES="${2:?--cores needs a list}"; shift 2 ;;
+        --race) RACE=on; shift ;;
+        --no-race) RACE=off; shift ;;
         --start) START=1; shift ;;
         --test-root) ROOT="${2:?--test-root needs a directory}"; TEST=1; shift 2 ;;
         -h|--help) usage; exit 0 ;;
@@ -173,7 +184,7 @@ if [ -f "$ROOT/boot/firmware/cmdline.txt" ] || [ -f "$ROOT/boot/cmdline.txt" ]; 
     if [ "$old" != "$new" ]; then
         backup_once "$f"
         printf '%s\n' "$new" > "$f"
-        REBOOT=1
+        REBOOT="$REBOOT kernel-arguments($ARGS)"
         log "kernel arguments in ${f#"$ROOT"}: $ARGS"
     fi
 elif [ -f "$ROOT/boot/armbianEnv.txt" ]; then
@@ -188,7 +199,7 @@ elif [ -f "$ROOT/boot/armbianEnv.txt" ]; then
         else
             printf 'extraargs=%s\n' "$new" >> "$f"
         fi
-        REBOOT=1
+        REBOOT="$REBOOT kernel-arguments($ARGS)"
         log "kernel arguments in ${f#"$ROOT"}: $ARGS"
     fi
 else
@@ -224,11 +235,68 @@ if [ "$START" = 1 ]; then
     run systemctl restart rf-runtime.service
 fi
 
+# --- 7. radios (race mode) ------------------------------------------------------------------
+# Raspberry Pi firmware config: the overlays remove the onboard Wi-Fi/Bluetooth at boot.
+pi_config=""
+for c in "$ROOT/boot/firmware/config.txt" "$ROOT/boot/config.txt"; do
+    if [ -f "$c" ]; then pi_config="$c"; break; fi
+done
+radios_unit="$ROOT/etc/systemd/system/raceforge-radios-off.service"
+# Soft-blocks every rfkill radio by writing sysfs directly (no rfkill tool needed).
+# shellcheck disable=SC2016  # literal scripts for `sh -c` and the unit: $r must not expand here
+BLOCK_ALL='for r in /sys/class/rfkill/rfkill*/soft; do [ -w "$r" ] && echo 1 > "$r"; done; true'
+# shellcheck disable=SC2016  # same as above
+UNBLOCK_ALL='for r in /sys/class/rfkill/rfkill*/soft; do [ -w "$r" ] && echo 0 > "$r"; done; true'
+
+if [ "$RACE" = on ]; then
+    log "race mode: switching all radios off"
+    if [ -n "$pi_config" ] && ! grep -qF "$RACE_BEGIN" "$pi_config"; then
+        backup_once "$pi_config"
+        # Make sure the file ends with a newline, then append the block (no blank lines, so
+        # --no-race restores the file byte for byte). [all] so the overlays apply to every Pi
+        # model, whatever filter section comes before.
+        if [ -s "$pi_config" ] && [ -n "$(tail -c 1 "$pi_config")" ]; then
+            printf '\n' >> "$pi_config"
+        fi
+        printf '%s\n[all]\ndtoverlay=disable-wifi\ndtoverlay=disable-bt\n%s\n' \
+            "$RACE_BEGIN" "$RACE_END" >> "$pi_config"
+        REBOOT="$REBOOT radio-overlays"
+        log "Wi-Fi/Bluetooth overlays added to ${pi_config#"$ROOT"}"
+    fi
+    {
+        printf '[Unit]\n'
+        printf 'Description=RaceForge: all radios rfkill-blocked (race mode, spec 0005 AC5)\n'
+        printf 'Before=rf-runtime.service\nAfter=systemd-rfkill.service\n\n'
+        printf '[Service]\nType=oneshot\n'
+        printf "ExecStart=/bin/sh -c '%s'\n" "$BLOCK_ALL"
+        printf 'RemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n'
+    } > "$radios_unit"
+    run systemctl daemon-reload
+    run systemctl enable raceforge-radios-off.service
+    run systemctl disable --now hciuart.service bluetooth.service || true
+    # Block now, too, so race mode can arm before the next reboot.
+    run sh -c "$BLOCK_ALL"
+elif [ "$RACE" = off ]; then
+    log "test mode: radios usable again"
+    if [ -n "$pi_config" ] && grep -qF "$RACE_BEGIN" "$pi_config"; then
+        sed_file "$pi_config" "/^# >>> raceforge race mode/,/^# <<< raceforge race mode/d"
+        REBOOT="$REBOOT radio-overlays"
+        log "Wi-Fi/Bluetooth overlays removed from ${pi_config#"$ROOT"}"
+    fi
+    if [ -f "$radios_unit" ]; then
+        run systemctl disable raceforge-radios-off.service
+        rm -f "$radios_unit"
+        run systemctl daemon-reload
+    fi
+    run systemctl enable bluetooth.service hciuart.service || true
+    run sh -c "$UNBLOCK_ALL"
+fi
+
 # --- summary -------------------------------------------------------------------------------
 [ -x "$ROOT/opt/raceforge/bin/rf-runtime" ] || log "note: no rf-runtime binary yet (use --binary)"
 [ -n "$(ls -A "$ROOT/opt/raceforge/bundle" 2>/dev/null)" ] || log "note: no bundle deployed yet in /opt/raceforge/bundle"
-if [ "$REBOOT" = 1 ]; then
-    log "done - REBOOT REQUIRED for the kernel arguments ($ARGS)"
+if [ -n "$REBOOT" ]; then
+    log "done - REBOOT REQUIRED for:$REBOOT"
 else
     log "done"
 fi

@@ -57,7 +57,8 @@ refused to arm (5).
 
 Race mode (`RuntimeSpec(mode="race")`) arms only when no radio can be active: every Wi-Fi/Bluetooth
 radio rfkill-blocked, no Wi-Fi interface up, no USB Wi-Fi/Bluetooth dongle (plus `radio_usb_ids` from
-the bundle). Otherwise it exits with code 5 before opening the EV3 link. In race mode the test speed
+the bundle). Otherwise it exits with code 5 before opening the EV3 link. Prepare a race board with
+`sudo deploy/setup-board.sh --race` (radios off for good; `--no-race` undoes it). In race mode the test speed
 limit is lifted and teleop is refused. Stopping the process (Ctrl-C/kill) is safe:
 the EV3 brakes after 150 ms without frames and the log stays readable up to the last record.
 
