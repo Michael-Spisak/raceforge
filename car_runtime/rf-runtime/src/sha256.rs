@@ -16,10 +16,10 @@ const H0: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 ];
 
-fn compress(h: &mut [u32; 8], block: &[u8]) {
+fn compress(h: &mut [u32; 8], block: &[u8; 64]) {
     let mut w = [0u32; 64];
-    for (i, word) in block.chunks_exact(4).enumerate() {
-        w[i] = u32::from_be_bytes([word[0], word[1], word[2], word[3]]);
+    for (i, word) in block.as_chunks::<4>().0.iter().enumerate() {
+        w[i] = u32::from_be_bytes(*word);
     }
     for i in 16..64 {
         let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
@@ -57,23 +57,22 @@ fn compress(h: &mut [u32; 8], block: &[u8]) {
 
 pub fn sha256(data: &[u8]) -> [u8; 32] {
     let mut h = H0;
-    let mut chunks = data.chunks_exact(64);
-    for block in &mut chunks {
+    let (blocks, rest) = data.as_chunks::<64>();
+    for block in blocks {
         compress(&mut h, block);
     }
-    let rest = chunks.remainder();
     let mut tail = [0u8; 128];
     tail[..rest.len()].copy_from_slice(rest);
     tail[rest.len()] = 0x80;
     let n = if rest.len() < 56 { 64 } else { 128 };
     let bits = (data.len() as u64).wrapping_mul(8);
     tail[n - 8..n].copy_from_slice(&bits.to_be_bytes());
-    for block in tail[..n].chunks_exact(64) {
+    for block in tail[..n].as_chunks::<64>().0 {
         compress(&mut h, block);
     }
     let mut out = [0u8; 32];
-    for (o, x) in out.chunks_exact_mut(4).zip(h) {
-        o.copy_from_slice(&x.to_be_bytes());
+    for (o, x) in out.as_chunks_mut::<4>().0.iter_mut().zip(h) {
+        *o = x.to_be_bytes();
     }
     out
 }
