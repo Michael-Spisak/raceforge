@@ -12,6 +12,16 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// Timing-sensitive tests in this file run one at a time: parallel control loops on a small CI
+/// runner would otherwise measure each other instead of the code under test.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[derive(Clone, Copy)]
 enum Act {
     Reply(Command),
@@ -104,6 +114,7 @@ const DRIVE: Command = Command {
 
 #[test]
 fn ac3_loop_runs_at_50hz_and_forwards_commands() {
+    let _serial = serial();
     let (mut rt, act, _) = runtime(
         RuntimeConfig::new(info(), Mode::Test),
         mock_host(|_| Act::Reply(DRIVE)),
@@ -137,6 +148,7 @@ fn first_stop_after(outs: &[(Instant, DriveOutput)], t: Instant) -> Option<Insta
 
 #[test]
 fn ac4_hanging_controller_stops_within_50ms() {
+    let _serial = serial();
     let (mut rt, act, _) = runtime(
         RuntimeConfig::new(info(), Mode::Test),
         mock_host(|seq| {
@@ -171,6 +183,7 @@ fn ac4_hanging_controller_stops_within_50ms() {
 
 #[test]
 fn ac4_raising_controller_stops_and_logs() {
+    let _serial = serial();
     let (mut rt, act, _) = runtime(
         RuntimeConfig::new(info(), Mode::Test),
         mock_host(|seq| {
@@ -192,6 +205,7 @@ fn ac4_raising_controller_stops_and_logs() {
 
 #[test]
 fn crashed_controller_is_a_fault() {
+    let _serial = serial();
     let (mut rt, _, _) = runtime(
         RuntimeConfig::new(info(), Mode::Test),
         mock_host(|seq| {
@@ -208,6 +222,7 @@ fn crashed_controller_is_a_fault() {
 
 #[test]
 fn estop_latches_without_calling_controller() {
+    let _serial = serial();
     let (mut rt, act, sensors) = runtime(
         RuntimeConfig::new(info(), Mode::Test),
         mock_host(|_| Act::Reply(DRIVE)),
@@ -223,6 +238,7 @@ fn estop_latches_without_calling_controller() {
 
 #[test]
 fn lost_sensor_link_latches_fault() {
+    let _serial = serial();
     let (mut rt, act, sensors) = runtime(
         RuntimeConfig::new(info(), Mode::Test),
         mock_host(|_| Act::Reply(DRIVE)),
@@ -238,6 +254,7 @@ fn lost_sensor_link_latches_fault() {
 
 #[test]
 fn ac6_speed_limit_enforced_regardless_of_controller() {
+    let _serial = serial();
     let mut cfg = RuntimeConfig::new(info(), Mode::Test);
     cfg.test_speed_limit_m_s = 0.5;
     let wild = Command {
@@ -254,6 +271,7 @@ fn ac6_speed_limit_enforced_regardless_of_controller() {
 
 #[test]
 fn ac6_teleop_dead_man_stops_when_not_refreshed() {
+    let _serial = serial();
     let (mut rt, act, _) = runtime(
         RuntimeConfig::new(info(), Mode::Test),
         mock_host(|_| Act::Reply(DRIVE)),

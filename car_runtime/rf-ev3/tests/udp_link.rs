@@ -8,6 +8,16 @@ use rf_proto::ev3::{cmd_flags, CommandFrame, SensorFrame, SENSOR_LEN};
 use std::net::UdpSocket;
 use std::time::{Duration, Instant};
 
+/// Timing-sensitive tests in this file run one at a time: parallel control loops on a small CI
+/// runner would otherwise measure each other instead of the code under test.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 struct MockEv3 {
     sock: UdpSocket,
 }
@@ -61,6 +71,7 @@ fn cfg() -> Ev3Config {
 
 #[test]
 fn keepalive_at_100hz_with_increasing_seq_and_initial_stop() {
+    let _serial = serial();
     let (_link, ev3) = setup(cfg());
     let cmds = ev3.recv_cmds(Duration::from_millis(200));
     // ~20 frames expected; allow scheduling slack on CI.
@@ -78,6 +89,7 @@ fn keepalive_at_100hz_with_increasing_seq_and_initial_stop() {
 
 #[test]
 fn new_output_is_sent_immediately_and_repeated() {
+    let _serial = serial();
     let (link, ev3) = setup(cfg());
     ev3.recv_cmds(Duration::from_millis(30));
     let t = Instant::now();
@@ -110,6 +122,7 @@ fn new_output_is_sent_immediately_and_repeated() {
 
 #[test]
 fn sensor_frames_become_snapshots_and_staleness_is_link_lost() {
+    let _serial = serial();
     let (link, ev3) = setup(cfg());
     assert!(link.snapshot().link_lost.is_some(), "no frame yet");
     // Ack the most recent command so the link can measure the round trip.
@@ -164,6 +177,7 @@ fn sensor_frames_become_snapshots_and_staleness_is_link_lost() {
 
 #[test]
 fn drop_sends_final_stop() {
+    let _serial = serial();
     let (link, ev3) = setup(cfg());
     link.send(DriveOutput {
         steering_rad: 0.0,

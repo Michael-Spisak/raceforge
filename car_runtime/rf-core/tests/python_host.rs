@@ -15,6 +15,16 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Timing-sensitive tests in this file run one at a time: parallel control loops on a small CI
+/// runner would otherwise measure each other instead of the code under test.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -87,6 +97,7 @@ fn write_controller(name: &str, body: &str) -> PathBuf {
 
 #[test]
 fn ac3_wall_follow_template_through_python_host() {
+    let _serial = serial();
     let Some(py) = python() else { return };
     let link = spawn(
         &py,
@@ -111,6 +122,7 @@ fn ac3_wall_follow_template_through_python_host() {
 
 #[test]
 fn ac4_sleeping_python_controller_is_stopped() {
+    let _serial = serial();
     let Some(py) = python() else { return };
     let ctrl = write_controller(
         "sleepy",
@@ -143,6 +155,7 @@ fn ac4_sleeping_python_controller_is_stopped() {
 
 #[test]
 fn ac4_raising_python_controller_is_stopped() {
+    let _serial = serial();
     let Some(py) = python() else { return };
     let ctrl = write_controller(
         "raising",

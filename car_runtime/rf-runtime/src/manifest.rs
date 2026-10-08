@@ -1,0 +1,222 @@
+//! Deploy bundle manifest (`bundle.json`), written by `raceforge.car.bundle` (Python).
+//! Field names and units mirror that module; unknown fields are rejected on both sides.
+
+use crate::sha256::sha256_hex;
+use rf_ev3::Ev3Config;
+use rf_proto::ipc::RobotInfo;
+use serde::Deserialize;
+use std::collections::BTreeMap;
+use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+use thiserror::Error;
+
+pub const MANIFEST: &str = "bundle.json";
+
+#[derive(Debug, Error)]
+pub enum BundleError {
+    #[error("cannot read {0}: {1}")]
+    Read(PathBuf, std::io::Error),
+    #[error("invalid manifest: {0}")]
+    Invalid(String),
+    #[error("bundle file missing: {0}")]
+    Missing(String),
+    #[error("hash mismatch for {0}: the bundle was changed after it was built")]
+    HashMismatch(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FileRef {
+    pub file: String,
+    pub sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Ev3Spec {
+    pub addr: String,
+    pub local: String,
+    pub steer_motor: String,
+    pub drive_motor: String,
+    pub steer_motor_deg_per_rad: f64,
+    pub drive_counts_per_m: f64,
+    #[serde(default)]
+    pub ultrasonic: BTreeMap<String, String>,
+    pub gyro: bool,
+    pub estop_touch_port: Option<String>,
+    pub link_timeout_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BundleMode {
+    Test,
+    Race,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimeSpec {
+    pub mode: BundleMode,
+    pub deadline_ms: f64,
+    pub test_speed_limit_m_s: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Manifest {
+    pub schema: String,
+    pub schema_version: u32,
+    pub name: String,
+    pub created_wall_ns: i64,
+    pub raceforge_version: String,
+    pub controller: FileRef,
+    pub params: Option<FileRef>,
+    pub robot: RobotInfo,
+    pub ev3: Ev3Spec,
+    pub runtime: RuntimeSpec,
+}
+
+fn motor_port(p: &str) -> Result<usize, BundleError> {
+    "ABCD"
+        .find(p)
+        .filter(|_| p.len() == 1)
+        .ok_or_else(|| BundleError::Invalid(format!("motor port {p:?}")))
+}
+
+fn sensor_port(p: &str) -> Result<usize, BundleError> {
+    "1234"
+        .find(p)
+        .filter(|_| p.len() == 1)
+        .ok_or_else(|| BundleError::Invalid(format!("sensor port {p:?}")))
+}
+
+impl Manifest {
+    /// Read `bundle.json` from `dir` and check every listed file against its SHA-256.
+    pub fn load_verified(dir: &Path) -> Result<Self, BundleError> {
+        let path = dir.join(MANIFEST);
+        let text = std::fs::read_to_string(&path).map_err(|e| BundleError::Read(path, e))?;
+        let m: Self =
+            serde_json::from_str(&text).map_err(|e| BundleError::Invalid(e.to_string()))?;
+        if m.schema != "car_bundle" || m.schema_version != 1 {
+            return Err(BundleError::Invalid(format!(
+                "unsupported schema {} v{}",
+                m.schema, m.schema_version
+            )));
+        }
+        for r in std::iter::once(&m.controller).chain(m.params.iter()) {
+            // Files must live inside the bundle directory.
+            if r.file.contains('/') || r.file.contains('\\') || r.file.starts_with('.') {
+                return Err(BundleError::Invalid(format!("file name {:?}", r.file)));
+            }
+            let data = std::fs::read(dir.join(&r.file))
+                .map_err(|_| BundleError::Missing(r.file.clone()))?;
+            if sha256_hex(&data) != r.sha256 {
+                return Err(BundleError::HashMismatch(r.file.clone()));
+            }
+        }
+        m.ev3_config()?;
+        m.ev3_addrs()?;
+        Ok(m)
+    }
+
+    pub fn ev3_config(&self) -> Result<Ev3Config, BundleError> {
+        let e = &self.ev3;
+        let ultrasonic = e
+            .ultrasonic
+            .iter()
+            .map(|(name, port)| Ok((name.clone(), sensor_port(port)?)))
+            .collect::<Result<_, BundleError>>()?;
+        Ok(Ev3Config {
+            steer_motor: motor_port(&e.steer_motor)?,
+            drive_motor: motor_port(&e.drive_motor)?,
+            steer_motor_deg_per_rad: e.steer_motor_deg_per_rad,
+            drive_counts_per_m: e.drive_counts_per_m,
+            ultrasonic,
+            gyro: e.gyro,
+            estop_touch_port: e.estop_touch_port.as_deref().map(sensor_port).transpose()?,
+            link_timeout: Duration::from_millis(e.link_timeout_ms),
+            ..Ev3Config::default()
+        })
+    }
+
+    /// (local bind address, EV3 address).
+    pub fn ev3_addrs(&self) -> Result<(SocketAddr, SocketAddr), BundleError> {
+        let parse = |s: &str| {
+            s.parse::<SocketAddr>()
+                .map_err(|_| BundleError::Invalid(format!("address {s:?}")))
+        };
+        Ok((parse(&self.ev3.local)?, parse(&self.ev3.addr)?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    pub fn sample(controller_hash: &str) -> String {
+        format!(
+            r#"{{
+  "schema": "car_bundle", "schema_version": 1, "name": "wf", "created_wall_ns": 1,
+  "raceforge_version": "0.0.1",
+  "controller": {{"file": "controller.py", "sha256": "{controller_hash}"}},
+  "params": null,
+  "robot": {{"car_name": "car", "sensors": ["front"], "max_steer_rad": 0.4, "max_speed_m_s": 1.5,
+            "wheelbase_m": 0.2, "track_m": 0.15, "control_rate_hz": 50.0}},
+  "ev3": {{"addr": "10.42.0.3:47100", "local": "0.0.0.0:47101", "steer_motor": "A", "drive_motor": "C",
+          "steer_motor_deg_per_rad": 171.9, "drive_counts_per_m": 2046.0,
+          "ultrasonic": {{"front": "1", "left": "2"}}, "gyro": true, "estop_touch_port": "4",
+          "link_timeout_ms": 100}},
+  "runtime": {{"mode": "test", "deadline_ms": 15.0, "test_speed_limit_m_s": null}}
+}}"#
+        )
+    }
+
+    fn bundle(name: &str, manifest: &str, controller: &[u8]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("rf-bundle-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(dir.join(MANIFEST), manifest).expect("manifest");
+        std::fs::write(dir.join("controller.py"), controller).expect("controller");
+        dir
+    }
+
+    #[test]
+    fn valid_bundle_maps_ports_and_units() {
+        let dir = bundle("ok", &sample(&sha256_hex(b"code")), b"code");
+        let m = Manifest::load_verified(&dir).expect("valid");
+        let c = m.ev3_config().expect("ev3");
+        assert_eq!((c.steer_motor, c.drive_motor), (0, 2));
+        assert_eq!(c.ultrasonic["left"], 1);
+        assert_eq!(c.estop_touch_port, Some(3));
+        assert_eq!(c.link_timeout, Duration::from_millis(100));
+        assert_eq!(m.robot.max_steer_rad, 0.4);
+        assert_eq!(m.runtime.mode, BundleMode::Test);
+    }
+
+    #[test]
+    fn tampered_controller_is_refused() {
+        let dir = bundle("tampered", &sample(&sha256_hex(b"code")), b"code + edit");
+        assert!(
+            matches!(Manifest::load_verified(&dir), Err(BundleError::HashMismatch(f)) if f == "controller.py")
+        );
+    }
+
+    #[test]
+    fn bad_manifests_are_refused() {
+        let h = sha256_hex(b"code");
+        let cases = [
+            sample(&h).replace("\"C\"", "\"E\""),
+            sample(&h).replace("\"4\"", "\"9\""),
+            sample(&h).replace("\"car_bundle\"", "\"other\""),
+            sample(&h).replace("\"controller.py\"", "\"../etc/passwd\""),
+            sample(&h).replace("10.42.0.3:47100", "not-an-address"),
+            sample(&h).replace("\"gyro\": true", "\"gyro\": true, \"extra\": 1"),
+        ];
+        for (i, text) in cases.iter().enumerate() {
+            let dir = bundle(&format!("bad{i}"), text, b"code");
+            assert!(Manifest::load_verified(&dir).is_err(), "case {i} accepted");
+        }
+    }
+}

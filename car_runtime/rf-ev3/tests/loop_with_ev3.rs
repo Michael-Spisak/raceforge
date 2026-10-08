@@ -11,9 +11,9 @@ use rf_proto::ipc::{self, Command, FromHost, Mode, RobotInfo, ToHost};
 use std::io::{BufRead, BufReader, Write};
 use std::net::UdpSocket;
 use std::os::unix::net::UnixStream;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Controller: steer proportional to the front distance, constant speed.
 fn mock_host() -> ControllerLink {
@@ -56,44 +56,56 @@ fn mock_host() -> ControllerLink {
 }
 
 /// Mock EV3: sends sensor frames at 100 Hz while `alive`, records received commands.
+/// Mock EV3: a receiver thread records commands; a separate sender thread sends sensor frames at
+/// 100 Hz while `alive` (so a busy receiver cannot starve the sensor stream). Returns the
+/// recorded commands and the number of sensor frames sent.
 fn mock_ev3(
     sock: UdpSocket,
     alive: Arc<AtomicBool>,
     done: Arc<AtomicBool>,
-) -> Arc<Mutex<Vec<CommandFrame>>> {
+) -> (Arc<Mutex<Vec<CommandFrame>>>, Arc<AtomicU32>) {
     let cmds = Arc::new(Mutex::new(Vec::new()));
-    let rec = cmds.clone();
-    sock.set_read_timeout(Some(Duration::from_millis(2)))
+    let sent = Arc::new(AtomicU32::new(0));
+    let last_ack = Arc::new(AtomicU32::new(0));
+    sock.set_read_timeout(Some(Duration::from_millis(5)))
         .expect("timeout");
-    std::thread::spawn(move || {
-        let mut seq = 0u32;
-        let mut last_ack = 0u32;
-        let mut next = Instant::now();
-        let mut buf = [0u8; 256];
-        while !done.load(Ordering::Acquire) {
-            while let Ok(n) = sock.recv(&mut buf) {
-                if let Ok(c) = CommandFrame::decode(&buf[..n]) {
-                    last_ack = c.seq;
-                    rec.lock().expect("lock").push(c);
+    let tx = sock.try_clone().expect("clone");
+    {
+        let (rec, last_ack, done) = (cmds.clone(), last_ack.clone(), done.clone());
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 256];
+            while !done.load(Ordering::Acquire) {
+                if let Ok(n) = sock.recv(&mut buf) {
+                    if let Ok(c) = CommandFrame::decode(&buf[..n]) {
+                        last_ack.store(c.seq, Ordering::Release);
+                        rec.lock().expect("lock").push(c);
+                    }
                 }
             }
-            if Instant::now() >= next {
-                next += Duration::from_millis(10);
+        });
+    }
+    {
+        let sent = sent.clone();
+        std::thread::spawn(move || {
+            while !done.load(Ordering::Acquire) {
                 if alive.load(Ordering::Acquire) {
-                    seq += 1;
+                    let seq = sent.load(Ordering::Acquire) + 1;
                     let f = SensorFrame {
                         seq,
-                        ack_seq: last_ack,
+                        ack_seq: last_ack.load(Ordering::Acquire),
                         ultrasonic_mm: [2000, 0, 0, 0],
                         battery_mv: 7900,
                         ..Default::default()
                     };
-                    let _ = sock.send(&f.encode());
+                    if tx.send(&f.encode()).is_ok() {
+                        sent.store(seq, Ordering::Release);
+                    }
                 }
+                std::thread::sleep(Duration::from_millis(10));
             }
-        }
-    });
-    cmds
+        });
+    }
+    (cmds, sent)
 }
 
 #[test]
@@ -110,7 +122,7 @@ fn loop_drives_through_ev3_link_and_stops_when_ev3_goes_silent() {
         Arc::new(AtomicBool::new(true)),
         Arc::new(AtomicBool::new(false)),
     );
-    let cmds = mock_ev3(ev3_sock, alive.clone(), done.clone());
+    let (cmds, sent) = mock_ev3(ev3_sock, alive.clone(), done.clone());
 
     let cfg = Ev3Config {
         steer_motor_deg_per_rad: 100.0,
@@ -173,6 +185,13 @@ fn loop_drives_through_ev3_link_and_stops_when_ev3_goes_silent() {
             && last.lcd == rf_ev3::lcd::FAULT
     );
     let stats = link.stats();
-    assert!(stats.rx_frames >= 40 && stats.rx_bad == 0, "{stats:?}");
+    // Every sensor frame the EV3 sent arrived intact (localhost UDP does not drop).
+    let sent = u64::from(sent.load(Ordering::Acquire));
+    assert!(sent > 0);
+    assert_eq!(
+        (stats.rx_frames, stats.rx_bad, stats.rx_lost),
+        (sent, 0, 0),
+        "{stats:?}"
+    );
     println!("link stats {stats:?}, loop jitter {:?}", report.jitter);
 }

@@ -1,0 +1,133 @@
+//! `rf-runtime`: runs a deploy bundle on the car (spec 0005).
+//!
+//! Start-up order: verify bundle hashes -> refuse race mode until the radio check exists (AC5)
+//! -> EV3 link up -> controller host process ready -> MCAP log open -> control loop. The motors
+//! are commanded to stop at every step until the loop runs; any failure before that exits with
+//! an error and the EV3 failsafe keeps the car stopped.
+
+pub mod manifest;
+pub mod sha256;
+
+use manifest::{BundleError, BundleMode, Manifest};
+use rf_core::hw::Sensors;
+use rf_core::link::{ControllerLink, LinkError};
+use rf_core::runtime::{RunReport, Runtime, RuntimeConfig};
+use rf_ev3::{Ev3Link, UdpTransport};
+use rf_log::Logger;
+use rf_proto::ipc::Mode;
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum AppError {
+    #[error(transparent)]
+    Bundle(#[from] BundleError),
+    #[error("race mode is not available yet: the radio check (spec 0005 AC5) is not implemented")]
+    RaceUnavailable,
+    #[error(
+        "EV3 not connected after {0:?} (is the EV3 program running and the USB cable plugged in?)"
+    )]
+    Ev3NotConnected(Duration),
+    #[error("controller host: {0}")]
+    Controller(#[from] LinkError),
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+#[derive(Debug, Clone)]
+pub struct Options {
+    pub bundle: PathBuf,
+    pub log_dir: PathBuf,
+    /// Python interpreter with raceforge installed.
+    pub python: String,
+    /// Extra PYTHONPATH for the controller host (e.g. a source checkout's `src`).
+    pub pythonpath: Option<PathBuf>,
+    pub max_ticks: Option<u64>,
+    pub ev3_wait: Duration,
+    pub setup_timeout: Duration,
+}
+
+impl Options {
+    pub fn new(bundle: PathBuf) -> Self {
+        Self {
+            bundle,
+            log_dir: PathBuf::from("logs"),
+            python: "python3".into(),
+            pythonpath: None,
+            max_ticks: None,
+            ev3_wait: Duration::from_secs(10),
+            setup_timeout: Duration::from_secs(20),
+        }
+    }
+}
+
+pub struct Outcome {
+    pub report: RunReport,
+    pub log: PathBuf,
+    pub manifest: Manifest,
+}
+
+pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
+    let manifest = Manifest::load_verified(&opts.bundle)?;
+    if manifest.runtime.mode == BundleMode::Race {
+        return Err(AppError::RaceUnavailable);
+    }
+
+    let (local, ev3_addr) = manifest.ev3_addrs()?;
+    let ev3 = Arc::new(Ev3Link::start(
+        manifest.ev3_config()?,
+        Box::new(UdpTransport::new(local, ev3_addr)?),
+    ));
+    let t = Instant::now();
+    while ev3.snapshot().link_lost.is_some() {
+        if t.elapsed() > opts.ev3_wait {
+            return Err(AppError::Ev3NotConnected(opts.ev3_wait));
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    let mut host = Command::new(&opts.python);
+    host.args(["-m", "raceforge.car.host", "--controller"])
+        .arg(opts.bundle.join(&manifest.controller.file));
+    if let Some(p) = &manifest.params {
+        host.arg("--params").arg(opts.bundle.join(&p.file));
+    }
+    if let Some(pp) = &opts.pythonpath {
+        host.env("PYTHONPATH", pp);
+    }
+    let sock = std::env::temp_dir().join(format!("rf-runtime-{}.sock", std::process::id()));
+    let link = ControllerLink::spawn(host, &sock, opts.setup_timeout)?;
+
+    std::fs::create_dir_all(&opts.log_dir)?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or_default();
+    let name: String = manifest
+        .name
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    let log_path = opts.log_dir.join(format!("run-{stamp}-{name}.mcap"));
+    let logger = Arc::new(Logger::start(&log_path, 1024, Duration::from_millis(500))?);
+
+    let mut cfg = RuntimeConfig::new(manifest.robot.clone(), Mode::Test);
+    cfg.deadline = Duration::from_secs_f64(manifest.runtime.deadline_ms / 1000.0).min(cfg.period());
+    if let Some(v) = manifest.runtime.test_speed_limit_m_s {
+        cfg.test_speed_limit_m_s = v;
+    }
+    let mut rt = Runtime::new(cfg, ev3.clone(), ev3.clone(), link, opts.setup_timeout)?;
+    rt.add_sink(logger.clone());
+    let report = rt.run(stop, opts.max_ticks);
+    drop(rt); // controller host shut down
+    logger.close()?;
+    Ok(Outcome {
+        report,
+        log: log_path,
+        manifest,
+    })
+}
