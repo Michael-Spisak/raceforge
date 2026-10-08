@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from raceforge import __version__
+from raceforge.api.car_link import relay as car_relay
 from raceforge.api.models import (
     ControllerInfo,
     CorridorResponse,
@@ -156,6 +157,11 @@ def create_app(
     def sim_protocol() -> SimProtocol:
         """Message types of the /api/v1/sim WebSocket (documentation only)."""
         return SimProtocol()
+
+    @app.websocket("/api/v1/car/live")
+    async def car_live(ws: WebSocket) -> None:
+        """Relay to a real car's telemetry/teleop WebSocket (spec 0010; protocol in car_link)."""
+        await car_relay(ws)
 
     @app.websocket("/api/v1/sim")
     async def sim_socket(ws: WebSocket) -> None:

@@ -19,12 +19,15 @@ test("teleop: drive the simulated car with the keyboard (spec 0010 AC3)", async 
   await expect.poll(() => distance(page), { timeout: 10_000 }).toBeGreaterThan(before + 0.3);
   await page.keyboard.up("w");
 
-  // released: the controller ("none") takes over again and the car comes to rest
+  // released: the controller ("none") takes over again and the car comes to rest (it may coast a bit)
   await expect(page.getByTestId("sim-state")).toHaveText("run");
-  await page.waitForTimeout(1500);
-  const resting = await distance(page);
-  await page.waitForTimeout(800);
-  expect(await distance(page)).toBeLessThan(resting + 0.05);
+  await expect
+    .poll(async () => {
+      const a = await distance(page);
+      await page.waitForTimeout(500);
+      return (await distance(page)) - a;
+    }, { timeout: 15_000 })
+    .toBeLessThan(0.02);
 
   // STOP latches
   await page.getByTestId("teleop-stop").click();
