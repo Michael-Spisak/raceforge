@@ -1,0 +1,4 @@
+# Static aarch64 build for the board (ADR-0027): linked with rust-lld from rustup, so no cross
+# compiler is needed. cargo build --release --target aarch64-unknown-linux-musl -p rf-runtime
+[target.aarch64-unknown-linux-musl]
+linker = "rust-lld"
