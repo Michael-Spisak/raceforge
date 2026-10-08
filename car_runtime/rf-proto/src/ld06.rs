@@ -147,11 +147,19 @@ impl Revolution {
     }
 }
 
+/// Upper bound on the points of one partial revolution (4x the LD06's ~450 points at 10 Hz).
+pub const MAX_REVOLUTION_POINTS: usize = 4 * 450;
+
 /// Collects packets into revolutions; a revolution ends when the angle wraps past zero.
 #[derive(Debug, Default)]
 pub struct RevolutionBuilder {
     current: Vec<Point>,
     last_angle: Option<u16>,
+    /// Partial revolutions dropped for exceeding [`MAX_REVOLUTION_POINTS`] without a wrap
+    /// (stalled motor or a corrupt stream that still passes the CRC).
+    pub dropped: u64,
+    /// Set after an overflow: the next wrap ends a revolution of unknown start, so discard it.
+    resync: bool,
 }
 
 impl RevolutionBuilder {
@@ -159,18 +167,35 @@ impl RevolutionBuilder {
         Self::default()
     }
 
+    /// Points collected for the revolution in progress.
+    pub fn len(&self) -> usize {
+        self.current.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.current.is_empty()
+    }
+
     pub fn push(&mut self, packet: &Packet) -> Option<Revolution> {
         let mut done = None;
         for p in &packet.points {
             if let Some(last) = self.last_angle {
                 if p.angle_cdeg < last && !self.current.is_empty() {
-                    done = Some(Revolution {
-                        points: std::mem::take(&mut self.current),
-                        timestamp_ms: packet.timestamp_ms,
-                    });
+                    let points = std::mem::take(&mut self.current);
+                    if !std::mem::take(&mut self.resync) {
+                        done = Some(Revolution {
+                            points,
+                            timestamp_ms: packet.timestamp_ms,
+                        });
+                    }
                 }
             }
             self.last_angle = Some(p.angle_cdeg);
+            if self.current.len() >= MAX_REVOLUTION_POINTS {
+                self.current.clear();
+                self.dropped += 1;
+                self.resync = true;
+            }
             self.current.push(*p);
         }
         done
@@ -286,6 +311,40 @@ mod tests {
         assert!(a
             .iter()
             .all(|x| *x > -std::f64::consts::PI - 1e-12 && *x <= std::f64::consts::PI));
+    }
+
+    #[test]
+    fn stalled_angle_does_not_grow_builder_unbounded() {
+        // Stalled motor / corrupt-but-valid stream: the angle never wraps, so no revolution ends.
+        let bytes = encode(0, 1000, 1000, 0, &[(500, 100); 12]);
+        let p = Packet::decode(&bytes).expect("decodes");
+        let mut b = RevolutionBuilder::new();
+        for _ in 0..10_000 {
+            assert!(b.push(&p).is_none());
+            assert!(b.len() <= MAX_REVOLUTION_POINTS);
+        }
+        assert!(b.dropped >= 10_000 * 12 / MAX_REVOLUTION_POINTS as u64 - 1);
+    }
+
+    #[test]
+    fn revolution_after_overflow_is_discarded_then_recovers() {
+        let stalled = Packet::decode(&encode(0, 1000, 1000, 0, &[(500, 100); 12])).expect("p");
+        let mut b = RevolutionBuilder::new();
+        for _ in 0..(MAX_REVOLUTION_POINTS / 12 + 1) {
+            assert!(b.push(&stalled).is_none());
+        }
+        assert_eq!(b.dropped, 1);
+        // The motor recovers: the first wrap ends the stalled partial revolution (discarded),
+        // the next one is complete again.
+        let mut revs = Vec::new();
+        for k in 0..31u32 {
+            let start = (k * 1200 % 36000) as u16;
+            let end = ((k * 1200 + 1100) % 36000) as u16;
+            let p = Packet::decode(&encode(3600, start, end, 0, &[(500, 100); 12])).expect("p");
+            revs.extend(b.push(&p));
+        }
+        assert_eq!(revs.len(), 1);
+        assert_eq!(revs[0].points.len(), 30 * 12);
     }
 
     proptest! {
