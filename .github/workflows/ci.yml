@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "0 2 * * *"  # nightly: slow acceptance runs
+    - cron: "0 2 * * *"  # nightly: slow acceptance runs, cargo-deny advisories; Sundays: long fuzzing
   workflow_dispatch:
 
 permissions:
@@ -40,6 +40,66 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       # RF_PYTHON enables the end-to-end tests against the Python controller host (AC3/AC4).
       - run: RF_PYTHON="$GITHUB_WORKSPACE/.venv/bin/python" cargo test --locked
+      # AC9 / ADR-0020: licences, advisories, bans and sources for the runtime and the fuzz crate.
+      - uses: actions/cache@v4
+        id: cargo-deny
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: cargo-deny-0.20.2-${{ runner.os }}-${{ env.ImageOS }}
+      - if: steps.cargo-deny.outputs.cache-hit != 'true'
+        run: cargo install --locked cargo-deny@0.20.2
+      - run: cargo deny check
+      - run: cargo deny --manifest-path fuzz/Cargo.toml check
+
+  fuzz:
+    # Spec 0005 AC1 / ADR-0019: coverage-guided fuzzing of the EV3 and LD06 parsers on a pinned
+    # nightly. 60 s per target; 30 min per target in the Sunday scheduled run.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: car_runtime
+    env:
+      FUZZ_NIGHTLY: nightly-2026-09-24
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup component add rustfmt clippy
+      - name: Fuzz crate (fmt, clippy, lockfile) on the pinned stable toolchain
+        working-directory: car_runtime/fuzz
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+      - run: rustup toolchain install "$FUZZ_NIGHTLY" --profile minimal
+      - uses: actions/cache@v4
+        id: cargo-fuzz
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: cargo-fuzz-0.13.2-${{ runner.os }}-${{ env.ImageOS }}
+      - if: steps.cargo-fuzz.outputs.cache-hit != 'true'
+        run: cargo install --locked cargo-fuzz@0.13.2
+      # Corpus carried between runs (generated data, never committed).
+      - uses: actions/cache@v4
+        with:
+          path: car_runtime/fuzz/corpus
+          key: fuzz-corpus-${{ github.run_id }}
+          restore-keys: fuzz-corpus-
+      - name: Fuzz every target
+        run: |
+          seconds=60
+          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$(date -u +%u)" = 7 ]; then seconds=1800; fi
+          for target in $(cargo +"$FUZZ_NIGHTLY" fuzz list); do
+            echo "::group::$target ($seconds s)"
+            cargo +"$FUZZ_NIGHTLY" fuzz run "$target" -- -max_total_time="$seconds"
+            echo "::endgroup::"
+          done
+      # A crash: the failing input is in fuzz/artifacts/<target>/. Fix it with a unit test that
+      # reproduces it (ADR-0019).
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts
+          path: car_runtime/fuzz/artifacts
+          if-no-files-found: ignore
 
   frontend:
     # Spec 0008: lint, types, unit tests, build, Playwright e2e against the real engine, Electron smoke.

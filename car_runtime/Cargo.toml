@@ -7,6 +7,8 @@ version = "0.0.1"
 edition = "2021"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/Michael-Spisak/raceforge"
+# Nothing is published to crates.io; cargo-deny skips private crates in the licence check (ADR-0020).
+publish = false
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

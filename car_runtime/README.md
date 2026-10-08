@@ -85,3 +85,17 @@ The Rust version is pinned in `rust-toolchain.toml` (rustup installs it automati
 cargo fmt --all --check && cargo clippy --all-targets -- -D warnings
 RF_PYTHON=../.venv/bin/python cargo test   # without RF_PYTHON the Python end-to-end tests are skipped
 ```
+
+Dependency checks (ADR-0020): `cargo install --locked cargo-deny@0.20.2`, then from `car_runtime/`
+`cargo deny check` and `cargo deny --manifest-path fuzz/Cargo.toml check` (rules in `deny.toml`:
+licence allow-list, RustSec advisories, no wildcard or git dependencies).
+
+Fuzzing (ADR-0019, Linux or macOS): the targets in `fuzz/` cover the EV3 frame decoders
+(`ev3_frames`) and the LD06 stream parser up to the revolution in the car frame (`ld06_stream`).
+```sh
+rustup toolchain install nightly-2026-09-24 --profile minimal
+cargo install --locked cargo-fuzz@0.13.2
+cargo +nightly-2026-09-24 fuzz run ev3_frames -- -max_total_time=60
+```
+CI fuzzes every target for 60 s per run and 30 min in the Sunday scheduled run. A crashing input
+lands in `fuzz/artifacts/<target>/`; fix it together with a unit test that reproduces it.

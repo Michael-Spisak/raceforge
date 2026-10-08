@@ -1,6 +1,6 @@
 # ADR-0019: Fuzzing the car runtime parsers (cargo-fuzz)
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-08)
 - **Date:** 2026-10-08
 
 ## Context

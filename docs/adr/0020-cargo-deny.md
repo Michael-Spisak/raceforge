@@ -1,6 +1,6 @@
 # ADR-0020: cargo-deny for the car runtime's dependencies
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-08)
 - **Date:** 2026-10-08
 
 ## Context

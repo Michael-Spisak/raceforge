@@ -1,0 +1,5 @@
+# Build output and generated fuzzing data (never committed, ADR-0019).
+target/
+corpus/
+artifacts/
+coverage/
