@@ -138,6 +138,18 @@ def read_frames(path: Path) -> list[TelemetryFrame]:
     return out
 
 
+def read_truth(path: Path) -> list[tuple[float, float]]:
+    """Ground-truth (x, y) positions recorded on the /truth channel."""
+    from mcap.reader import make_reader
+
+    out: list[tuple[float, float]] = []
+    with path.open("rb") as f:
+        for _schema, _channel, message in make_reader(f).iter_messages(topics=[TRUTH_TOPIC]):
+            data = json.loads(message.data)
+            out.append((float(data["x"]), float(data["y"])))
+    return out
+
+
 def make_runlog(
     assembly: VersionRef,
     controller: VersionRef,
@@ -158,4 +170,4 @@ def make_runlog(
     )
 
 
-__all__ = ["Recorder", "frame_from", "make_runlog", "read_frames"]
+__all__ = ["Recorder", "frame_from", "make_runlog", "read_frames", "read_truth"]
