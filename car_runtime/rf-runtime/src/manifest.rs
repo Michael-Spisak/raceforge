@@ -49,10 +49,78 @@ pub struct Ev3Spec {
     /// EV3 button that resumes after a fault when held (`rf_ev3::BUTTONS` names).
     #[serde(default = "default_resume_button")]
     pub resume_button: String,
+    /// Firmware on the brick (spec 0011): `ev3dev` (Python bridge, UDP) or `ev3rt` (C bridge, serial).
+    #[serde(default)]
+    pub os: Ev3Os,
+    #[serde(default)]
+    pub link: Ev3LinkKind,
+    /// Serial device for `uart` / `usb_cdc` / `bt_spp` (default per link kind).
+    #[serde(default)]
+    pub device: Option<String>,
+    #[serde(default = "default_baud")]
+    pub baud: u32,
+    /// Gyro port for the EV3RT app (ev3dev finds the gyro itself).
+    #[serde(default)]
+    pub gyro_port: Option<String>,
+    /// Motor loop gains of the EV3RT bridge; compiled into the EV3 app, not used by the runtime.
+    #[serde(default)]
+    pub gains: Option<Ev3Gains>,
 }
 
 fn default_resume_button() -> String {
     "enter".into()
+}
+
+fn default_baud() -> u32 {
+    115_200
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Ev3Os {
+    #[default]
+    Ev3dev,
+    Ev3rt,
+}
+
+/// Transport between the board and the EV3 (spec 0011).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Ev3LinkKind {
+    #[default]
+    Udp,
+    Uart,
+    UsbCdc,
+    BtSpp,
+}
+
+impl Ev3LinkKind {
+    pub fn default_device(self) -> Option<&'static str> {
+        match self {
+            Ev3LinkKind::Udp => None,
+            Ev3LinkKind::Uart => Some("/dev/serial0"),
+            Ev3LinkKind::UsbCdc => Some("/dev/ttyACM0"),
+            Ev3LinkKind::BtSpp => Some("/dev/rfcomm0"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ev3Endpoint {
+    Udp { local: SocketAddr, ev3: SocketAddr },
+    Serial { device: String, baud: u32 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Ev3Gains {
+    pub drive_ff: f64,
+    pub drive_kp: f64,
+    pub drive_ki: f64,
+    pub steer_kp: f64,
+    pub steer_min_power: i32,
+    pub steer_max_power: i32,
+    pub steer_deadband_deg: i32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -160,7 +228,7 @@ impl Manifest {
             }
         }
         m.ev3_config()?;
-        m.ev3_addrs()?;
+        m.ev3_link()?;
         let usb_id = |s: &String| {
             s.len() == 9
                 && s.as_bytes()[4] == b':'
@@ -230,6 +298,43 @@ impl Manifest {
         })
     }
 
+    /// How to reach the EV3 (spec 0011): ev3dev uses UDP, EV3RT a serial link. Bluetooth is for
+    /// testing only: a race-mode bundle with `bt_spp` is refused (radios must be off in a race).
+    pub fn ev3_link(&self) -> Result<Ev3Endpoint, BundleError> {
+        let e = &self.ev3;
+        match (e.os, e.link) {
+            (Ev3Os::Ev3dev, Ev3LinkKind::Udp) => {
+                let (local, ev3) = self.ev3_addrs()?;
+                Ok(Ev3Endpoint::Udp { local, ev3 })
+            }
+            (Ev3Os::Ev3dev, _) => Err(BundleError::Invalid(
+                "ev3dev talks UDP over the USB gadget: ev3.link must be \"udp\"".into(),
+            )),
+            (Ev3Os::Ev3rt, Ev3LinkKind::Udp) => Err(BundleError::Invalid(
+                "EV3RT has no network link: use ev3.link uart, usb_cdc or bt_spp".into(),
+            )),
+            (Ev3Os::Ev3rt, Ev3LinkKind::BtSpp) if self.runtime.mode == BundleMode::Race => {
+                Err(BundleError::Invalid(
+                    "race mode forbids radios: ev3.link bt_spp is for testing only".into(),
+                ))
+            }
+            (Ev3Os::Ev3rt, kind) => {
+                if !(9_600..=1_000_000).contains(&e.baud) {
+                    return Err(BundleError::Invalid(format!("ev3.baud {}", e.baud)));
+                }
+                let device = e
+                    .device
+                    .clone()
+                    .or_else(|| kind.default_device().map(str::to_owned))
+                    .unwrap_or_default();
+                Ok(Ev3Endpoint::Serial {
+                    device,
+                    baud: e.baud,
+                })
+            }
+        }
+    }
+
     /// (local bind address, EV3 address).
     pub fn ev3_addrs(&self) -> Result<(SocketAddr, SocketAddr), BundleError> {
         let parse = |s: &str| {
@@ -282,6 +387,77 @@ mod tests {
         assert_eq!(c.link_timeout, Duration::from_millis(100));
         assert_eq!(m.robot.max_steer_rad, 0.4);
         assert_eq!(m.runtime.mode, BundleMode::Test);
+    }
+
+    /// Spec 0011 AC2: EV3RT bundles pick a serial link; ev3dev stays on UDP; BT is test-only.
+    #[test]
+    fn ev3_link_kinds() {
+        let h = sha256_hex(b"code");
+        let ev3 = |extra: &str, mode: &str| {
+            sample(&h)
+                .replace(
+                    "\"link_timeout_ms\": 100}",
+                    &format!("\"link_timeout_ms\": 100{extra}}}"),
+                )
+                .replace("\"mode\": \"test\"", &format!("\"mode\": \"{mode}\""))
+        };
+        let load =
+            |name: &str, json: String| Manifest::load_verified(&bundle(name, &json, b"code"));
+        let m = load("udp", ev3("", "test")).expect("default: ev3dev over UDP");
+        assert!(matches!(
+            m.ev3_link().expect("link"),
+            Ev3Endpoint::Udp { .. }
+        ));
+        let m = load(
+            "uart",
+            ev3(", \"os\": \"ev3rt\", \"link\": \"uart\"", "test"),
+        )
+        .expect("uart");
+        assert_eq!(
+            m.ev3_link().expect("link"),
+            Ev3Endpoint::Serial {
+                device: "/dev/serial0".into(),
+                baud: 115_200
+            }
+        );
+        let m = load(
+            "usb",
+            ev3(", \"os\": \"ev3rt\", \"link\": \"usb_cdc\", \"device\": \"/dev/ttyACM1\", \"baud\": 230400", "race"),
+        )
+        .expect("usb cdc is wired: fine in race mode");
+        assert_eq!(
+            m.ev3_link().expect("link"),
+            Ev3Endpoint::Serial {
+                device: "/dev/ttyACM1".into(),
+                baud: 230_400
+            }
+        );
+        assert!(load(
+            "bt-test",
+            ev3(", \"os\": \"ev3rt\", \"link\": \"bt_spp\"", "test")
+        )
+        .is_ok());
+        assert!(load(
+            "bt-race",
+            ev3(", \"os\": \"ev3rt\", \"link\": \"bt_spp\"", "race")
+        )
+        .is_err());
+        assert!(load("dev-uart", ev3(", \"link\": \"uart\"", "test")).is_err());
+        assert!(load("rt-udp", ev3(", \"os\": \"ev3rt\"", "test")).is_err());
+        assert!(load(
+            "baud",
+            ev3(
+                ", \"os\": \"ev3rt\", \"link\": \"uart\", \"baud\": 1",
+                "test"
+            )
+        )
+        .is_err());
+        let gains = ", \"os\": \"ev3rt\", \"link\": \"uart\", \"gains\": {\"drive_ff\": 0.095, \"drive_kp\": 0.05, \"drive_ki\": 0.2, \"steer_kp\": 1.5, \"steer_min_power\": 8, \"steer_max_power\": 60, \"steer_deadband_deg\": 1}";
+        assert!(load("gains", ev3(gains, "test"))
+            .expect("gains")
+            .ev3
+            .gains
+            .is_some());
     }
 
     #[test]

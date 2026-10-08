@@ -11,11 +11,11 @@ pub mod radio;
 pub mod sensors;
 pub mod sha256;
 
-use manifest::{BundleError, BundleMode, Manifest};
+use manifest::{BundleError, BundleMode, Ev3Endpoint, Manifest};
 use rf_core::hw::Sensors;
 use rf_core::link::{ControllerLink, LinkError};
 use rf_core::runtime::{RunReport, Runtime, RuntimeConfig};
-use rf_ev3::{Ev3Link, UdpTransport};
+use rf_ev3::{Ev3Link, SerialTransport, UdpTransport};
 use rf_lidar::{Lidar, LidarConfig};
 use rf_log::Logger;
 use rf_proto::ipc::Mode;
@@ -98,11 +98,13 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
         }
     };
 
-    let (local, ev3_addr) = manifest.ev3_addrs()?;
-    let ev3 = Arc::new(Ev3Link::start(
-        manifest.ev3_config()?,
-        Box::new(UdpTransport::new(local, ev3_addr)?),
-    ));
+    let transport: Box<dyn rf_ev3::Transport> = match manifest.ev3_link()? {
+        Ev3Endpoint::Udp { local, ev3 } => Box::new(UdpTransport::new(local, ev3)?),
+        Ev3Endpoint::Serial { device, baud } => {
+            Box::new(SerialTransport::open(std::path::Path::new(&device), baud)?)
+        }
+    };
+    let ev3 = Arc::new(Ev3Link::start(manifest.ev3_config()?, transport));
     let t = Instant::now();
     while ev3.snapshot().link_lost.is_some() {
         if t.elapsed() > opts.ev3_wait {

@@ -6,8 +6,14 @@
 //! receive thread keeps as the latest value. [`Ev3Link`] implements the runtime's [`Sensors`] and
 //! [`Actuators`] traits and converts between SI units and motor degrees / tacho counts.
 //!
+//! EV3RT (spec 0011) uses the same frames over a serial byte stream: [`SerialTransport`].
+//!
 //! Conventions on the EV3 side: `touch` is a bitmask (bit `i` = sensor port `i + 1` pressed);
 //! `lcd` is one of the [`lcd`] codes.
+
+mod serial;
+
+pub use serial::SerialTransport;
 
 use rf_core::hw::{Actuators, DriveOutput, SensorSnapshot, Sensors};
 use rf_proto::ev3::{cmd_flags, status_flags, CommandFrame, RawFrame, SensorFrame};
