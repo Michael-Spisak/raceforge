@@ -1964,6 +1964,48 @@
         "title": "TotpSetup",
         "type": "object"
       },
+      "TrackScoutPairing": {
+        "additionalProperties": false,
+        "description": "TrackScout pairing QR (spec 0007): server, new `trackscout` API token + laptop key.",
+        "properties": {
+          "laptop_name": {
+            "title": "Laptop Name",
+            "type": "string"
+          },
+          "qr_svg": {
+            "title": "Qr Svg",
+            "type": "string"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          }
+        },
+        "required": [
+          "url",
+          "qr_svg",
+          "token_id",
+          "laptop_name",
+          "workspace_id"
+        ],
+        "title": "TrackScoutPairing",
+        "type": "object"
+      },
       "UltrasonicView": {
         "additionalProperties": false,
         "properties": {
@@ -2876,6 +2918,24 @@
           }
         },
         "summary": "Ws History"
+      }
+    },
+    "/api/v1/workspace/pair-trackscout": {
+      "post": {
+        "operationId": "ws_pair_trackscout_api_v1_workspace_pair_trackscout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackScoutPairing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Pair Trackscout"
       }
     },
     "/api/v1/workspace/register": {

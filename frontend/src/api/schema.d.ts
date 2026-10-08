@@ -263,6 +263,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/pair-trackscout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Pair Trackscout */
+        post: operations["ws_pair_trackscout_api_v1_workspace_pair_trackscout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/register": {
         parameters: {
             query?: never;
@@ -1249,6 +1266,22 @@ export interface components {
             /** Uri */
             uri: string;
         };
+        /**
+         * TrackScoutPairing
+         * @description TrackScout pairing QR (spec 0007): server, new `trackscout` API token + laptop key.
+         */
+        TrackScoutPairing: {
+            /** Laptop Name */
+            laptop_name: string;
+            /** Qr Svg */
+            qr_svg: string;
+            /** Token Id */
+            token_id: string;
+            /** Url */
+            url: string;
+            /** Workspace Id */
+            workspace_id: string | null;
+        };
         /** UltrasonicView */
         UltrasonicView: {
             /** Direction */
@@ -1814,6 +1847,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_pair_trackscout_api_v1_workspace_pair_trackscout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackScoutPairing"];
                 };
             };
         };

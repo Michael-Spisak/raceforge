@@ -1,12 +1,24 @@
 """Engine side of the team workspace (spec 0006): wraps the offline-first sync client."""
 
+import base64
 import contextlib
+import json
 import os
 import re
+import socket
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from raceforge.api.models import SaveFiles, SaveQuickstart, WorkspaceLogin, WorkspaceRegister
+import segno  # pyright: ignore[reportMissingTypeStubs]
+
+from raceforge.api.models import (
+    SaveFiles,
+    SaveQuickstart,
+    TrackScoutPairing,
+    WorkspaceLogin,
+    WorkspaceRegister,
+)
 from raceforge.backend.models import (
     ApiTokenInfo,
     InviteInfo,
@@ -122,6 +134,43 @@ class WorkspaceApi:
 
     def totp_verify(self, code: str) -> UserInfo:
         return self.ws.totp_verify(code)
+
+    def pair_trackscout(self) -> TrackScoutPairing:
+        """New `trackscout` token (read + edit only) and the phone's QR code (spec 0007 AC6)."""
+        status = self.ws.status()
+        if status.server_url is None:
+            raise BackendError(409, "log in first")
+        laptop = socket.gethostname().removesuffix(".local")
+        client = self.ws.client()
+        # A new QR replaces this laptop's earlier pairing tokens (old QR screenshots stop working).
+        for old in client.tokens():
+            if (
+                old.client == "trackscout"
+                and not old.revoked
+                and old.name.startswith(f"TrackScout ({laptop}, ")
+            ):
+                client.revoke_token(old.id)
+        token = client.create_token(
+            f"TrackScout ({laptop}, {datetime.now(UTC):%Y-%m-%d})", ["read", "edit"], "trackscout"
+        )
+        assert token.token is not None
+        payload = {
+            "server": status.server_url,
+            "token": token.token,
+            "workspace_id": self.ws.workspace_id,
+            "laptop_name": laptop,
+            "laptop_key": self.ws.laptop_key(),
+        }
+        data = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+        url = f"raceforge://pair?v=1&d={data}"
+        svg = segno.make(url, error="m").svg_inline(scale=4, border=2)
+        return TrackScoutPairing(
+            url=url,
+            qr_svg=svg,
+            token_id=token.id,
+            laptop_name=laptop,
+            workspace_id=self.ws.workspace_id,
+        )
 
     def invites(self) -> list[InviteInfo]:
         return self.ws.client().invites()

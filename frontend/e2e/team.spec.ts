@@ -53,4 +53,10 @@ test("team: login with 2FA, workspace, save as version, history, invite", async 
   // Admin: invite link
   await page.getByTestId("invite-create").click();
   await expect(page.getByTestId("invite-link")).toContainText("/invite#rfi_");
+
+  // Pair TrackScout (spec 0007 AC6): QR code + a new `trackscout` token with read + edit only
+  await page.getByTestId("trackscout-pair").click();
+  await expect(page.getByTestId("trackscout-qr")).toBeVisible();
+  await expect(page.getByTestId("trackscout-link")).toContainText("raceforge://pair?v=1&d=");
+  await expect(page.getByText(/\(trackscout\) · (read, edit|edit, read) ·/)).toBeVisible();
 });

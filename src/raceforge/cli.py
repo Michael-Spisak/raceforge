@@ -212,6 +212,55 @@ def _cmd_backend(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_capture(args: argparse.Namespace) -> int:
+    from raceforge.capture.tscan import TscanError, TscanPass
+
+    path = Path(args.file)
+    try:
+        with TscanPass(path) as p:
+            summary = p.summary()
+    except (TscanError, OSError) as exc:
+        print(f"error: {exc}")
+        return 1
+    if args.capture_command == "info":
+        width = max(len(k) for k in summary)
+        for key, value in summary.items():
+            print(f"{key:<{width}}  {value}")
+        return 0
+    from raceforge.api.workspace import default_root
+    from raceforge.workspace.client import BackendError, OfflineError
+    from raceforge.workspace.sync import Workspace
+
+    ws = Workspace(default_root())
+    if ws.workspace_id is None:
+        print("error: log in and pick a workspace on the Team tab first")
+        return 1
+    slug = args.slug or _capture_slug(summary["project"])
+    try:
+        v = ws.save_files("capture", slug, [path], f"imported {path.name}", merge=True)
+    except (BackendError, OfflineError) as exc:
+        print(f"error: {exc}")
+        return 1
+    state = (
+        f"version {v.semver}" if v.semver else "saved locally, syncs when the backend is reachable"
+    )
+    print(f"{path.name} → {slug}: {state}")
+    return 0
+
+
+def _capture_slug(project: str) -> str:
+    """Same rule as TrackScout's `captureSlug`: scan-<ascii-lowercase-name>."""
+    import re
+    import unicodedata
+
+    # Swift's `folding([.diacriticInsensitive, .caseInsensitive])`: case-fold (ß → ss, ﬁ → fi)
+    # and drop accents; any other non-ASCII character becomes a separator.
+    folded = unicodedata.normalize("NFD", project.casefold())
+    folded = "".join(ch for ch in folded if unicodedata.category(ch) != "Mn")
+    core = re.sub(r"[^a-z0-9]+", "-", folded).strip("-") or "track"
+    return f"scan-{core}"[:63].rstrip("-")
+
+
 def _print_install(r: "InstallResult") -> None:
     if r.ok:
         print(f"installed {r.name} ({(r.digest or '')[:12]}): {r.detail}")
@@ -372,6 +421,16 @@ def main(argv: list[str] | None = None) -> int:
     ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")
     ui.add_argument("--browser", action="store_true", help="open the UI in the default browser")
     ui.set_defaults(func=_cmd_ui)
+
+    cap = sub.add_parser("capture", help="TrackScout scans (.tscan, spec 0007)")
+    csub = cap.add_subparsers(dest="capture_command", required=True)
+    cinfo = csub.add_parser("info", help="check a .tscan pass and print a summary")
+    cinfo.add_argument("file")
+    cimp = csub.add_parser("import", help="add a .tscan pass to the current team workspace")
+    cimp.add_argument("file")
+    cimp.add_argument("--slug", help="capture object (default: scan-<project name>)")
+    for p in (cinfo, cimp):
+        p.set_defaults(func=_cmd_capture)
 
     be = sub.add_parser("backend", help="team backend server (spec 0006)")
     bsub = be.add_subparsers(dest="backend_command", required=True)

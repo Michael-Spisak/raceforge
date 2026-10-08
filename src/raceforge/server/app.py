@@ -30,6 +30,7 @@ from raceforge.api.models import (
     SimProtocol,
     SimStart,
     TokenRequest,
+    TrackScoutPairing,
     WorkspaceLogin,
     WorkspaceName,
     WorkspaceRegister,
@@ -249,6 +250,10 @@ def create_app(
     @app.post(f"{w}/totp/verify")
     def ws_totp_verify(req: TotpCode) -> UserInfo:
         return ws().totp_verify(req.code)
+
+    @app.post(f"{w}/pair-trackscout")
+    def ws_pair_trackscout() -> TrackScoutPairing:
+        return ws().pair_trackscout()
 
     @app.get(f"{w}/invites")
     def ws_invites() -> list[InviteInfo]:

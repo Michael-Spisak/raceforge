@@ -107,6 +107,34 @@ fn mount_offset_rotates_the_scan() {
 }
 
 #[test]
+fn stalled_motor_yields_no_new_revolution() {
+    let (mut uart, rx) = UnixStream::pair().expect("pair");
+    let lidar = Lidar::start(Box::new(rx), LidarConfig::default());
+    for _ in 0..3 {
+        uart.write_all(&revolution(0)).expect("write");
+    }
+    uart.write_all(&revolution(0)[..47]).expect("write");
+    wait_for(&lidar, 2);
+    let (at, _) = lidar.latest().expect("scan");
+    // The motor stalls: valid packets keep arriving, but the angle never advances.
+    let stalled = encode(0, 1000, 1000, 0, &[(500, 100); 12]);
+    let n = 1000u64;
+    for _ in 0..n {
+        uart.write_all(&stalled).expect("write");
+    }
+    let t = Instant::now();
+    while lidar.stats().packets < 3 * 30 + 1 + n {
+        assert!(t.elapsed() < Duration::from_secs(2), "{:?}", lidar.stats());
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let stats = lidar.stats();
+    // No new revolution, so the runtime's staleness timeout on `latest()` trips the policy.
+    assert_eq!(stats.revolutions, 2);
+    assert_eq!(lidar.latest().expect("scan").0, at);
+    assert!(stats.dropped_revolutions >= 1, "{stats:?}");
+}
+
+#[test]
 fn short_revolutions_are_dropped_and_end_of_stream_is_reported() {
     let (mut uart, rx) = UnixStream::pair().expect("pair");
     let lidar = Lidar::start(
