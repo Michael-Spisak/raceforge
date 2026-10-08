@@ -131,3 +131,40 @@ fn short_revolutions_are_dropped_and_end_of_stream_is_reported() {
     assert!(stats.short_revolutions >= 2, "{stats:?}");
     assert!(lidar.latest().is_none());
 }
+
+#[test]
+fn stalled_scan_motor_stops_scans_and_recovers() {
+    let (mut uart, rx) = UnixStream::pair().expect("pair");
+    let lidar = Lidar::start(Box::new(rx), LidarConfig::default());
+    for _ in 0..3 {
+        uart.write_all(&revolution(0)).expect("write");
+    }
+    uart.write_all(&revolution(0)[..47]).expect("write");
+    wait_for(&lidar, 2);
+    let (scan_at, _) = lidar.latest().expect("scan");
+
+    // The motor stalls: packets keep coming, always at the same angle. No revolution ever ends;
+    // it is dropped at the point cap, and no new scan appears, so the scan goes stale and the
+    // runtime's sensor policy (critical: fault, optional: degrade) takes over.
+    let stuck = encode(0, 4000, 4000, 0, &[(800, 100); 12]);
+    for _ in 0..400 {
+        uart.write_all(&stuck).expect("write"); // 4800 points
+    }
+    let t = Instant::now();
+    while lidar.stats().dropped_revolutions < 2 {
+        assert!(t.elapsed() < Duration::from_secs(2), "{:?}", lidar.stats());
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(lidar.stats().revolutions, 2);
+    assert_eq!(lidar.latest().map(|(at, _)| at), Some(scan_at));
+
+    // The motor recovers: the partial revolution is discarded, full ones are reported again.
+    for _ in 0..2 {
+        uart.write_all(&revolution(0)).expect("write");
+    }
+    uart.write_all(&revolution(0)[..47]).expect("write");
+    wait_for(&lidar, 3);
+    let (at, scan) = lidar.latest().expect("scan");
+    assert!(at > scan_at);
+    assert_eq!(scan.angles_rad.len(), 360);
+}

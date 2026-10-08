@@ -13,12 +13,22 @@ not match, so the car always drives exactly what was deployed. Field names and u
 
 import hashlib
 import ipaddress
+import os
 import shutil
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+import yaml
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
 
 import raceforge
 from raceforge.control.controller import load_controller
@@ -206,3 +216,101 @@ def verify_bundle(bundle_dir: Path) -> list[str]:
         elif sha256_file(path) != ref.sha256:
             problems.append(f"hash mismatch: {ref.file}")
     return problems
+
+
+def bundle_files(m: BundleManifest) -> list[str]:
+    """Every file of the bundle, manifest first (what a deploy transfers)."""
+    return [MANIFEST, m.controller.file] + ([m.params.file] if m.params else [])
+
+
+def bundle_digest(bundle_dir: Path) -> str:
+    """SHA-256 of the manifest. It lists every file's hash, so it identifies the whole bundle."""
+    return sha256_file(bundle_dir / MANIFEST)
+
+
+# --- car config (`raceforge bundle`) -----------------------------------------------------------
+
+TOKEN_ENV = "RACEFORGE_TELEMETRY_TOKEN"
+
+
+class BundleError(Exception):
+    pass
+
+
+class CarConfig(_Model):
+    """The car's half of a bundle (``car.yaml``): geometry, EV3 wiring, LiDAR, runtime settings.
+    The controller and its parameters are the other half (see ``controllers/car.example.yaml``)."""
+
+    robot: RobotSpec
+    ev3: Ev3Spec
+    lidar: LidarSpec | None = None
+    runtime: RuntimeSpec = RuntimeSpec()
+    telemetry: TelemetrySpec | None = None
+
+
+def _validation_message(e: ValidationError) -> str:
+    return "; ".join(
+        f"{'.'.join(str(p) for p in err['loc']) or '(top)'}: {err['msg']}" for err in e.errors()
+    )
+
+
+def load_car_config(path: Path, env: Mapping[str, str] = os.environ) -> CarConfig:
+    """Read ``car.yaml``. A telemetry token can come from ``RACEFORGE_TELEMETRY_TOKEN`` so it
+    never has to be written into a file that might end up in the (public) repository."""
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as e:
+        raise BundleError(f"{path}: {e}") from e
+    if not isinstance(raw, dict):
+        raise BundleError(f"{path}: expected a mapping with robot, ev3, ...")
+    tel = raw.get("telemetry")
+    if isinstance(tel, dict) and "token" not in tel and env.get(TOKEN_ENV):
+        raw["telemetry"] = {**tel, "token": env[TOKEN_ENV]}
+    try:
+        return CarConfig.model_validate(raw)
+    except ValidationError as e:
+        raise BundleError(f"{path}: {_validation_message(e)}") from e
+
+
+def token_in_file(path: Path) -> bool:
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return (
+        isinstance(raw, dict)
+        and isinstance(raw.get("telemetry"), dict)
+        and ("token" in raw["telemetry"])
+    )
+
+
+def build_car_bundle(
+    out_dir: Path,
+    controller: Path,
+    car: CarConfig,
+    params: Path | None = None,
+    name: str | None = None,
+    race: bool = False,
+) -> BundleManifest:
+    """Build a bundle for ``car`` into ``out_dir``, replacing a bundle already there (and only a
+    bundle: any other non-empty directory is refused). The old bundle stays if the build fails."""
+    if out_dir.exists() and any(out_dir.iterdir()) and not (out_dir / MANIFEST).is_file():
+        raise BundleError(f"{out_dir}: not empty and not a bundle; choose another --out")
+    runtime = car.runtime.model_copy(update={"mode": "race"}) if race else car.runtime
+    tmp = out_dir.with_name(f".{out_dir.name}.tmp")
+    shutil.rmtree(tmp, ignore_errors=True)
+    try:
+        manifest = build_bundle(
+            tmp,
+            controller,
+            car.robot,
+            car.ev3,
+            runtime=runtime,
+            params=params,
+            lidar=car.lidar,
+            name=name,
+            telemetry=car.telemetry,
+        )
+    except Exception as e:  # anything the team's controller raises while it is loaded
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise BundleError(f"{controller}: {type(e).__name__}: {e}") from e
+    shutil.rmtree(out_dir, ignore_errors=True)
+    tmp.rename(out_dir)
+    return manifest
