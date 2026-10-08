@@ -1,6 +1,6 @@
 # ADR-0015: Dependencies for the car runtime wire protocols (`rf-proto`)
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-08)
 - **Date:** 2026-10-07
 
 ## Context

@@ -5,7 +5,7 @@
 //! process is killed the EV3 failsafe stops the motors within 150 ms and the MCAP log stays
 //! readable up to the last complete record.
 
-use rf_runtime::{run, Options};
+use rf_runtime::{run, AppError, Options};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::atomic::AtomicBool;
@@ -14,6 +14,27 @@ use std::time::Duration;
 const USAGE: &str =
     "usage: rf-runtime --bundle DIR [--log-dir DIR] [--python PY] [--pythonpath DIR] \
                      [--ticks N] [--ev3-wait-s S]";
+
+// Exit codes (the systemd unit's restart policy depends on them, see deploy/rf-runtime.service).
+/// Start-up failed for a reason that may go away (EV3 or LiDAR not connected yet, host crashed).
+const EXIT_RETRY: u8 = 1;
+/// Bad command line.
+const EXIT_USAGE: u8 = 2;
+/// The car stopped because of a driving fault: restart only via resume button or new deploy.
+const EXIT_FAULT: u8 = 3;
+/// The bundle cannot run as deployed (hash mismatch, invalid manifest, race mode without the
+/// radio check): restarting would not help.
+const EXIT_CONFIG: u8 = 4;
+
+fn exit_code(e: &AppError) -> u8 {
+    match e {
+        AppError::Bundle(_) | AppError::RaceUnavailable => EXIT_CONFIG,
+        AppError::Ev3NotConnected(_)
+        | AppError::Lidar(..)
+        | AppError::Controller(_)
+        | AppError::Io(_) => EXIT_RETRY,
+    }
+}
 
 fn parse(args: &[String]) -> Result<Options, String> {
     let mut opts: Option<Options> = None;
@@ -53,7 +74,7 @@ fn main() -> ExitCode {
         Ok(o) => o,
         Err(e) => {
             eprintln!("{e}\n{USAGE}");
-            return ExitCode::from(2);
+            return ExitCode::from(EXIT_USAGE);
         }
     };
     match run(&opts, &AtomicBool::new(false)) {
@@ -68,14 +89,14 @@ fn main() -> ExitCode {
                 out.log.display()
             );
             if out.report.fault.is_some() {
-                ExitCode::from(3)
+                ExitCode::from(EXIT_FAULT)
             } else {
                 ExitCode::SUCCESS
             }
         }
         Err(e) => {
             eprintln!("rf-runtime: {e}");
-            ExitCode::FAILURE
+            ExitCode::from(exit_code(&e))
         }
     }
 }
@@ -86,6 +107,19 @@ mod tests {
 
     fn s(v: &[&str]) -> Vec<String> {
         v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn permanent_errors_are_not_retried() {
+        assert_eq!(exit_code(&AppError::RaceUnavailable), EXIT_CONFIG);
+        let bundle = rf_runtime::manifest::BundleError::HashMismatch("controller.py".into());
+        assert_eq!(exit_code(&AppError::Bundle(bundle)), EXIT_CONFIG);
+        let ev3 = AppError::Ev3NotConnected(Duration::from_secs(10));
+        assert_eq!(exit_code(&ev3), EXIT_RETRY);
+        assert_eq!(
+            exit_code(&AppError::Lidar("/dev/ttyUSB0".into(), "no scan".into())),
+            EXIT_RETRY
+        );
     }
 
     #[test]

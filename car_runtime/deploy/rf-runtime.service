@@ -1,0 +1,78 @@
+# RaceForge car runtime on the board (spec 0005, ADR-0016 v1).
+#
+# Install (as root, once):
+#   useradd --system --home /var/lib/raceforge --groups dialout raceforge
+#   install -D -m 0755 rf-runtime /opt/raceforge/bin/rf-runtime
+#   python3 -m venv /opt/raceforge/venv && /opt/raceforge/venv/bin/pip install raceforge
+#   install -D -m 0644 rf-runtime.service /etc/systemd/system/rf-runtime.service
+#   systemctl daemon-reload && systemctl enable --now rf-runtime
+# The deployed bundle lives in /opt/raceforge/bundle (replaced by `raceforge deploy`).
+
+[Unit]
+Description=RaceForge car runtime
+Documentation=https://github.com/Michael-Spisak/raceforge/blob/main/car_runtime/README.md
+# The EV3 is reached over the USB-Ethernet gadget; the runtime itself waits for the EV3 link.
+After=network.target
+Wants=network.target
+
+[Service]
+Type=exec
+User=raceforge
+Group=raceforge
+# LiDAR UART (/dev/ttyUSB0, /dev/ttyAMA0).
+SupplementaryGroups=dialout
+ExecStart=/opt/raceforge/bin/rf-runtime \
+    --bundle /opt/raceforge/bundle \
+    --log-dir /var/lib/raceforge/logs \
+    --python /opt/raceforge/venv/bin/python
+
+# Real-time scheduling (ADR-0016 v1). systemd applies it before dropping to User=, so the runtime
+# needs no privileges. Every runtime thread and the controller host it starts (children inherit,
+# CPUSchedulingResetOnFork=no) run SCHED_FIFO above all normal processes, on cores 2-3, which the
+# board setup isolates (isolcpus=2,3). Kernel RT throttling (95 %) stays at its default.
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=50
+CPUSchedulingResetOnFork=no
+CPUAffinity=2 3
+
+# Exit codes of rf-runtime (src/main.rs): 1 = start-up failed but may succeed later (EV3/LiDAR not
+# connected yet) -> restart; 2 = bad command line; 3 = driving fault (spec 0005: the controller is
+# restarted only via the resume button or a new deploy); 4 = bundle cannot run as deployed (hash
+# mismatch, invalid manifest, race mode without the radio check). 2-4 are never restarted.
+Restart=on-failure
+RestartSec=2
+RestartPreventExitStatus=2 3 4
+# A stopped or killed runtime is safe: the EV3 brakes after 150 ms without frames, and the MCAP
+# log stays readable up to the last complete record.
+KillSignal=SIGTERM
+TimeoutStopSec=3
+
+# Logs and runtime state.
+StateDirectory=raceforge
+LogsDirectory=raceforge
+PrivateTmp=yes
+
+# Hardening: the runtime needs its files, the LiDAR UART and the network (EV3 link over UDP).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/raceforge
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+UMask=0027
+CapabilityBoundingSet=
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+# Deliberately NOT set: RestrictRealtime= (would forbid the SCHED_FIFO above) and PrivateDevices=
+# (would hide the LiDAR UART).
+
+[Install]
+WantedBy=multi-user.target

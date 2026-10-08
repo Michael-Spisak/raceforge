@@ -1,6 +1,6 @@
 # ADR-0016: Real-time scheduling of the car runtime on the board
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-08; v1 — v2 only via amendment after HIL)
 - **Date:** 2026-10-08
 
 ## Context
@@ -58,5 +58,6 @@ reviewed `rf-core::rt` module.
 - CI cannot use real-time scheduling on hosted runners: timing tests keep generous bounds and run
   serially; the real numbers come from HIL (spec 0005 AC10), which must report p99 jitter and
   deadline misses with and without v1 settings.
-- Follow-up: `car_runtime/deploy/rf-runtime.service` and the board setup script (spec 0005 "Board
-  setup"), HIL measurement, then accept or escalate.
+- Follow-up: `car_runtime/deploy/rf-runtime.service` (done), the board setup script (swap,
+  governor, kernel arguments; spec 0005 "Board setup"), HIL measurement; escalate to v2 only if
+  HIL misses the target.
