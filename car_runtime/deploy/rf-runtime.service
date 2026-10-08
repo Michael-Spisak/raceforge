@@ -6,7 +6,7 @@
 #   python3 -m venv /opt/raceforge/venv && /opt/raceforge/venv/bin/pip install raceforge
 #   install -D -m 0644 rf-runtime.service /etc/systemd/system/rf-runtime.service
 #   systemctl daemon-reload && systemctl enable --now rf-runtime
-# The deployed bundle lives in /opt/raceforge/bundle (replaced by `raceforge deploy`).
+# The deployed bundle: /opt/raceforge/bundle, a symlink swapped by `raceforge deploy` (spec 0005).
 
 [Unit]
 Description=RaceForge car runtime

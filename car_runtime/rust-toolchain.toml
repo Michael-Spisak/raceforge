@@ -3,4 +3,6 @@
 [toolchain]
 channel = "1.98.0"
 components = ["clippy", "rustfmt"]
+# The board binary is a static musl build (ADR-0027).
+targets = ["aarch64-unknown-linux-musl"]
 profile = "minimal"

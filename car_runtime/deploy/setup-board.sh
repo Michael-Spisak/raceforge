@@ -3,7 +3,7 @@
 #
 # Run once as root on Raspberry Pi OS or Armbian (aarch64); safe to run again:
 #   sudo ./setup-board.sh [--binary PATH] [--python-pkg SPEC] [--cores 2,3] [--race|--no-race]
-#                         [--start]
+#                         [--deploy-key KEYS.pub] [--start]
 #
 #   --binary PATH      install this rf-runtime binary to /opt/raceforge/bin
 #   --python-pkg SPEC  pip-install raceforge into /opt/raceforge/venv (wheel path or package spec)
@@ -13,6 +13,9 @@
 #                      Raspberry Pi config.txt overlays disable-wifi/disable-bt, Bluetooth services
 #                      off, rfkill soft-block now and at every boot (raceforge-radios-off.service)
 #   --no-race          undo --race (Wi-Fi/Bluetooth usable again, e.g. for test-mode telemetry)
+#   --deploy-key FILE  public SSH keys (one per line) allowed to `raceforge deploy --ssh`: user
+#                      raceforge-deploy, whose keys and sudo rule run only the bundle installer;
+#                      running again with another file replaces the list
 #   --start            start the service now (default: enabled for the next boot only)
 #   --test-root DIR    test mode: edit files below DIR, print commands instead of running them
 #
@@ -21,9 +24,12 @@
 #   2. swap off (dphys-swapfile, zram, fstab) - swapping can stall the control loop
 #   3. CPU governor `performance` at every boot (oneshot unit raceforge-cpufreq.service)
 #   4. kernel arguments isolcpus=<cores> (+ nohz_full if the kernel supports it)
-#   5. /opt/raceforge/{bin,bundle,venv}, the rf-runtime binary, the Python package
-#   6. systemd unit rf-runtime.service (+ CPUAffinity drop-in when --cores is not 2,3)
+#   5. /opt/raceforge/{bin,bundles,venv}, the rf-runtime binary, the Python package, the bundle
+#      installer (`bundle` is its symlink to the current bundle, spec 0005 "Deploy")
+#   6. systemd unit rf-runtime.service (+ CPUAffinity drop-in when --cores is not 2,3), USB-stick
+#      auto-install (udev rule + raceforge-usb-deploy@.service)
 #   7. with --race / --no-race: radios off / back on (without either, radios are left as they are)
+#   8. with --deploy-key: the deploy user raceforge-deploy (key only, forced command, one sudo rule)
 # Kernel arguments take effect after a reboot; the script says when one is needed.
 
 set -euo pipefail
@@ -38,6 +44,10 @@ ROOT=""   # file-system prefix (test mode)
 TEST=0
 REBOOT=""  # reasons a reboot is needed (space separated)
 RACE=""   # "on" (--race), "off" (--no-race), "" (leave radios as they are)
+DEPLOY_KEY=""  # file with the public keys of the deploy user (--deploy-key)
+DEPLOY_USER="raceforge-deploy"
+DEPLOY_HOME="/var/lib/raceforge-deploy"
+INSTALLER="/opt/raceforge/bin/raceforge-install-bundle"
 RACE_BEGIN="# >>> raceforge race mode: radios off (setup-board.sh --race)"
 RACE_END="# <<< raceforge race mode"
 
@@ -76,6 +86,7 @@ while [ $# -gt 0 ]; do
         --cores) CORES="${2:?--cores needs a list}"; shift 2 ;;
         --race) RACE=on; shift ;;
         --no-race) RACE=off; shift ;;
+        --deploy-key) DEPLOY_KEY="${2:?--deploy-key needs a file}"; shift 2 ;;
         --start) START=1; shift ;;
         --test-root) ROOT="${2:?--test-root needs a directory}"; TEST=1; shift 2 ;;
         -h|--help) usage; exit 0 ;;
@@ -86,7 +97,39 @@ done
 # Validate everything before changing anything, so a bad option never leaves a half-set-up board.
 [[ "$CORES" =~ ^[0-9]+(,[0-9]+)*$ ]] || die "--cores must look like 2,3"
 [ -z "$BINARY" ] || [ -f "$BINARY" ] || die "binary $BINARY not found"
-[ -f "$SCRIPT_DIR/rf-runtime.service" ] || die "rf-runtime.service missing next to this script"
+# raceforge (controller host, bundle installer) needs Python >= 3.12. An existing venv decides;
+# otherwise the system python3 it will be created from. Test hook: $ROOT/.python3_version.
+board_python_version() {
+    if [ "$TEST" = 1 ]; then
+        cat "$ROOT/.python3_version" 2>/dev/null || echo 3.13
+        return
+    fi
+    local py=python3
+    [ -x /opt/raceforge/venv/bin/python ] && py=/opt/raceforge/venv/bin/python
+    "$py" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo none
+}
+PY_VERSION="$(board_python_version)"
+[ "$PY_VERSION" != none ] || die "python3 not found (apt install python3 python3-venv)"
+IFS=. read -r py_major py_minor _ <<< "$PY_VERSION"
+if [ "$py_major" -lt 3 ] || { [ "$py_major" -eq 3 ] && [ "$py_minor" -lt 12 ]; }; then
+    die "raceforge needs Python >= 3.12, this board has $PY_VERSION (Debian 12 Bookworm): use Raspberry Pi OS Trixie (Debian 13), or Armbian based on Debian 13 or Ubuntu 24.04"
+fi
+for f in rf-runtime.service raceforge-install-bundle.sh raceforge-usb-deploy.sh \
+    raceforge-usb-deploy@.service 90-raceforge-usb-deploy.rules; do
+    [ -f "$SCRIPT_DIR/$f" ] || die "$f missing next to this script"
+done
+# Deploy keys: plain public keys only (no options: the forced command is added here).
+KEY_RE='^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+=*( [^"]*)?$'
+DEPLOY_KEYS=""
+if [ -n "$DEPLOY_KEY" ]; then
+    [ -f "$DEPLOY_KEY" ] || die "deploy key file $DEPLOY_KEY not found"
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        [[ "$line" =~ $KEY_RE ]] || die "not a public SSH key in $DEPLOY_KEY: ${line:0:40}"
+        DEPLOY_KEYS="$DEPLOY_KEYS$line"$'\n'
+    done < "$DEPLOY_KEY"
+    [ -n "$DEPLOY_KEYS" ] || die "no public key in $DEPLOY_KEY"
+fi
 if [ "$TEST" = 0 ]; then
     [ "$(id -u)" = 0 ] || die "run as root (sudo)"
     [ "$(uname -m)" = aarch64 ] || log "warning: expected aarch64, this is $(uname -m)"
@@ -208,10 +251,14 @@ fi
 
 # --- 5. files ------------------------------------------------------------------------------
 log "installing to /opt/raceforge"
-mkdir -p "$ROOT/opt/raceforge/bin" "$ROOT/opt/raceforge/bundle"
+# Deployed bundles live in bundles/; `bundle` is the installer's symlink to the current one (an
+# older plain bundle/ directory is moved into bundles/ by the next deploy).
+mkdir -p "$ROOT/opt/raceforge/bin" "$ROOT/opt/raceforge/bundles"
 if [ -n "$BINARY" ]; then
     install -m 0755 "$BINARY" "$ROOT/opt/raceforge/bin/rf-runtime"
 fi
+install -m 0755 "$SCRIPT_DIR/raceforge-install-bundle.sh" "$ROOT$INSTALLER"
+install -m 0755 "$SCRIPT_DIR/raceforge-usb-deploy.sh" "$ROOT/opt/raceforge/bin/raceforge-usb-deploy"
 if [ ! -x "$ROOT/opt/raceforge/venv/bin/python" ]; then
     run python3 -m venv /opt/raceforge/venv
 fi
@@ -229,6 +276,11 @@ if [ "$CORES" != "$DEFAULT_CORES" ]; then
 else
     rm -f "$dropin/cores.conf"
 fi
+# USB-stick deploy: udev starts the installer for FAT/exFAT partitions on USB sticks.
+install -m 0644 "$SCRIPT_DIR/raceforge-usb-deploy@.service" "$ROOT/etc/systemd/system/raceforge-usb-deploy@.service"
+mkdir -p "$ROOT/etc/udev/rules.d"
+install -m 0644 "$SCRIPT_DIR/90-raceforge-usb-deploy.rules" "$ROOT/etc/udev/rules.d/90-raceforge-usb-deploy.rules"
+run udevadm control --reload
 run systemctl daemon-reload
 run systemctl enable rf-runtime.service
 if [ "$START" = 1 ]; then
@@ -292,9 +344,36 @@ elif [ "$RACE" = off ]; then
     run sh -c "$UNBLOCK_ALL"
 fi
 
+# --- 8. deploy user -------------------------------------------------------------------------
+if [ -n "$DEPLOY_KEYS" ]; then
+    log "deploy user $DEPLOY_USER: key login, runs only the bundle installer"
+    if [ "$TEST" = 1 ] || ! id "$DEPLOY_USER" >/dev/null 2>&1; then
+        # A shell is needed to run the forced command; the keys allow nothing else.
+        run useradd --system --home-dir "$DEPLOY_HOME" --create-home --shell /bin/sh "$DEPLOY_USER"
+    fi
+    run usermod -p '*' "$DEPLOY_USER"  # no password, but not "locked" (sshd would refuse keys)
+    # Root-owned: the deploy user cannot change its keys or their forced command.
+    mkdir -p "$ROOT$DEPLOY_HOME/.ssh"
+    chmod 0755 "$ROOT$DEPLOY_HOME/.ssh"
+    auth="$ROOT$DEPLOY_HOME/.ssh/authorized_keys"
+    : > "$auth"
+    while IFS= read -r key; do
+        [ -n "$key" ] || continue
+        printf 'restrict,command="sudo -n %s --stdin" %s\n' "$INSTALLER" "$key" >> "$auth"
+    done <<< "$DEPLOY_KEYS"
+    chmod 0644 "$auth"
+    mkdir -p "$ROOT/etc/sudoers.d"
+    sudoers="$ROOT/etc/sudoers.d/$DEPLOY_USER"
+    printf '# raceforge deploy (spec 0005 "Deploy"): the installer, and nothing else.\n%s ALL=(root) NOPASSWD: %s --stdin\n' \
+        "$DEPLOY_USER" "$INSTALLER" > "$sudoers.tmp"
+    chmod 0440 "$sudoers.tmp"
+    run visudo -cf "$sudoers.tmp"
+    mv "$sudoers.tmp" "$sudoers"
+fi
+
 # --- summary -------------------------------------------------------------------------------
 [ -x "$ROOT/opt/raceforge/bin/rf-runtime" ] || log "note: no rf-runtime binary yet (use --binary)"
-[ -n "$(ls -A "$ROOT/opt/raceforge/bundle" 2>/dev/null)" ] || log "note: no bundle deployed yet in /opt/raceforge/bundle"
+[ -e "$ROOT/opt/raceforge/bundle" ] || log "note: no bundle deployed yet (raceforge deploy --ssh/--usb)"
 if [ -n "$REBOOT" ]; then
     log "done - REBOOT REQUIRED for:$REBOOT"
 else
