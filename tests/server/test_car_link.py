@@ -110,3 +110,19 @@ def test_car_url() -> None:
     assert car_url("ws://10.0.0.7:8765", "abc") == "ws://10.0.0.7:8765/?token=abc"
     with pytest.raises(ValueError):
         car_url("ftp://x", None)
+
+
+def test_pairing_code_for_trackscout(client: TestClient) -> None:
+    """Spec 0010 AC7: the same golden code is parsed by TrackScoutKit (DriveTests)."""
+    r = client.post(
+        "/api/v1/car/pairing-code",
+        json={"url": "ws://10.0.0.7:8765", "token": "tok-1234567890abcdef"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["code"] == (
+        "raceforge://car?v=1&d=eyJ1cmwiOiAid3M6Ly8xMC4wLjAuNzo4NzY1IiwgInRva2VuIjogInRvay0xMj"
+        "M0NTY3ODkwYWJjZGVmIn0"
+    )
+    assert body["qr_svg"].startswith("<svg")
+    assert client.post("/api/v1/car/pairing-code", json={"url": "ftp://x"}).status_code == 422

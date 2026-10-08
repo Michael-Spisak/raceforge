@@ -86,6 +86,51 @@
         "title": "ApiTokenInfo",
         "type": "object"
       },
+      "CarPairingCode": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "qr_svg": {
+            "title": "Qr Svg",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "qr_svg"
+        ],
+        "title": "CarPairingCode",
+        "type": "object"
+      },
+      "CarPairingRequest": {
+        "additionalProperties": false,
+        "description": "Car address + token to hand to TrackScout's drive mode (spec 0010 C).",
+        "properties": {
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "CarPairingRequest",
+        "type": "object"
+      },
       "CarScene": {
         "additionalProperties": false,
         "properties": {
@@ -2875,6 +2920,45 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/car/pairing-code": {
+      "post": {
+        "description": "QR code that pairs TrackScout's drive mode with a car (spec 0010 C).",
+        "operationId": "car_pairing_code_api_v1_car_pairing_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CarPairingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CarPairingCode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Car Pairing Code"
+      }
+    },
     "/api/v1/controllers": {
       "get": {
         "operationId": "controllers_api_v1_controllers_get",

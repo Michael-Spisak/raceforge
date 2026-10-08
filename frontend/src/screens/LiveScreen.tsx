@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ApiError, api, type CarPairingCode } from "../api/client";
 import { LATENCY_WARN_MS, useCarLink } from "../live/useCarLink";
 import { TeleopPanel } from "../teleop/TeleopPanel";
 
@@ -16,6 +17,13 @@ export function LiveScreen() {
   const [url, setUrl] = useState(() => localStorage.getItem("rf.car.url") ?? "ws://raceforge-car.local:8765");
   const [token, setToken] = useState(() => sessionStorage.getItem("rf.car.token") ?? "");
   const [note, setNote] = useState("");
+  const [phoneCode, setPhoneCode] = useState<CarPairingCode | null>(null);
+  const [phoneError, setPhoneError] = useState("");
+  const pairPhone = () => {
+    setPhoneError("");
+    api.carPairingCode(url, token).then(setPhoneCode)
+      .catch((e: unknown) => setPhoneError(e instanceof ApiError ? e.message : String(e)));
+  };
 
   const connect = (e: FormEvent) => {
     e.preventDefault();
@@ -45,6 +53,15 @@ export function LiveScreen() {
             <button type="submit" className="primary" data-testid="car-connect">{t("live.connect")}</button>
             {(connected || link.state === "connecting") && <button type="button" onClick={link.disconnect}>{t("live.disconnect")}</button>}
           </div>
+          <button type="button" onClick={pairPhone} data-testid="car-pair-phone" style={{ marginTop: 8 }}>{t("live.pair_phone")}</button>
+          {phoneCode && (
+            <div style={{ marginTop: 8 }}>
+              <img data-testid="car-pair-qr" alt={t("live.pair_phone")} width={220} height={220} style={{ background: "#fff", padding: 8 }}
+                   src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(phoneCode.qr_svg)}`} />
+              <p className="muted">{t("live.pair_phone_hint")}</p>
+            </div>
+          )}
+          {phoneError && <p className="error">{phoneError}</p>}
           <p data-testid="car-link-state" className={link.state === "error" ? "error" : "muted"}>
             {t(`live.state_${link.state}`)}{link.detail && link.state !== "connected" ? ` — ${link.detail}` : ""}
           </p>

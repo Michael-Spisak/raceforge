@@ -13,8 +13,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from raceforge import __version__
+from raceforge.api.car_link import pairing_code
 from raceforge.api.car_link import relay as car_relay
 from raceforge.api.models import (
+    CarPairingCode,
+    CarPairingRequest,
     ControllerInfo,
     CorridorResponse,
     ErrorMessage,
@@ -157,6 +160,14 @@ def create_app(
     def sim_protocol() -> SimProtocol:
         """Message types of the /api/v1/sim WebSocket (documentation only)."""
         return SimProtocol()
+
+    @app.post("/api/v1/car/pairing-code")
+    def car_pairing_code(req: CarPairingRequest) -> CarPairingCode:
+        """QR code that pairs TrackScout's drive mode with a car (spec 0010 C)."""
+        try:
+            return pairing_code(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.websocket("/api/v1/car/live")
     async def car_live(ws: WebSocket) -> None:

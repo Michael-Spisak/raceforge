@@ -37,7 +37,9 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: TrackScout
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        # Portrait for scanning; landscape for driving the car (spec 0010 C); iPad supports every orientation.
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_NSCameraUsageDescription: "TrackScout records the corridor with the camera and LiDAR."
         INFOPLIST_KEY_NSMotionUsageDescription: "TrackScout records gravity and motion to align the scan."
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "TrackScout uploads recordings to your team's RaceForge server, which can be a computer in your Wi-Fi."

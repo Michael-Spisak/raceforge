@@ -4,3 +4,5 @@ TrackScout.xcodeproj/
 .build/
 build/
 .swiftpm/
+# iCloud Drive conflict copies of the generated project ("TrackScout 2.xcodeproj")
+TrackScout *.xcodeproj/

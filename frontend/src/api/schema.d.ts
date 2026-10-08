@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/car/pairing-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Car Pairing Code
+         * @description QR code that pairs TrackScout's drive mode with a car (spec 0010 C).
+         */
+        post: operations["car_pairing_code_api_v1_car_pairing_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/controllers": {
         parameters: {
             query?: never;
@@ -634,6 +654,23 @@ export interface components {
             token?: string | null;
             /** User */
             user: string;
+        };
+        /** CarPairingCode */
+        CarPairingCode: {
+            /** Code */
+            code: string;
+            /** Qr Svg */
+            qr_svg: string;
+        };
+        /**
+         * CarPairingRequest
+         * @description Car address + token to hand to TrackScout's drive mode (spec 0010 C).
+         */
+        CarPairingRequest: {
+            /** Token */
+            token?: string | null;
+            /** Url */
+            url: string;
         };
         /** CarScene */
         CarScene: {
@@ -1729,6 +1766,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    car_pairing_code_api_v1_car_pairing_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarPairingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CarPairingCode"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     controllers_api_v1_controllers_get: {
         parameters: {
             query?: {

@@ -88,6 +88,7 @@ struct SettingsView: View {
 
 /// QR code scanner (VisionKit, free Apple framework).
 struct QRScanner: UIViewControllerRepresentable {
+    var prefix = "raceforge://pair"
     let onCode: (String) -> Void
 
     func makeUIViewController(context: Context) -> DataScannerViewController {
@@ -101,17 +102,21 @@ struct QRScanner: UIViewControllerRepresentable {
 
     func updateUIViewController(_ vc: DataScannerViewController, context: Context) {}
 
-    func makeCoordinator() -> Coordinator { Coordinator(onCode: onCode) }
+    func makeCoordinator() -> Coordinator { Coordinator(prefix: prefix, onCode: onCode) }
 
     final class Coordinator: NSObject, DataScannerViewControllerDelegate {
+        let prefix: String
         let onCode: (String) -> Void
         private var done = false
-        init(onCode: @escaping (String) -> Void) { self.onCode = onCode }
+        init(prefix: String, onCode: @escaping (String) -> Void) {
+            self.prefix = prefix
+            self.onCode = onCode
+        }
 
         func dataScanner(_ scanner: DataScannerViewController, didAdd items: [RecognizedItem], allItems: [RecognizedItem]) {
             guard !done else { return }
             for case .barcode(let code) in items {
-                if let text = code.payloadStringValue, text.hasPrefix("raceforge://pair") {
+                if let text = code.payloadStringValue, text.hasPrefix(prefix) {
                     done = true
                     scanner.stopScanning()
                     onCode(text)

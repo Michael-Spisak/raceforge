@@ -254,8 +254,15 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - run: sh scripts/trackscout_free_check.sh
+      # Spec 0010 AC6: the Swift car client drives the Python stand-in for the car runtime.
+      - run: |
+          PYTHONPATH=src nohup uv run python tests/fake_car_server.py --port 8794 --token ci-fake-car-token-1234 > "$RUNNER_TEMP/fake-car.log" 2>&1 &
+          sleep 3
       - run: swift test
         working-directory: trackscout_ios/TrackScoutKit
+        env:
+          RF_FAKE_CAR_URL: ws://127.0.0.1:8794
+          RF_FAKE_CAR_TOKEN: ci-fake-car-token-1234
       - run: |
           swift run tscan-synth "$RUNNER_TEMP/synthetic.tscan"
           swift build --product rftx-phone

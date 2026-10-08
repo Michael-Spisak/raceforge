@@ -7,6 +7,7 @@ struct ProjectsView: View {
     @State private var newName = ""
     @State private var showNew = false
     @State private var showSettings = false
+    @State private var showDrive = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +44,10 @@ struct ProjectsView: View {
                         .accessibilityLabel(Text("Settings"))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { showDrive = true } label: { Image(systemName: "steeringwheel") }
+                        .accessibilityLabel(Text("Drive the car"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showNew = true } label: { Image(systemName: "plus") }
                         .accessibilityLabel(Text("New track"))
                 }
@@ -56,6 +61,7 @@ struct ProjectsView: View {
                 Button("Cancel", role: .cancel) { newName = "" }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .fullScreenCover(isPresented: $showDrive) { DriveView() }
             .alert(
                 "Use mobile data?",
                 isPresented: Binding(get: { uploader.cellularRequest != nil }, set: { if !$0 { uploader.cellularRequest = nil } })
