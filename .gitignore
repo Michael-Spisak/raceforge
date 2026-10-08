@@ -44,3 +44,6 @@ MUJOCO_LOG.TXT
 raceforge-backend.db
 raceforge-blobs/
 !.env.example
+
+# EV3RT host test build output
+ev3rt/tests/build/
