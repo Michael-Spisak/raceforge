@@ -208,3 +208,116 @@ def test_race_on_config_without_final_newline(tmp_path: Path) -> None:
     assert lines[0] == "dtparam=audio=on" and lines[2] == "[all]"
     assert run(tmp_path, "--no-race").returncode == 0
     assert config.read_text() == "dtparam=audio=on\n"
+
+
+# --- deploy (spec 0005 "Deploy", AC13) --------------------------------------------------------
+
+DEPLOY = SCRIPT.parent
+KEYS = (
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGq1 alice@laptop\n"
+    "\n"
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAI bob\n"
+)
+
+
+def test_installer_and_usb_auto_install_are_always_set_up(tmp_path: Path) -> None:
+    pi_os(tmp_path)
+    r = run(tmp_path)
+    assert r.returncode == 0, r.stderr
+    bin_dir = tmp_path / "opt/raceforge/bin"
+    for name in ["raceforge-install-bundle", "raceforge-usb-deploy"]:
+        installed = bin_dir / name
+        assert installed.read_text() == (DEPLOY / f"{name}.sh").read_text()
+        assert oct(installed.stat().st_mode & 0o777) == "0o755"
+    units = tmp_path / "etc/systemd/system"
+    assert (units / "raceforge-usb-deploy@.service").read_text() == (
+        DEPLOY / "raceforge-usb-deploy@.service"
+    ).read_text()
+    rule = tmp_path / "etc/udev/rules.d/90-raceforge-usb-deploy.rules"
+    assert rule.read_text() == (DEPLOY / "90-raceforge-usb-deploy.rules").read_text()
+    assert "RUN udevadm control --reload" in r.stdout
+    # Bundles live in bundles/; `bundle` becomes the installer's symlink (no empty directory).
+    assert (tmp_path / "opt/raceforge/bundles").is_dir()
+    assert not (tmp_path / "opt/raceforge/bundle").exists()
+    assert "no bundle deployed yet" in r.stdout
+    # Without --deploy-key there is no deploy user and no sudo rule.
+    assert "raceforge-deploy" not in r.stdout
+    assert not (tmp_path / "etc/sudoers.d").exists()
+
+
+def test_deploy_key_allows_only_the_installer(tmp_path: Path) -> None:
+    from raceforge.car.deploy import REMOTE_COMMAND
+
+    pi_os(tmp_path)
+    keys = tmp_path / "team.pub"
+    keys.write_text(KEYS)
+    r = run(tmp_path, "--deploy-key", str(keys))
+    assert r.returncode == 0, r.stderr
+    printed = [line for line in r.stdout.splitlines() if line.startswith("RUN ")]
+    assert any(
+        "useradd --system" in line and "--shell /bin/sh" in line and "raceforge-deploy" in line
+        for line in printed
+    )
+    assert "RUN usermod -p * raceforge-deploy" in printed  # key login only, no password
+    # Root-owned key file: the deploy user cannot change its own forced command.
+    auth = tmp_path / "var/lib/raceforge-deploy/.ssh/authorized_keys"
+    forced = f'restrict,command="{REMOTE_COMMAND}"'
+    assert auth.read_text().splitlines() == [
+        f"{forced} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGq1 alice@laptop",
+        f"{forced} ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAI bob",
+    ]
+    assert oct(auth.stat().st_mode & 0o777) == "0o644"
+    # The one sudo rule is exactly the forced command (without "sudo -n").
+    sudoers = tmp_path / "etc/sudoers.d/raceforge-deploy"
+    assert sudoers.read_text().splitlines()[-1] == (
+        "raceforge-deploy ALL=(root) NOPASSWD: " + REMOTE_COMMAND.removeprefix("sudo -n ")
+    )
+    assert oct(sudoers.stat().st_mode & 0o777) == "0o440"
+    assert any("visudo -cf" in line for line in printed)
+    # Running again with fewer keys replaces the list (removing a team member).
+    keys.write_text(KEYS.splitlines()[0] + "\n")
+    assert run(tmp_path, "--deploy-key", str(keys)).returncode == 0
+    assert len(auth.read_text().splitlines()) == 1
+
+
+def test_bad_deploy_keys_are_refused_before_any_change(tmp_path: Path) -> None:
+    cmdline = pi_os(tmp_path)
+    original = cmdline.read_text()
+    bad = {
+        "private.key": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaA==\n",
+        "options.pub": 'command="sh" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 x\n',
+        "empty.pub": "\n",
+    }
+    for name, text in bad.items():
+        (tmp_path / name).write_text(text)
+    for name in [*bad, "missing.pub"]:
+        r = run(tmp_path, "--deploy-key", str(tmp_path / name))
+        assert r.returncode != 0 and "RUN " not in r.stdout, name
+    assert cmdline.read_text() == original
+    assert not (tmp_path / "etc/sudoers.d").exists()
+
+
+def test_existing_bundle_directory_is_left_for_the_installer(tmp_path: Path) -> None:
+    pi_os(tmp_path)
+    old = tmp_path / "opt/raceforge/bundle"
+    old.mkdir(parents=True)
+    (old / "bundle.json").write_text("{}")
+    r = run(tmp_path)
+    assert r.returncode == 0, r.stderr
+    # The next deploy moves it into bundles/ (raceforge.car.install); nothing is lost here.
+    assert (old / "bundle.json").read_text() == "{}"
+    assert "no bundle deployed yet" not in r.stdout
+
+
+def test_board_python_older_than_312_is_refused_before_any_change(tmp_path: Path) -> None:
+    # raceforge (controller host, bundle installer) needs Python >= 3.12; Raspberry Pi OS and
+    # Armbian Bookworm ship 3.11. Test hook: the fake board's python3 version.
+    cmdline = pi_os(tmp_path)
+    original = cmdline.read_text()
+    (tmp_path / ".python3_version").write_text("3.11\n")
+    r = run(tmp_path)
+    assert r.returncode != 0 and "RUN " not in r.stdout
+    assert "Python >= 3.12" in r.stderr and "3.11" in r.stderr and "Trixie" in r.stderr
+    assert cmdline.read_text() == original
+    (tmp_path / ".python3_version").write_text("3.12\n")
+    assert run(tmp_path).returncode == 0
