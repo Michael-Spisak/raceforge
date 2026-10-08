@@ -28,6 +28,7 @@ export type WorkspaceLogin = Schemas["WorkspaceLogin"];
 export type WorkspaceRegister = Schemas["WorkspaceRegister"];
 export type TokenRequest = Schemas["TokenRequest"];
 export type TotpSetup = Schemas["TotpSetup"];
+export type TrackScoutPairing = Schemas["TrackScoutPairing"];
 export type ServerMessage = SceneMessage | FrameMessage | ResultMessage | ErrorMessage;
 
 /** Engine base URL: same origin when served by the engine; the dev server proxies /api and /ldraw. */
@@ -120,6 +121,8 @@ export const workspace = {
   tokens: () => request<ApiTokenInfo[]>(`${W}/tokens`),
   createToken: (body: TokenRequest) => request<ApiTokenInfo>(`${W}/tokens`, post(body)),
   revokeToken: (id: string) => request<null>(`${W}/tokens/${id}`, { method: "DELETE" }),
+  /** New `trackscout` token (read + edit) and the QR code the phone scans (spec 0007). */
+  pairTrackScout: () => request<TrackScoutPairing>(`${W}/pair-trackscout`, { method: "POST" }),
 };
 
 /** "1.0.2", or null while a version only exists locally (numbered by the backend on sync). */

@@ -7,6 +7,7 @@ import {
   type InviteInfo,
   type LocalObject,
   type LocalVersion,
+  type TrackScoutPairing,
   type WorkspaceInfo,
   needsTotp,
   versionLabel,
@@ -210,6 +211,32 @@ function TokensPanel() {
   );
 }
 
+function TrackScoutPanel({ onPaired }: { onPaired: () => void }) {
+  const { t } = useTranslation();
+  const [pairing, setPairing] = useState<TrackScoutPairing | null>(null);
+  const [error, setError] = useState("");
+  const pair = () => {
+    setError("");
+    workspace.pairTrackScout().then((p) => { setPairing(p); onPaired(); }).catch((e: unknown) => setError(message(e)));
+  };
+  return (
+    <div className="panel" data-testid="trackscout-panel">
+      <h3>{t("team.trackscout")}</h3>
+      <button data-testid="trackscout-pair" onClick={pair}>{t("team.trackscout_pair")}</button>
+      {pairing && (
+        <div style={{ marginTop: 8 }}>
+          <img data-testid="trackscout-qr" alt={t("team.trackscout_qr")} width={240} height={240}
+               style={{ background: "#fff", padding: 8 }}
+               src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(pairing.qr_svg)}`} />
+          <p className="muted">{t("team.trackscout_hint")}</p>
+          <code data-testid="trackscout-link" style={{ wordBreak: "break-all", fontSize: 11 }}>{pairing.url}</code>
+        </div>
+      )}
+      {error && <p className="error" role="alert">{error}</p>}
+    </div>
+  );
+}
+
 function History({ object }: { object: LocalObject }) {
   const { t } = useTranslation();
   const [versions, setVersions] = useState<LocalVersion[]>([]);
@@ -242,6 +269,7 @@ export function TeamScreen() {
   const [newSpace, setNewSpace] = useState("");
   const [note, setNote] = useState("");
   const [ctrl, setCtrl] = useState({ slug: "", path: "", message: "" });
+  const [tokensRev, setTokensRev] = useState(0);
 
   const reload = useCallback(async () => {
     await refresh();
@@ -348,7 +376,8 @@ export function TeamScreen() {
         {selected && <History object={selected} />}
         {status.user && !status.user.totp_enabled && <TotpPanel onDone={() => void refresh()} />}
         {status.user?.role === "admin" && status.user.totp_enabled && <AdminPanel />}
-        <TokensPanel />
+        {status.workspace && <TrackScoutPanel onPaired={() => setTokensRev((n) => n + 1)} />}
+        <TokensPanel key={tokensRev} />
       </section>
     </div>
   );
