@@ -64,6 +64,8 @@ extension CRC32 {
 
 /// Reassembles GATT fragments into messages.
 public struct Reassembler: Sendable {
+    /// Laptop → phone messages are small JSON requests.
+    static let maxMessage = 64 * 1024
     var buffer = Data()
     public init() {}
 
@@ -71,6 +73,7 @@ public struct Reassembler: Sendable {
     public mutating func push(_ fragment: Data) -> (RFTX.Msg, Data)? {
         guard let flags = fragment.first else { return nil }
         buffer += fragment.dropFirst()
+        if buffer.count > Self.maxMessage { buffer = Data() }
         guard flags & 1 == 1 else { return nil }
         defer { buffer = Data() }
         guard let first = buffer.first, let kind = RFTX.Msg(rawValue: first) else { return nil }
@@ -163,7 +166,7 @@ public final class PhoneTransferSession: @unchecked Sendable {
         switch kind {
         case .auth:
             let mac = obj["mac"] as? String ?? ""
-            guard mac == RFTX.authMAC(key: key, nonce: nonce) else {
+            guard constantTimeEqual(mac, RFTX.authMAC(key: key, nonce: nonce)) else {
                 events(.rejected)
                 try await json(.offer, ["error": "unpaired"])
                 return
@@ -178,8 +181,13 @@ public final class PhoneTransferSession: @unchecked Sendable {
             }
             try await json(.offer, ["passes": entries])
         case .get where authenticated:
-            guard let id = obj["id"] as? String, let pass = passes[id], let offset = (obj["offset"] as? NSNumber)?.int64Value else {
+            guard let id = obj["id"] as? String, let pass = passes[id], let offset = (obj["offset"] as? NSNumber)?.int64Value
+            else {
                 try await json(.error, ["error": "unknown pass"])
+                return
+            }
+            guard (0...pass.offer.size).contains(offset) else {
+                try await json(.error, ["error": "offset \(offset) outside 0...\(pass.offer.size)"])
                 return
             }
             try await stream(pass.offer, pass.url, from: offset)
@@ -199,12 +207,21 @@ public final class PhoneTransferSession: @unchecked Sendable {
         var offset = start
         while offset < offer.size {
             let data = try handle.read(upToCount: chunkSize) ?? Data()
-            if data.isEmpty { break }
+            if data.isEmpty {
+                try await json(.error, ["error": "pass \(offer.id) is shorter on the phone than offered"])
+                return
+            }
             try await message(.chunk, RFTX.chunkBody(offset: UInt64(offset), data: data))
             offset += Int64(data.count)
             events(.progress(id: offer.id, sent: offset, total: offer.size))
         }
     }
+}
+
+func constantTimeEqual(_ a: String, _ b: String) -> Bool {
+    let x = Array(a.utf8), y = Array(b.utf8)
+    guard x.count == y.count else { return false }
+    return zip(x, y).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) } == 0
 }
 
 /// Cable transfer: `TrackScoutTransfer/outbox.json` lists what the paired laptop may copy, and the laptop writes
