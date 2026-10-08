@@ -86,7 +86,10 @@ final class BluetoothSender: NSObject, CBPeripheralManagerDelegate, @unchecked S
         incoming = continuation
         let session = PhoneTransferSession(
             key: key, passes: passes, maxPayload: max(20, central.maximumUpdateValueLength - 1),
-            send: { [weak self] data in await self?.notify(data) },
+            send: { [weak self] data in
+                guard let self else { throw CancellationError() }
+                try await self.notify(data, to: central)
+            },
             events: { [weak self] event in DispatchQueue.main.async { self?.onEvent(event) } })
         self.session = session
         // One consumer keeps the laptop's writes in order.
@@ -105,6 +108,7 @@ final class BluetoothSender: NSObject, CBPeripheralManagerDelegate, @unchecked S
     ) {
         incoming?.finish()
         session = nil
+        if self.central === central { self.central = nil }
     }
 
     func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveWrite requests: [CBATTRequest]) {
@@ -114,13 +118,16 @@ final class BluetoothSender: NSObject, CBPeripheralManagerDelegate, @unchecked S
         if let first = requests.first { peripheral.respond(to: first, withResult: .success) }
     }
 
-    /// Sends one GATT notification, waiting while the notification queue is full.
-    private func notify(_ data: Data) async {
+    /// Sends one GATT notification to the session's own central, waiting while the notification queue is
+    /// full. Throws once that central is gone or replaced, which ends the session (no sends into the void,
+    /// no chunks into a newer connection).
+    private func notify(_ data: Data, to target: CBCentral) async throws {
         while true {
-            let sent: Bool = await MainActor.run {
-                guard let manager, let tx, let central else { return true }  // disconnected: drop
+            let sent: Bool? = await MainActor.run {
+                guard let manager, let tx, let central, central === target else { return nil }
                 return manager.updateValue(data, for: tx, onSubscribedCentrals: [central])
             }
+            guard let sent else { throw CancellationError() }
             if sent { return }
             // The notify queue is full: retry shortly (peripheralManagerIsReady would also signal this).
             try? await Task.sleep(nanoseconds: 15_000_000)
