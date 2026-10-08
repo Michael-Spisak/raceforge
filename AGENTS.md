@@ -40,8 +40,10 @@ scripts/check.sh   # ruff format/check, pyright, import-linter, pytest (same as 
 All must pass. Then open a PR using the template; include risks and, for UI work, screenshots.
 
 ## Merge policy
-- Auto-merge allowed (green gates + Claude `/code-review` + Copilot review) for: UI polish, docs, tests, reports, i18n strings.
-- Human approval always required for: `src/raceforge/core/`, API/MCP schemas, `car_runtime/`, race mode, safety, backend auth.
+- **Agents may merge their own PRs** once all CI gates are green and a Claude `/code-review` found no open
+  correctness issues. No human approval is needed for that.
+- Human approval is still required for: safety and race-mode rules, backend auth/security, and breaking changes to
+  contracts (`src/raceforge/core/` schemas, REST/OpenAPI, MCP tool schemas, telemetry frame format).
 
 ## Lessons learned
 Repeated agent mistakes are turned into new rules here at every milestone review.
