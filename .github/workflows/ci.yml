@@ -139,7 +139,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # windows-latest dropped: Playwright e2e timed out repeatedly on Windows runners (owner decision).
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -168,6 +169,54 @@ jobs:
         working-directory: frontend
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a npx electron . --smoke --no-sandbox; else npx electron . --smoke; fi
+
+  backend-services:
+    # Spec 0006: the backend test suite against PostgreSQL 17 and an S3 server (SeaweedFS, ADR-0019).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: rf
+          POSTGRES_PASSWORD: rf
+          POSTGRES_DB: rf
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U rf" --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - name: Start SeaweedFS (S3)
+        run: |
+          docker run -d --name s3 -p 8333:8333 -e AWS_ACCESS_KEY_ID=rftest \
+            -e AWS_SECRET_ACCESS_KEY=rftestsecret chrislusf/seaweedfs:4.48 server -s3 -dir=/data
+          for _ in $(seq 60); do curl -fs http://127.0.0.1:8333/healthz && break; sleep 1; done
+      - run: PYTHONPATH=src uv run pytest tests/backend --no-cov -q
+        env:
+          RF_TEST_DATABASE_URL: postgresql+psycopg://rf:rf@localhost:5432/rf
+          RF_TEST_S3_ENDPOINT: localhost:8333
+          RF_TEST_S3_ACCESS_KEY: rftest
+          RF_TEST_S3_SECRET_KEY: rftestsecret
+
+  backend-stack:
+    # Spec 0006 AC1 (Compose up, health green), AC9 (blue-green update), AC8 (backup → restore),
+    # AC10 (Playwright team flow against the stack).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --locked
+      - run: npm ci && npm run build && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: deploy/tests/stack-e2e.sh
+        env:
+          RF_E2E_PLAYWRIGHT: "1"
 
   ldraw-integration:
     # Spec 0002 AC9: regenerate catalogue bounding boxes from the real LDraw library and

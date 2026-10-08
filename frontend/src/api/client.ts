@@ -15,6 +15,19 @@ export type ResultMessage = Schemas["ResultMessage"];
 export type ErrorMessage = Schemas["ErrorMessage"];
 export type SimStart = Schemas["SimStart"];
 export type ReplaySummary = Schemas["ReplaySummary"];
+export type WorkspaceStatus = Schemas["WorkspaceStatus"];
+export type WorkspaceInfo = Schemas["WorkspaceInfo"];
+export type LocalObject = Schemas["LocalObject"];
+export type LocalVersion = Schemas["LocalVersion"];
+export type SyncResult = Schemas["SyncResult"];
+export type Conflict = Schemas["Conflict"];
+export type InviteInfo = Schemas["InviteInfo"];
+export type ApiTokenInfo = Schemas["ApiTokenInfo"];
+export type UserInfo = Schemas["UserInfo"];
+export type WorkspaceLogin = Schemas["WorkspaceLogin"];
+export type WorkspaceRegister = Schemas["WorkspaceRegister"];
+export type TokenRequest = Schemas["TokenRequest"];
+export type TotpSetup = Schemas["TotpSetup"];
 export type ServerMessage = SceneMessage | FrameMessage | ResultMessage | ErrorMessage;
 
 /** Engine base URL: same origin when served by the engine; the dev server proxies /api and /ldraw. */
@@ -79,6 +92,45 @@ export const api = {
   controllers: () => request<ControllerInfo[]>("/api/v1/controllers"),
   replay: (path: string) => request<ReplaySummary>("/api/v1/replays", { method: "POST", body: JSON.stringify({ path }) }),
 };
+
+const W = "/api/v1/workspace";
+const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
+
+/** Team workspace (spec 0006): the engine talks to the backend and keeps a local copy for offline use. */
+export const workspace = {
+  status: (probe = false) => request<WorkspaceStatus>(`${W}/status?probe=${probe}`),
+  login: (body: WorkspaceLogin) => request<WorkspaceStatus>(`${W}/login`, post(body)),
+  register: (body: WorkspaceRegister) => request<UserInfo>(`${W}/register`, post(body)),
+  logout: () => request<WorkspaceStatus>(`${W}/logout`, { method: "POST" }),
+  workspaces: () => request<WorkspaceInfo[]>(`${W}/workspaces`),
+  createWorkspace: (name: string) => request<WorkspaceInfo>(`${W}/workspaces`, post({ name })),
+  select: (workspace_id: string) => request<WorkspaceStatus>(`${W}/select`, post({ workspace_id })),
+  sync: () => request<SyncResult>(`${W}/sync`, { method: "POST" }),
+  objects: () => request<LocalObject[]>(`${W}/objects`),
+  history: (objectId: string) => request<LocalVersion[]>(`${W}/objects/${objectId}/versions`),
+  conflicts: () => request<Conflict[]>(`${W}/conflicts`),
+  saveQuickstart: (slug: string, params: Partial<QuickStartParams>, message: string) =>
+    request<LocalVersion>(`${W}/save/quickstart`, post({ slug, params, message })),
+  saveFiles: (slug: string, paths: string[], message: string) =>
+    request<LocalVersion>(`${W}/save/files`, post({ kind: "controller", slug, paths, message })),
+  totpSetup: () => request<TotpSetup>(`${W}/totp/setup`, { method: "POST" }),
+  totpVerify: (code: string) => request<UserInfo>(`${W}/totp/verify`, post({ code })),
+  invites: () => request<InviteInfo[]>(`${W}/invites`),
+  createInvite: (role: "member" | "admin") => request<InviteInfo>(`${W}/invites`, post({ role })),
+  tokens: () => request<ApiTokenInfo[]>(`${W}/tokens`),
+  createToken: (body: TokenRequest) => request<ApiTokenInfo>(`${W}/tokens`, post(body)),
+  revokeToken: (id: string) => request<null>(`${W}/tokens/${id}`, { method: "DELETE" }),
+};
+
+/** "1.0.2", or null while a version only exists locally (numbered by the backend on sync). */
+export function versionLabel(v: Pick<LocalVersion, "semver" | "pending">): string | null {
+  return v.pending || !v.semver ? null : v.semver;
+}
+
+/** The backend answers a password-only login of a 2FA user with this detail. */
+export function needsTotp(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 401 && e.message === "totp_required";
+}
 
 export function simSocketUrl(): string {
   const base = engineBase() || `${window.location.protocol}//${window.location.host}`;

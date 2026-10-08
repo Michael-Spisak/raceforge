@@ -6,10 +6,12 @@ import { PartsScreen } from "./screens/PartsScreen";
 import { ReplayScreen } from "./screens/ReplayScreen";
 import { SimulateScreen } from "./screens/SimulateScreen";
 import { StartScreen } from "./screens/StartScreen";
+import { TeamScreen } from "./screens/TeamScreen";
 import { type NavPreset, type Units, useSettings } from "./store/settings";
+import { badgeOf, useWorkspace } from "./store/workspace";
 
-export type Tab = "start" | "parts" | "construct" | "simulate" | "replay";
-const TABS: Tab[] = ["start", "parts", "construct", "simulate", "replay"];
+export type Tab = "start" | "parts" | "construct" | "simulate" | "replay" | "team";
+const TABS: Tab[] = ["start", "parts", "construct", "simulate", "replay", "team"];
 
 export function App() {
   const { t } = useTranslation();
@@ -17,6 +19,14 @@ export function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [offline, setOffline] = useState(false);
   const { navPreset, setNavPreset, units, setUnits, language, setLanguage } = useSettings();
+  const wsBadge = badgeOf(useWorkspace((s) => s.status));
+  const refreshWorkspace = useWorkspace((s) => s.refresh);
+
+  useEffect(() => {
+    void refreshWorkspace(true);
+    const id = setInterval(() => void refreshWorkspace(true), 15000);
+    return () => clearInterval(id);
+  }, [refreshWorkspace]);
 
   useEffect(() => {
     const poll = () => api.health().then((h) => { setHealth(h); setOffline(false); }).catch(() => setOffline(true));
@@ -50,6 +60,8 @@ export function App() {
           <option value="de">DE</option>
           <option value="en">EN</option>
         </select>
+        <button className={`badge ${wsBadge === "online" ? "ok" : wsBadge === "offline" ? "bad" : ""}`}
+                data-testid="workspace-status" onClick={() => setTab("team")}>{t(`team.badge_${wsBadge}`)}</button>
         <span className={`badge ${offline ? "bad" : "ok"}`} data-testid="engine-status">{offline ? t("engine.offline") : t("engine.online")}</span>
       </header>
       {tab === "start" && <StartScreen health={health} onOpen={setTab} />}
@@ -57,6 +69,7 @@ export function App() {
       {tab === "construct" && <ConstructScreen />}
       {tab === "simulate" && <SimulateScreen />}
       {tab === "replay" && <ReplayScreen />}
+      {tab === "team" && <TeamScreen />}
     </div>
   );
 }

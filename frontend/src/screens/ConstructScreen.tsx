@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, type QuickStartParams, type QuickstartResponse, type QuickstartSchema } from "../api/client";
+import { ApiError, api, type QuickStartParams, type QuickstartResponse, type QuickstartSchema, versionLabel, workspace } from "../api/client";
+import { useWorkspace } from "../store/workspace";
 import { formatLength, useSettings } from "../store/settings";
 import { CarModel } from "../three/CarModel";
 import { Viewport } from "../three/Viewport";
@@ -27,6 +28,41 @@ function download(name: string, text: string) {
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function SaveVersion({ draft }: { draft: Draft }) {
+  const { t } = useTranslation();
+  const status = useWorkspace((s) => s.status);
+  const refresh = useWorkspace((s) => s.refresh);
+  const [slug, setSlug] = useState("car-a");
+  const [msg, setMsg] = useState("");
+  const [note, setNote] = useState("");
+  if (!status?.logged_in || !status.workspace) return <p className="muted">{t("construct.save_login")}</p>;
+  const save = () => {
+    setNote("");
+    workspace.saveQuickstart(slug, toParams(draft), msg)
+      .then((v) => {
+        const label = versionLabel(v);
+        setNote(label ? t("team.saved", { version: label }) : t("team.saved_offline"));
+        setMsg("");
+        void refresh();
+      })
+      .catch((e: unknown) => setNote(e instanceof ApiError ? e.message : String(e)));
+  };
+  return (
+    <div>
+      <div className="field">
+        <label htmlFor="save-slug">{t("team.slug")} ({status.workspace.name})</label>
+        <input id="save-slug" data-testid="save-slug" value={slug} onChange={(e) => setSlug(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="save-msg">{t("team.message")}</label>
+        <input id="save-msg" data-testid="save-message" value={msg} onChange={(e) => setMsg(e.target.value)} />
+      </div>
+      <button data-testid="save-version" onClick={save}>{t("team.save_version")}</button>
+      {note && <p data-testid="save-note">{note}</p>}
+    </div>
+  );
 }
 
 export function ConstructScreen() {
@@ -125,6 +161,8 @@ export function ConstructScreen() {
               download({ assembly: "assembly.json", mpd: "car.mpd", mjcf: "car.xml" }[k], text))}>{k}</button>
           ))}
         </div>
+        <h3>{t("construct.versions")}</h3>
+        <SaveVersion draft={draft} />
       </aside>
       <section className="main">
         {result ? (

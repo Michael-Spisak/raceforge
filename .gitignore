@@ -38,3 +38,9 @@ secrets/
 .DS_Store
 MUJOCO_LOG.TXT
 /runs/
+
+# Local backend dev data (raceforge backend dev)
+.raceforge-backend/
+raceforge-backend.db
+raceforge-blobs/
+!.env.example

@@ -4,11 +4,11 @@ import asyncio
 import contextlib
 import time
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
@@ -18,28 +18,74 @@ from raceforge.api.models import (
     CorridorResponse,
     ErrorMessage,
     Health,
+    InviteRequest,
     PartSummary,
     QuickstartResponse,
     QuickstartSchema,
     ReplayRequest,
     ReplaySummary,
+    SaveFiles,
+    SaveQuickstart,
     SimControl,
     SimProtocol,
     SimStart,
+    TokenRequest,
+    WorkspaceLogin,
+    WorkspaceName,
+    WorkspaceRegister,
+    WorkspaceSelect,
 )
 from raceforge.api.service import Engine
 from raceforge.api.sim_session import SimSession
+from raceforge.api.workspace import WorkspaceApi
+from raceforge.backend.models import (
+    ApiTokenInfo,
+    InviteInfo,
+    TotpCode,
+    TotpSetup,
+    UserInfo,
+    WorkspaceInfo,
+)
 from raceforge.construct.quickstart import QuickStartParams
 from raceforge.parts.ldraw import library_dir
 from raceforge.track.procedural import CorridorParams
+from raceforge.workspace.client import BackendError, OfflineError
+from raceforge.workspace.sync import (
+    Conflict,
+    LocalObject,
+    LocalVersion,
+    SyncResult,
+    WorkspaceStatus,
+)
 
 FRONTEND_DIST = Path(__file__).resolve().parents[3] / "frontend" / "dist"
 FRAME_DT = 1 / 30
 
 
-def create_app(engine: Engine | None = None, frontend_dist: Path | None = FRONTEND_DIST) -> FastAPI:
+def create_app(
+    engine: Engine | None = None,
+    frontend_dist: Path | None = FRONTEND_DIST,
+    workspace: WorkspaceApi | None = None,
+) -> FastAPI:
     eng = engine or Engine()
     app = FastAPI(title="RaceForge engine", version=__version__)
+    holder: list[WorkspaceApi] = [workspace] if workspace else []
+
+    def ws() -> WorkspaceApi:  # created on first use (opens ~/.cache/raceforge/workspace)
+        if not holder:
+            holder.append(WorkspaceApi(eng.cat))
+        return holder[0]
+
+    app.state.workspace = ws
+
+    @app.exception_handler(BackendError)
+    async def _backend_error(_r: object, exc: BackendError) -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status)
+
+    @app.exception_handler(OfflineError)
+    async def _offline(_r: object, _exc: OfflineError) -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
+        return JSONResponse({"detail": "backend not reachable (offline)"}, status_code=503)
+
     app.add_middleware(  # the dev server (Vite) runs on another port
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -133,6 +179,96 @@ def create_app(engine: Engine | None = None, frontend_dist: Path | None = FRONTE
             await ws.close()
         except WebSocketDisconnect:
             await asyncio.to_thread(session.result)
+
+    # ---- team workspace (spec 0006)
+    w = "/api/v1/workspace"
+
+    @app.get(f"{w}/status")
+    def ws_status(probe: bool = False) -> WorkspaceStatus:
+        return ws().status(probe)
+
+    @app.post(f"{w}/login")
+    def ws_login(req: WorkspaceLogin) -> WorkspaceStatus:
+        return ws().login(req)
+
+    @app.post(f"{w}/register")
+    def ws_register(req: WorkspaceRegister) -> UserInfo:
+        return ws().register(req)
+
+    @app.post(f"{w}/logout")
+    def ws_logout() -> WorkspaceStatus:
+        return ws().logout()
+
+    @app.get(f"{w}/workspaces")
+    def ws_list() -> list[WorkspaceInfo]:
+        return ws().workspaces()
+
+    @app.post(f"{w}/workspaces")
+    def ws_create(req: WorkspaceName) -> WorkspaceInfo:
+        return ws().create_workspace(req.name)
+
+    @app.post(f"{w}/select")
+    def ws_select(req: WorkspaceSelect) -> WorkspaceStatus:
+        return ws().select(req.workspace_id)
+
+    @app.post(f"{w}/sync")
+    def ws_sync() -> SyncResult:
+        return ws().sync()
+
+    @app.get(f"{w}/objects")
+    def ws_objects(kind: str | None = None) -> list[LocalObject]:
+        return ws().objects(kind)
+
+    @app.get(f"{w}/objects/{{object_id}}/versions")
+    def ws_history(object_id: str) -> list[LocalVersion]:
+        return ws().history(object_id)
+
+    @app.get(f"{w}/versions/{{version_id}}")
+    def ws_version(version_id: str) -> dict[str, Any]:
+        return ws().version(version_id)
+
+    @app.get(f"{w}/conflicts")
+    def ws_conflicts() -> list[Conflict]:
+        return ws().conflicts()
+
+    @app.post(f"{w}/save/quickstart")
+    def ws_save_quickstart(req: SaveQuickstart) -> LocalVersion:
+        return ws().save_quickstart(req)
+
+    @app.post(f"{w}/save/files")
+    def ws_save_files(req: SaveFiles) -> LocalVersion:
+        try:
+            return ws().save_files(req)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, f"no such file: {exc}") from exc
+
+    @app.post(f"{w}/totp/setup")
+    def ws_totp_setup() -> TotpSetup:
+        return ws().totp_setup()
+
+    @app.post(f"{w}/totp/verify")
+    def ws_totp_verify(req: TotpCode) -> UserInfo:
+        return ws().totp_verify(req.code)
+
+    @app.get(f"{w}/invites")
+    def ws_invites() -> list[InviteInfo]:
+        return ws().invites()
+
+    @app.post(f"{w}/invites")
+    def ws_invite(req: InviteRequest) -> InviteInfo:
+        return ws().create_invite(req.role)
+
+    @app.get(f"{w}/tokens")
+    def ws_tokens() -> list[ApiTokenInfo]:
+        return ws().tokens()
+
+    @app.post(f"{w}/tokens")
+    def ws_token(req: TokenRequest) -> ApiTokenInfo:
+        return ws().create_token(req.name, list(req.scopes), req.client)
+
+    @app.delete(f"{w}/tokens/{{token_id}}", status_code=204)
+    def ws_revoke(token_id: str) -> None:
+        ws().revoke_token(token_id)
 
     ldraw = library_dir()
     if ldraw.is_dir():

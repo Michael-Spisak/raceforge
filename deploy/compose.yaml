@@ -1,0 +1,97 @@
+# RaceForge backend stack (spec 0006, ADR-0019). Configuration: deploy/.env (see .env.example).
+# Two API containers (blue/green) run behind Caddy; `raceforge-admin update` replaces them one by one.
+name: raceforge
+
+x-api: &api
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  restart: unless-stopped
+  environment:
+    RF_DATABASE_URL: postgresql+psycopg://raceforge:${RF_POSTGRES_PASSWORD:?set in .env}@postgres:5432/raceforge
+    RF_BLOB_BACKEND: s3
+    RF_S3_ENDPOINT: s3:8333
+    RF_S3_ACCESS_KEY: ${RF_S3_ACCESS_KEY:?set in .env}
+    RF_S3_SECRET_KEY: ${RF_S3_SECRET_KEY:?set in .env}
+    RF_S3_BUCKET: raceforge
+    RF_PUBLIC_URL: ${RF_PUBLIC_URL:?set in .env}
+    RF_SECURE_COOKIES: ${RF_SECURE_COOKIES:-true}
+    RF_UPLOAD_TMP_DIR: /tmp
+  volumes: [backup-staging:/backup]
+  depends_on:
+    postgres: { condition: service_healthy }
+    s3: { condition: service_healthy }
+    migrate: { condition: service_completed_successfully }
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: raceforge
+      POSTGRES_DB: raceforge
+      POSTGRES_PASSWORD: ${RF_POSTGRES_PASSWORD:?set in .env}
+    volumes: [pgdata:/var/lib/postgresql/data, backup-staging:/backup]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "raceforge", "-d", "raceforge"]
+      interval: 2s
+      retries: 30
+
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    restart: unless-stopped
+    command: server -s3 -dir=/data -ip.bind=0.0.0.0
+    environment:
+      AWS_ACCESS_KEY_ID: ${RF_S3_ACCESS_KEY:?set in .env}
+      AWS_SECRET_ACCESS_KEY: ${RF_S3_SECRET_KEY:?set in .env}
+    volumes: [s3data:/data]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8333/healthz"]
+      interval: 2s
+      retries: 60
+
+  migrate:
+    <<: *api
+    image: ${RF_IMAGE:-ghcr.io/michael-spisak/raceforge-backend}:${RF_TAG_GREEN:-dev}
+    restart: "no"
+    command: ["raceforge", "backend", "migrate"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api-blue:
+    <<: *api
+    image: ${RF_IMAGE:-ghcr.io/michael-spisak/raceforge-backend}:${RF_TAG_BLUE:-dev}
+
+  api-green:
+    <<: *api
+    image: ${RF_IMAGE:-ghcr.io/michael-spisak/raceforge-backend}:${RF_TAG_GREEN:-dev}
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "${RF_HTTP_PORT:-80}:80"
+      - "${RF_HTTPS_PORT:-443}:443"
+    environment:
+      RF_SITE_ADDRESS: ${RF_SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api-blue, api-green]
+
+  cloudflared:  # public HTTPS path for teammates (enable with --profile cloudflare)
+    image: cloudflare/cloudflared:2025.9.1
+    profiles: [cloudflare]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${RF_CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on: [caddy]
+
+volumes:
+  backup-staging:  # pg_dump + blob copies, read by restic (raceforge-admin backup)
+  pgdata:
+  s3data:
+  caddy_data:
+  caddy_config:
