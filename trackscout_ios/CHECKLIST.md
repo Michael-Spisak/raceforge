@@ -19,6 +19,8 @@ Note device, iOS version, date and the result of every line in the PR.
       line up with the mesh (spot check in a notebook or the scan viewer).
 
 ## Part B — slow backend, cable and Bluetooth (after PR B)
+Laptop setup once: `uv sync --extra transfer` (pymobiledevice3 + bleak, ADR-0021); on Windows install Apple's
+iTunes/Apple Devices driver, on Linux `usbmuxd`.
 - [ ] With the backend throttled (Network Link Conditioner, "3G"), the routing choice appears with ETAs.
 - [ ] Cable: the pass reaches the paired laptop; the laptop relays it to the backend.
 - [ ] Bluetooth: a small pass reaches the laptop; disconnect mid-transfer resumes.

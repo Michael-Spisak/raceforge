@@ -1,11 +1,13 @@
 """Engine side of the team workspace (spec 0006): wraps the offline-first sync client."""
 
+import asyncio
 import base64
 import contextlib
 import json
 import os
 import re
 import socket
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,8 @@ from typing import Any
 import segno  # pyright: ignore[reportMissingTypeStubs]
 
 from raceforge.api.models import (
+    InboxAction,
+    ReceiveRequest,
     SaveFiles,
     SaveQuickstart,
     TrackScoutPairing,
@@ -26,6 +30,9 @@ from raceforge.backend.models import (
     UserInfo,
     WorkspaceInfo,
 )
+from raceforge.capture import rftx
+from raceforge.capture.inbox import Inbox, InboxPass, Relay
+from raceforge.capture.usb import DeviceFiles, pull_usb
 from raceforge.construct.quickstart import generate
 from raceforge.core.io import to_jsonable
 from raceforge.parts.catalogue import Catalogue
@@ -57,16 +64,34 @@ def invite_token(invite: str) -> str:
     return m.group(1) if m else invite.strip()
 
 
+async def _open_usb() -> DeviceFiles:  # pragma: no cover - real device
+    from raceforge.capture.usb import IosDeviceFiles
+
+    return await IosDeviceFiles.open()
+
+
+async def _open_ble() -> rftx.Channel:  # pragma: no cover - real device
+    from raceforge.capture.ble import BleChannel
+
+    return await BleChannel.connect()
+
+
 class WorkspaceApi:
     def __init__(
         self,
         catalogue: Catalogue,
         root: Path | None = None,
         factory: ClientFactory = default_factory,
+        open_usb: Callable[[], Awaitable[DeviceFiles]] = _open_usb,
+        open_ble: Callable[[], Awaitable[rftx.Channel]] = _open_ble,
     ) -> None:
         self.cat = catalogue
         self.factory = factory
         self.ws = Workspace(root or default_root(), factory)
+        self.inbox = Inbox(self.ws.root / "trackscout-inbox")
+        self.relay = Relay(self.ws, self.inbox)
+        self.open_usb = open_usb
+        self.open_ble = open_ble
 
     def status(self, probe: bool) -> WorkspaceStatus:
         return self.ws.status(probe)
@@ -177,3 +202,34 @@ class WorkspaceApi:
 
     def revoke_token(self, token_id: str) -> None:
         self.ws.client().revoke_token(token_id)
+
+    # ------------------------------------------------- TrackScout inbox (spec 0007 scope 9)
+    def trackscout_inbox(self) -> list[InboxPass]:
+        return self.inbox.list()
+
+    def trackscout_choose(self, pass_id: str, req: InboxAction) -> InboxPass:
+        return self.relay.choose(pass_id, req.action)
+
+    async def trackscout_receive(self, req: ReceiveRequest) -> list[InboxPass]:
+        """Pull every pass the paired phone offers, then relay each one (or let it wait)."""
+        key = self.ws.laptop_key()
+        laptop = socket.gethostname().removesuffix(".local")
+        if req.source == "usb":
+            device = await self.open_usb()
+            try:
+                done = await pull_usb(device, key, laptop, self.inbox)
+            finally:
+                close = getattr(device, "aclose", None)
+                if close is not None:
+                    await close()
+        else:
+            channel = await self.open_ble()
+            try:
+                done = await rftx.pull(channel, key, laptop, self.inbox)
+            finally:
+                close = getattr(channel, "close", None)
+                if close is not None:
+                    await close()
+        for pass_id in done:
+            await asyncio.to_thread(self.relay.upload, pass_id)
+        return [p for p in self.inbox.list() if p.id in done]

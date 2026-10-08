@@ -18,10 +18,12 @@ from raceforge.api.models import (
     CorridorResponse,
     ErrorMessage,
     Health,
+    InboxAction,
     InviteRequest,
     PartSummary,
     QuickstartResponse,
     QuickstartSchema,
+    ReceiveRequest,
     ReplayRequest,
     ReplaySummary,
     SaveFiles,
@@ -47,6 +49,8 @@ from raceforge.backend.models import (
     UserInfo,
     WorkspaceInfo,
 )
+from raceforge.capture.inbox import InboxPass
+from raceforge.capture.rftx import TransferError
 from raceforge.construct.quickstart import QuickStartParams
 from raceforge.parts.ldraw import library_dir
 from raceforge.track.procedural import CorridorParams
@@ -254,6 +258,24 @@ def create_app(
     @app.post(f"{w}/pair-trackscout")
     def ws_pair_trackscout() -> TrackScoutPairing:
         return ws().pair_trackscout()
+
+    @app.get(f"{w}/trackscout/inbox")
+    def ws_trackscout_inbox() -> list[InboxPass]:
+        return ws().trackscout_inbox()
+
+    @app.post(f"{w}/trackscout/inbox/{{pass_id}}")
+    def ws_trackscout_choose(pass_id: str, req: InboxAction) -> InboxPass:
+        try:
+            return ws().trackscout_choose(pass_id, req)
+        except KeyError as exc:
+            raise HTTPException(404, f"no pass {pass_id}") from exc
+
+    @app.post(f"{w}/trackscout/receive")
+    async def ws_trackscout_receive(req: ReceiveRequest) -> list[InboxPass]:
+        try:
+            return await ws().trackscout_receive(req)
+        except (TransferError, ConnectionError, RuntimeError, OSError, ValueError) as exc:
+            raise HTTPException(502, str(exc)) from exc
 
     @app.get(f"{w}/invites")
     def ws_invites() -> list[InviteInfo]:

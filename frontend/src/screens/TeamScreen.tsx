@@ -6,6 +6,8 @@ import {
   type Conflict,
   type InviteInfo,
   type LocalObject,
+  type InboxAction,
+  type InboxPass,
   type LocalVersion,
   type TrackScoutPairing,
   type WorkspaceInfo,
@@ -233,6 +235,67 @@ function TrackScoutPanel({ onPaired }: { onPaired: () => void }) {
         </div>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      <TrackScoutInbox />
+    </div>
+  );
+}
+
+const MB = 1_000_000;
+
+/** Passes a phone sent to this laptop (cable/Bluetooth) and the relay choice per pass (spec 0007). */
+function TrackScoutInbox() {
+  const { t } = useTranslation();
+  const [items, setItems] = useState<InboxPass[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const load = useCallback(() => workspace.inbox().then(setItems).catch(() => undefined), []);
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => void load(), 10_000); // the relay keeps working in the background
+    return () => window.clearInterval(timer);
+  }, [load]);
+  const receive = (source: "usb" | "bluetooth") => {
+    setBusy(true);
+    setNote(t("team.trackscout_receiving"));
+    workspace.receive(source)
+      .then((got) => setNote(t("team.trackscout_received", { count: got.length })))
+      .catch((e: unknown) => setNote(message(e)))
+      .finally(() => { setBusy(false); void load(); });
+  };
+  const choose = (id: string, action: InboxAction) =>
+    void workspace.chooseInbox(id, action).then(load).catch((e: unknown) => setNote(message(e)));
+  const detail = (p: InboxPass) => {
+    if (p.state !== "waiting") return null;
+    if (p.note === "offline") return t("team.trackscout_offline");
+    if (p.note === "slow" && p.rate_bps != null)
+      return t("team.trackscout_slow", { rate: (p.rate_bps / MB).toFixed(2), minutes: Math.round((p.eta_s ?? 0) / 60) });
+    return p.note || null;
+  };
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <button data-testid="trackscout-receive-usb" disabled={busy} onClick={() => receive("usb")}>{t("team.trackscout_receive_usb")}</button>
+        <button data-testid="trackscout-receive-ble" disabled={busy} onClick={() => receive("bluetooth")}>{t("team.trackscout_receive_ble")}</button>
+      </div>
+      {note && <p data-testid="trackscout-note" className="muted">{note}</p>}
+      {items.length > 0 && <h4>{t("team.trackscout_inbox")}</h4>}
+      <ul className="list" data-testid="trackscout-inbox">
+        {items.map((p) => (
+          <li key={p.id} data-testid={`inbox-${p.id}`}>
+            <strong>{p.project}</strong> <span className="muted">{p.pass_type} · {(p.size / MB).toFixed(1)} MB</span>{" "}
+            <span className={`badge${p.state === "uploaded" ? " ok" : ""}`}>{t(`team.trackscout_state_${p.state}`)}</span>
+            {p.version && <span className="muted"> · {p.version}</span>}
+            {detail(p) && <div className="warning">{detail(p)}</div>}
+            {(p.state === "waiting" || p.state === "local_only") && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                <button onClick={() => choose(p.id, "upload_now")}>{t("team.trackscout_upload_now")}</button>
+                <button onClick={() => choose(p.id, "when_faster")}>{t("team.trackscout_when_faster")}</button>
+                {p.state !== "local_only" && <button onClick={() => choose(p.id, "keep_local")}>{t("team.trackscout_keep_local")}</button>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

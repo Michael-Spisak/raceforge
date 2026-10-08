@@ -59,4 +59,9 @@ test("team: login with 2FA, workspace, save as version, history, invite", async 
   await expect(page.getByTestId("trackscout-qr")).toBeVisible();
   await expect(page.getByTestId("trackscout-link")).toContainText("raceforge://pair?v=1&d=");
   await expect(page.getByText(/\(trackscout\) · (read, edit|edit, read) ·/)).toBeVisible();
+
+  // Receive by cable without a phone: the Team tab reports why instead of hanging
+  await page.getByTestId("trackscout-receive-usb").click();
+  await expect(page.getByTestId("trackscout-note")).not.toHaveText(/Receiving|Empfange/, { timeout: 30_000 });
+  await expect(page.getByTestId("trackscout-receive-usb")).toBeEnabled();
 });

@@ -564,6 +564,148 @@
         "title": "Health",
         "type": "object"
       },
+      "InboxAction": {
+        "additionalProperties": false,
+        "description": "Team tab choice for a pass that waits on this laptop (spec 0007 scope 9).",
+        "properties": {
+          "action": {
+            "enum": [
+              "upload_now",
+              "when_faster",
+              "keep_local"
+            ],
+            "title": "Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "InboxAction",
+        "type": "object"
+      },
+      "InboxPass": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "eta_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta S"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_try": {
+            "default": 0.0,
+            "title": "Last Try",
+            "type": "number"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "pass_type": {
+            "title": "Pass Type",
+            "type": "string"
+          },
+          "policy": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "now",
+              "keep"
+            ],
+            "title": "Policy",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "rate_bps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Bps"
+          },
+          "received": {
+            "default": 0,
+            "title": "Received",
+            "type": "integer"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "usb",
+              "bluetooth"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "state": {
+            "default": "receiving",
+            "enum": [
+              "receiving",
+              "waiting",
+              "uploading",
+              "uploaded",
+              "local_only"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "project",
+          "pass_type",
+          "created_at",
+          "size",
+          "sha256",
+          "source",
+          "slug"
+        ],
+        "title": "InboxPass",
+        "type": "object"
+      },
       "InviteInfo": {
         "additionalProperties": false,
         "properties": {
@@ -1170,6 +1312,25 @@
           "options"
         ],
         "title": "QuickstartSchema",
+        "type": "object"
+      },
+      "ReceiveRequest": {
+        "additionalProperties": false,
+        "description": "Pull finished passes from a paired phone: by cable (USB) or Bluetooth LE.",
+        "properties": {
+          "source": {
+            "enum": [
+              "usb",
+              "bluetooth"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "ReceiveRequest",
         "type": "object"
       },
       "ReplayRequest": {
@@ -3292,6 +3453,119 @@
           }
         },
         "summary": "Ws Totp Verify"
+      }
+    },
+    "/api/v1/workspace/trackscout/inbox": {
+      "get": {
+        "operationId": "ws_trackscout_inbox_api_v1_workspace_trackscout_inbox_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InboxPass"
+                  },
+                  "title": "Response Ws Trackscout Inbox Api V1 Workspace Trackscout Inbox Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Trackscout Inbox"
+      }
+    },
+    "/api/v1/workspace/trackscout/inbox/{pass_id}": {
+      "post": {
+        "operationId": "ws_trackscout_choose_api_v1_workspace_trackscout_inbox__pass_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pass_id",
+            "required": true,
+            "schema": {
+              "title": "Pass Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxPass"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Trackscout Choose"
+      }
+    },
+    "/api/v1/workspace/trackscout/receive": {
+      "post": {
+        "operationId": "ws_trackscout_receive_api_v1_workspace_trackscout_receive_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InboxPass"
+                  },
+                  "title": "Response Ws Trackscout Receive Api V1 Workspace Trackscout Receive Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Trackscout Receive"
       }
     },
     "/api/v1/workspace/versions/{version_id}": {

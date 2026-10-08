@@ -23,6 +23,10 @@ dependencies = [
     "uvicorn[standard]>=0.30",
 ]
 
+[project.optional-dependencies]
+# Spec 0007: phone → laptop transfer by cable (pymobiledevice3, GPL-3.0) and Bluetooth LE (bleak, MIT); ADR-0021.
+transfer = ["pymobiledevice3>=11", "bleak>=1.0"]
+
 [project.scripts]
 raceforge = "raceforge.cli:main"
 
