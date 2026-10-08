@@ -58,6 +58,6 @@ reviewed `rf-core::rt` module.
 - CI cannot use real-time scheduling on hosted runners: timing tests keep generous bounds and run
   serially; the real numbers come from HIL (spec 0005 AC10), which must report p99 jitter and
   deadline misses with and without v1 settings.
-- Follow-up: `car_runtime/deploy/rf-runtime.service` (done), the board setup script (swap,
-  governor, kernel arguments; spec 0005 "Board setup"), HIL measurement; escalate to v2 only if
-  HIL misses the target.
+- Follow-up: `car_runtime/deploy/rf-runtime.service` and `car_runtime/deploy/setup-board.sh`
+  (swap, governor, kernel arguments, `--cores` for boards other than the Pi 5) are done; HIL
+  measurement remains; escalate to v2 only if HIL misses the target.
