@@ -12,4 +12,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0005 | car_runtime (Rust core) + EV3 serial bridge + safety | 2–3 | to write |
 | 0006 | Backend v1 (auth, versions, blobs, sync) | 2–3 | to write |
 | 0007 | TrackScout v1 (recording, pause/continue, .tscan) | 2–3 | to write |
-| 0008 | Frontend shell (Electron, i18n, part browser) | 2–3 | to write |
+| 0008 | Frontend shell v1 (engine API, Electron, parts, construct, simulate, replay) | 2–3 | implemented (PR) |

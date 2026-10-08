@@ -1,0 +1,198 @@
+"""Engine API models (spec 0008) — the contract between the UI and the Python engine.
+
+Changing these models changes the OpenAPI schema (snapshot-tested): needs an approved spec change.
+"""
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from raceforge.construct.quickstart import QuickStartParams
+from raceforge.track.procedural import CorridorParams
+
+V3 = tuple[float, float, float]
+Q4 = tuple[float, float, float, float]  # w, x, y, z
+
+
+class ApiModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class Health(ApiModel):
+    version: str
+    ldraw_available: bool
+    ldraw_dir: str
+
+
+class PartSummary(ApiModel):
+    key: str
+    ldraw_id: str | None
+    name: str
+    category: str
+    mass_g: float
+    connectors: int
+    device: str | None
+    verified: bool
+
+
+class Primitive(ApiModel):
+    kind: Literal["box", "cylinder", "plane"]
+    pos: V3
+    quat: Q4
+    size: V3  # box: half-extents; cylinder: radius, half-height, 0; plane: half-x, half-y, 0
+    color: str  # "#rrggbb"
+    opacity: float = 1.0
+    surface: str = ""
+
+
+class ScenePart(ApiModel):
+    key: str
+    ldraw_id: str | None
+    category: str
+    pos: V3  # relative to the body
+    quat: Q4
+    color: int  # LDraw colour code (function colours)
+    bbox_lo: V3
+    bbox_hi: V3
+
+
+class SceneBody(ApiModel):
+    name: str
+    parts: list[ScenePart]
+
+
+class CarScene(ApiModel):
+    name: str
+    bodies: list[SceneBody]
+
+
+class Warning(ApiModel):
+    code: str
+    message: str
+
+
+class QuickstartResponse(ApiModel):
+    assembly: dict[str, Any]
+    derived: dict[str, Any]
+    warnings: list[Warning]
+    car: CarScene
+
+
+class QuickstartSchema(ApiModel):
+    json_schema: dict[str, Any]
+    defaults: dict[str, Any]
+    options: dict[str, list[Any]]
+
+
+class ControllerInfo(ApiModel):
+    name: str
+    path: str
+    template: bool
+
+
+class CorridorResponse(ApiModel):
+    track: dict[str, Any]
+    primitives: list[Primitive]
+    centreline: list[tuple[float, float]]
+
+
+class ReplayRequest(ApiModel):
+    path: str
+
+
+class ReplaySummary(ApiModel):
+    frames: int
+    duration_s: float
+    t: list[float]
+    steering_cmd: list[float]
+    speed_cmd: list[float]
+    speed_meas: list[float | None]
+    states: list[str]
+    truth_xy: list[tuple[float, float]]
+    channels: dict[str, list[float | None]]
+
+
+class SimStart(ApiModel):
+    type: Literal["start"] = "start"
+    controller: str
+    params_path: str | None = None
+    corridor: CorridorParams = Field(default_factory=CorridorParams)
+    laps: int = Field(default=1, ge=1, le=20)
+    opponents: int = Field(default=0, ge=0, le=5)
+    seed: int = 0
+    speed: float = Field(default=1.0, gt=0)  # 0 < speed; values >= 100 mean "as fast as possible"
+    quickstart: QuickStartParams | None = None
+    record_path: str | None = None
+
+
+class SimControl(ApiModel):
+    type: Literal["pause", "resume", "stop", "speed"]
+    speed: float | None = None
+
+
+class UltrasonicView(ApiModel):
+    value: float | None
+    origin: V3
+    direction: V3
+
+
+class EgoView(ApiModel):
+    ultrasonic: dict[str, UltrasonicView]
+    lidar_points: list[tuple[float, float]]
+    steering_cmd: float
+    speed_cmd: float
+    state: str
+    channels: dict[str, float | int | bool | str]
+    distance_m: float
+    laps: int
+    lap_times_s: list[float]
+    finished: bool
+
+
+class EventView(ApiModel):
+    t: float
+    car: str
+    kind: str
+    other: str
+
+
+class SceneMessage(ApiModel):
+    type: Literal["scene"] = "scene"
+    primitives: list[Primitive]
+    cars: list[CarScene]
+    centreline: list[tuple[float, float]]
+
+
+class FrameMessage(ApiModel):
+    type: Literal["frame"] = "frame"
+    t: float
+    bodies: dict[str, dict[str, tuple[V3, Q4]]]  # car -> body -> (pos, quat)
+    ego: EgoView
+    events: list[EventView]
+
+
+class ResultMessage(ApiModel):
+    type: Literal["result"] = "result"
+    finished: bool
+    laps: int
+    lap_times_s: list[float]
+    sim_time_s: float
+    wall_contacts: int
+    problems: list[str]
+    record_path: str | None
+
+
+class ErrorMessage(ApiModel):
+    type: Literal["error"] = "error"
+    message: str
+
+
+class SimProtocol(ApiModel):
+    """Documents the /api/v1/sim WebSocket messages so they appear in OpenAPI and the TS client."""
+
+    client_start: SimStart | None = None
+    client_control: SimControl | None = None
+    server_scene: SceneMessage | None = None
+    server_frame: FrameMessage | None = None
+    server_result: ResultMessage | None = None
+    server_error: ErrorMessage | None = None

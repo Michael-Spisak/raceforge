@@ -20,6 +20,17 @@ uv sync
 uv run pytest
 ```
 
+### Start the user interface
+```bash
+uv sync                                   # Python engine (once)
+cd frontend && npm ci && npm run build    # UI (once, and after UI changes)
+npm run electron                          # desktop app (starts the engine itself)
+```
+or, without Electron: `PYTHONPATH=src uv run raceforge ui --browser` (opens http://127.0.0.1:8765).
+For real LEGO geometry download the LDraw library once: `PYTHONPATH=src uv run raceforge parts fetch`.
+UI development with hot reload: run `PYTHONPATH=src uv run raceforge ui` and, in `frontend/`, `npm run dev`
+(http://localhost:5173 proxies the engine).
+
 Rules for contributors and AI agents: [AGENTS.md](AGENTS.md).
 
 ## License

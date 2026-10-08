@@ -89,6 +89,70 @@ class RaceResult:
         return sum(1 for e in self.events if e.car == "ego" and e.kind == "wall")
 
 
+class RaceSession:
+    """One race, advanced step by step (used by ``run_race`` and the UI engine)."""
+
+    def __init__(
+        self,
+        sim: Simulation,
+        controller: Controller[ControllerParams],
+        car: str = "ego",
+        max_time_s: float = 600.0,
+        opponent_speed_m_s: float = 0.25,
+        record: Path | None = None,
+        deadline_s: float = 0.010,
+    ) -> None:
+        self.sim, self.controller, self.car = sim, controller, car
+        self.max_time_s = max_time_s
+        self.opponent_speed_m_s = opponent_speed_m_s
+        self.io = SimIO(sim, car)
+        self.host = ControllerHost(controller, self.io, deadline_s=deadline_s)
+        self.host.start()
+        self.recorder = Recorder(record) if record else None
+        self.seq = 0
+        self.last_cmd = Command()
+        # Deterministic lateral offsets for opponents (alternating sides by start order).
+        others = [c for c in sorted(sim.cars) if c != car]
+        self.offsets = {name: (0.25 if i % 2 else -0.25) for i, name in enumerate(others)}
+        self.closed = False
+
+    @property
+    def done(self) -> bool:
+        return self.closed or self.sim.t >= self.max_time_s or self.sim.progress(self.car).finished
+
+    def step(self) -> None:
+        sim = self.sim
+        self.last_cmd = cmd = self.host.step()
+        for other, offset in self.offsets.items():
+            sim.command(other, centreline_follower(sim, other, self.opponent_speed_m_s, offset))
+        sim.step()
+        if self.recorder is not None:
+            frame = frame_from(
+                self.seq,
+                sim.readings(self.car),
+                CarCommand(cmd.steering_rad, cmd.speed_m_s),
+                self.controller.state,
+                1 / sim.control_dt,
+                dict(self.io.channels),
+            )
+            self.recorder.add(frame, sim.truth(self.car))
+            self.seq += 1
+
+    def finish(self) -> RaceResult:
+        if not self.closed:
+            self.host.stop()
+            if self.recorder is not None:
+                self.recorder.close()
+            self.closed = True
+        return RaceResult(
+            progress=self.sim.progress(self.car),
+            events=list(self.sim.events),
+            sim_time_s=self.sim.t,
+            problems=[f"step {p.step}: {p.kind}: {p.detail}" for p in self.host.problems],
+            max_step_ms=self.host.max_step_s * 1000,
+        )
+
+
 def run_race(
     sim: Simulation,
     controller: Controller[ControllerParams],
@@ -102,36 +166,7 @@ def run_race(
 
     Other cars use the built-in centreline driver.
     """
-    io = SimIO(sim, car)
-    host = ControllerHost(controller, io, deadline_s=deadline_s)
-    host.start()
-    recorder = Recorder(record) if record else None
-    seq = 0
-    while sim.t < max_time_s and not sim.progress(car).finished:
-        cmd = host.step()
-        for other in sim.cars:
-            if other != car:
-                offset = 0.25 if hash(other) % 2 else -0.25
-                sim.command(other, centreline_follower(sim, other, opponent_speed_m_s, offset))
-        sim.step()
-        if recorder is not None:
-            frame = frame_from(
-                seq,
-                sim.readings(car),
-                CarCommand(cmd.steering_rad, cmd.speed_m_s),
-                controller.state,
-                1 / sim.control_dt,
-                dict(io.channels),
-            )
-            recorder.add(frame, sim.truth(car))
-            seq += 1
-    host.stop()
-    if recorder is not None:
-        recorder.close()
-    return RaceResult(
-        progress=sim.progress(car),
-        events=list(sim.events),
-        sim_time_s=sim.t,
-        problems=[f"step {p.step}: {p.kind}: {p.detail}" for p in host.problems],
-        max_step_ms=host.max_step_s * 1000,
-    )
+    session = RaceSession(sim, controller, car, max_time_s, opponent_speed_m_s, record, deadline_s)
+    while not session.done:
+        session.step()
+    return session.finish()

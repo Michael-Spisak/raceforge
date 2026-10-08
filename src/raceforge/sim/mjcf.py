@@ -70,6 +70,7 @@ class ModelInfo:
     sensor_sites: dict[str, str]  # part instance path -> site name
     max_steer_rad: float
     steer_rate_rad_s: float
+    part_bodies: dict[str, str] = field(default_factory=dict[str, str])  # part path -> body name
 
 
 class _UnionFind:
@@ -493,6 +494,11 @@ def _emit(
         sensor_sites=sensor_sites,
         max_steer_rad=lim,
         steer_rate_rad_s=sm.no_load_speed_rad_s,
+        part_bodies={
+            "/".join(p.path): body.name
+            for body in (chassis, *knuckles.values(), *wheels.values())
+            for p in body.parts
+        },
     )
     return xml, info
 
