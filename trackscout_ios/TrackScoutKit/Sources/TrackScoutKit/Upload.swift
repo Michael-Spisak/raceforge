@@ -125,23 +125,36 @@ public final class BackendClient: Sendable {
     ) async throws -> VersionInfo {
         let (sha, size) = try Checksum.sha256(file: file)
         let slug = captureSlug(projectName: projectName)
-        let object = try await ensureObject(workspaceId: workspaceId, slug: slug)
+        var object = try await ensureObject(workspaceId: workspaceId, slug: slug)
         try await uploadBlob(file: file, sha256: sha, size: size, progress: progress)
-        var files: [FileEntry] = []
-        if let latest = object.latest {
-            let v = try JSONDecoder().decode(VersionContent.self, from: try await request("GET", "versions/\(latest.id)"))
-            files = v.content.files
-        }
         let name = file.lastPathComponent
-        files.removeAll { $0.path == name }
-        files.append(FileEntry(path: name, sha256: sha, size: size))
+        let mine = FileEntry(path: name, sha256: sha, size: size)
         struct Body: Encodable {
             let content: FileSet
             let message: String
         }
-        let body = Body(content: FileSet(files: files, entry: nil), message: "TrackScout pass \(name)")
-        let data = try await request("POST", "objects/\(object.id)/versions", json: try Self.encode(body))
-        return try JSONDecoder().decode(VersionInfo.self, from: data)
+        // Read-modify-write of the pass list: another device may post a version at the same time.
+        // After posting, check that the latest version still lists this pass, else merge again.
+        var posted: VersionInfo?
+        for _ in 0..<3 {
+            if let posted, object.latest?.id == posted.id { return posted }
+            var files = try await latestFiles(object)
+            if let posted, files.contains(mine) { return posted }
+            files.removeAll { $0.path == name }
+            files.append(mine)
+            let body = Body(content: FileSet(files: files, entry: nil), message: "TrackScout pass \(name)")
+            let data = try await request("POST", "objects/\(object.id)/versions", json: try Self.encode(body))
+            posted = try JSONDecoder().decode(VersionInfo.self, from: data)
+            object = try await ensureObject(workspaceId: workspaceId, slug: slug)
+        }
+        guard let posted else { throw UploadError.badResponse }
+        return posted
+    }
+
+    func latestFiles(_ object: ObjectInfo) async throws -> [FileEntry] {
+        guard let latest = object.latest else { return [] }
+        let v = try JSONDecoder().decode(VersionContent.self, from: try await request("GET", "versions/\(latest.id)"))
+        return v.content.files
     }
 
     func ensureObject(workspaceId: String, slug: String) async throws -> ObjectInfo {

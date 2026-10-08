@@ -166,7 +166,16 @@ class WorkspaceApi:
         if status.server_url is None:
             raise BackendError(409, "log in first")
         laptop = socket.gethostname().removesuffix(".local")
-        token = self.ws.client().create_token(
+        client = self.ws.client()
+        # A new QR replaces this laptop's earlier pairing tokens (old QR screenshots stop working).
+        for old in client.tokens():
+            if (
+                old.client == "trackscout"
+                and not old.revoked
+                and old.name.startswith(f"TrackScout ({laptop}, ")
+            ):
+                client.revoke_token(old.id)
+        token = client.create_token(
             f"TrackScout ({laptop}, {datetime.now(UTC):%Y-%m-%d})", ["read", "edit"], "trackscout"
         )
         assert token.token is not None

@@ -69,8 +69,11 @@ class InboxPass(BaseModel):
 
 def capture_slug(project: str) -> str:
     """Same rule as TrackScout's `captureSlug`: scan-<ascii-lowercase-name>."""
-    ascii_name = unicodedata.normalize("NFKD", project).encode("ascii", "ignore").decode().lower()
-    core = re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-") or "track"
+    # Swift's `folding([.diacriticInsensitive, .caseInsensitive])`: case-fold (ß → ss, ﬁ → fi)
+    # and drop accents; any other non-ASCII character becomes a separator.
+    folded = unicodedata.normalize("NFD", project.casefold())
+    folded = "".join(ch for ch in folded if unicodedata.category(ch) != "Mn")
+    core = re.sub(r"[^a-z0-9]+", "-", folded).strip("-") or "track"
     return f"scan-{core}"[:63].rstrip("-")
 
 
@@ -162,6 +165,7 @@ class Inbox:
             if item.state != "receiving":
                 return item
             part = self.part_path(pass_id)
+            part.touch()  # a zero-byte pass never got an append
             digest = hashlib.sha256()
             with part.open("rb") as f:
                 for block in iter(lambda: f.read(1 << 20), b""):
@@ -240,7 +244,6 @@ class Relay:
                 version = self.ws.save_files(
                     "capture", item.slug, [path], f"{item.pass_type} pass via laptop", merge=True
                 )
-                self.ws.sync()
             except TooSlowError as slow:
                 return self.inbox.update(
                     pass_id, state="waiting", rate_bps=slow.rate_bps, eta_s=slow.eta_s, note="slow"
@@ -249,6 +252,13 @@ class Relay:
                 return self.inbox.update(pass_id, state="waiting", note="offline")
             except BackendError as exc:
                 return self.inbox.update(pass_id, state="waiting", note=exc.detail[:200])
+            except Exception as exc:
+                self.inbox.update(pass_id, state="waiting", note=str(exc)[:200])
+                raise
+            # The version is saved locally now; if this sync fails the background sync sends it.
+            # (Retrying the whole upload here would save a second, identical version.)
+            with suppress(OfflineError, BackendError):
+                self.ws.sync()
             semver = next(
                 (v.semver for v in self.ws.history(version.object_id) if v.id == version.id),
                 version.semver,
