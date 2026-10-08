@@ -1,0 +1,3 @@
+# RaceForge: install a bundle from a USB stick when it is plugged in (spec 0005 "Deploy").
+# FAT/exFAT partitions on USB only; raceforge-usb-deploy ignores sticks without raceforge/bundle/.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_TYPE}=="vfat|exfat", TAG+="systemd", ENV{SYSTEMD_WANTS}+="raceforge-usb-deploy@%k.service"

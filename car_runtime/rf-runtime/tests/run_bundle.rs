@@ -278,6 +278,38 @@ fn resume_button_restarts_a_crashed_controller_end_to_end() {
     );
 }
 
+#[test]
+fn cli_bundle_from_the_example_car_config_is_accepted() {
+    // `raceforge bundle` + controllers/car.example.yaml -> a bundle rf-runtime loads and maps.
+    let Ok(py) = std::env::var("RF_PYTHON") else {
+        eprintln!("RF_PYTHON not set: skipping");
+        return;
+    };
+    let dir = tmp("cli-bundle");
+    let out = dir.join("bundle");
+    let status = std::process::Command::new(&py)
+        .env("PYTHONPATH", repo().join("src"))
+        .args([
+            "-c",
+            "import sys; from raceforge.cli import main; sys.exit(main(sys.argv[1:]))",
+        ])
+        .arg("bundle")
+        .arg(repo().join("controllers/templates/wall_follow.py"))
+        .arg("--car")
+        .arg(repo().join("controllers/car.example.yaml"))
+        .arg("--out")
+        .arg(&out)
+        .status()
+        .expect("python");
+    assert!(status.success());
+    let m = rf_runtime::manifest::Manifest::load_verified(&out).expect("bundle accepted");
+    let ev3 = m.ev3_config().expect("ev3 mapping");
+    assert_eq!(ev3.estop_touch_port, Some(3)); // EV3 port "4"
+    assert_eq!(ev3.resume_buttons, 1 << 4); // "enter"
+    assert_eq!(ev3.ultrasonic.len(), 3);
+    m.ev3_addrs().expect("addresses");
+}
+
 fn hand_bundle(name: &str, mode: &str, ev3_addr: &str) -> PathBuf {
     hand_bundle_with(name, mode, ev3_addr, "null")
 }
