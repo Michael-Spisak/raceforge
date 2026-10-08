@@ -1,4 +1,4 @@
-# ADR-0021: aarch64 build of the car runtime (static musl)
+# ADR-0027: aarch64 build of the car runtime (static musl)
 
 - **Status:** accepted (2026-10-08)
 - **Date:** 2026-10-08
@@ -64,7 +64,7 @@ A prototype on the current workspace (Rust 1.98.0, x86_64 Ubuntu 24.04 host) fou
   static linker-only build stays). It halved the musl overhead in the prototype.
 
 ## Consequences
-- AC9 is complete with this (cargo-deny: ADR-0020).
+- AC9 is complete with this (cargo-deny: ADR-0026).
 - The board needs no Rust, no compiler and no particular glibc. `setup-board.sh --binary` installs
   the CI artifact or a local build.
 - The arm64 job tests the shipped target but not the Pi itself. Real jitter numbers still come from

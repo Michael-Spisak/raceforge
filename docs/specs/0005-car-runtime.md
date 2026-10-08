@@ -120,7 +120,7 @@ system OpenSSH, dedicated deploy user).*
 ## Acceptance criteria (→ tests)
 - [x] AC1: Protocol encode/decode round-trips; property tests; CRC rejects corrupted frames; `cargo fuzz`
       targets for EV3 and LD06 parsers run in CI (short) without crashes.
-      → `rf-proto` proptests (`ev3.rs`, `ld06.rs`, `ipc.rs`) and CRC tests; CI `fuzz` job (`car_runtime/fuzz/`, ADR-0019).
+      → `rf-proto` proptests (`ev3.rs`, `ld06.rs`, `ipc.rs`) and CRC tests; CI `fuzz` job (`car_runtime/fuzz/`, ADR-0025).
 - [x] AC2: LD06 driver decodes recorded sample packets into correct angles/ranges.
       → `rf-proto` `ld06::decodes_sample_packet` (vendor sample), `rf-lidar/tests/stream.rs`.
 - [x] AC3: With a mock EV3 and mock LiDAR (in-process), the loop runs at 50 Hz, builds Observations, calls a
@@ -139,7 +139,7 @@ system OpenSSH, dedicated deploy user).*
 - [x] AC8: `ev3_side` unit tests (protocol, failsafe timer) run on the dev machine with mocked ev3dev.
       → `tests/ev3_side/` (protocol, failsafe, bridge, Python 3.5 syntax).
 - [x] AC9: Cross-compiled aarch64 build in CI; `clippy -D warnings`, `cargo deny`, `cargo test` green.
-      → CI `rust` (fmt, clippy, tests, cargo-deny, aarch64 musl build) and `rust-arm64` (tests on arm64); ADR-0020, ADR-0021.
+      → CI `rust` (fmt, clippy, tests, cargo-deny, aarch64 musl build) and `rust-arm64` (tests on arm64); ADR-0026, ADR-0027.
 - [ ] AC10 (hardware, manual checklist: `car_runtime/FIRST_DRIVE.md`): on the real car — link up, sensors read, template `wall_follow`
       drives 10 m in a corridor in test mode, emergency stop cuts motors, MCAP recorded and replayable.
 - [x] AC11: The installer refuses a bundle with a wrong hash, an unsafe tar member or a missing file

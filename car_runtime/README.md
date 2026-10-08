@@ -95,7 +95,7 @@ cargo fmt --all --check && cargo clippy --all-targets -- -D warnings
 RF_PYTHON=../.venv/bin/python cargo test   # without RF_PYTHON the Python end-to-end tests are skipped
 ```
 
-Board binary (ADR-0021): a static `aarch64-unknown-linux-musl` build that runs on any aarch64
+Board binary (ADR-0027): a static `aarch64-unknown-linux-musl` build that runs on any aarch64
 Linux regardless of its glibc. rustup installs the target with the pinned toolchain and
 `.cargo/config.toml` links with `rust-lld`, so no cross compiler is needed:
 ```sh
@@ -105,11 +105,11 @@ cargo build --release --target aarch64-unknown-linux-musl -p rf-runtime
 CI builds the same binary on every run (artifact `rf-runtime-aarch64`, kept 14 days) and runs the
 whole test suite natively on an arm64 runner.
 
-Dependency checks (ADR-0020): `cargo install --locked cargo-deny@0.20.2`, then from `car_runtime/`
+Dependency checks (ADR-0026): `cargo install --locked cargo-deny@0.20.2`, then from `car_runtime/`
 `cargo deny check` and `cargo deny --manifest-path fuzz/Cargo.toml check` (rules in `deny.toml`:
 licence allow-list, RustSec advisories, no wildcard or git dependencies).
 
-Fuzzing (ADR-0019, Linux or macOS): the targets in `fuzz/` cover the EV3 frame decoders
+Fuzzing (ADR-0025, Linux or macOS): the targets in `fuzz/` cover the EV3 frame decoders
 (`ev3_frames`) and the LD06 stream parser up to the revolution in the car frame (`ld06_stream`).
 ```sh
 rustup toolchain install nightly-2026-09-24 --profile minimal

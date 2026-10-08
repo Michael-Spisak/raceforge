@@ -41,7 +41,7 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       # RF_PYTHON enables the end-to-end tests against the Python controller host (AC3/AC4).
       - run: RF_PYTHON="$GITHUB_WORKSPACE/.venv/bin/python" cargo test --locked
-      # AC9 / ADR-0020: licences, advisories, bans and sources for the runtime and the fuzz crate.
+      # AC9 / ADR-0026: licences, advisories, bans and sources for the runtime and the fuzz crate.
       - uses: actions/cache@v4
         id: cargo-deny
         with:
@@ -51,7 +51,7 @@ jobs:
         run: cargo install --locked cargo-deny@0.20.2
       - run: cargo deny check
       - run: cargo deny --manifest-path fuzz/Cargo.toml check
-      # AC9 / ADR-0021: static aarch64 binary for the board (linker set in .cargo/config.toml).
+      # AC9 / ADR-0027: static aarch64 binary for the board (linker set in .cargo/config.toml).
       # setup-board.sh --binary installs it (and restores the executable bit).
       - run: cargo build --locked --release --target aarch64-unknown-linux-musl -p rf-runtime
       - uses: actions/upload-artifact@v4
@@ -62,7 +62,7 @@ jobs:
           if-no-files-found: error
 
   rust-arm64:
-    # ADR-0021: the target that ships (aarch64 musl), tested natively on an ARM core; emulation
+    # ADR-0027: the target that ships (aarch64 musl), tested natively on an ARM core; emulation
     # breaks the timing tests. Python runtime deps only, for the controller host in the
     # end-to-end tests (some dev tools have no aarch64 wheels).
     runs-on: ubuntu-24.04-arm
@@ -85,7 +85,7 @@ jobs:
       - run: RF_PYTHON="$GITHUB_WORKSPACE/.venv/bin/python" cargo test --locked --target aarch64-unknown-linux-musl
 
   fuzz:
-    # Spec 0005 AC1 / ADR-0019: coverage-guided fuzzing of the EV3 and LD06 parsers on a pinned
+    # Spec 0005 AC1 / ADR-0025: coverage-guided fuzzing of the EV3 and LD06 parsers on a pinned
     # nightly. 60 s per target; 30 min per target in the Sunday scheduled run.
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -126,7 +126,7 @@ jobs:
             echo "::endgroup::"
           done
       # A crash: the failing input is in fuzz/artifacts/<target>/. Fix it with a unit test that
-      # reproduces it (ADR-0019).
+      # reproduces it (ADR-0025).
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

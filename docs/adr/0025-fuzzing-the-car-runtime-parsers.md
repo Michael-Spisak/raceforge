@@ -1,4 +1,4 @@
-# ADR-0019: Fuzzing the car runtime parsers (cargo-fuzz)
+# ADR-0025: Fuzzing the car runtime parsers (cargo-fuzz)
 
 - **Status:** accepted (2026-10-08)
 - **Date:** 2026-10-08

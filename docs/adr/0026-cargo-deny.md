@@ -1,4 +1,4 @@
-# ADR-0020: cargo-deny for the car runtime's dependencies
+# ADR-0026: cargo-deny for the car runtime's dependencies
 
 - **Status:** accepted (2026-10-08)
 - **Date:** 2026-10-08
@@ -21,7 +21,7 @@ With both handled (see Decision), all four checks pass in under 2 s.
   - Installed with `cargo install --locked cargo-deny@0.20.2`, and cached in CI.
   - A third-party GitHub Action is not used: it would add a container and its own update cycle.
 - **Config:** `car_runtime/deny.toml`, run in the `rust` CI job as `cargo deny check` for the runtime
-  workspace and for the fuzz crate (ADR-0019).
+  workspace and for the fuzz crate (ADR-0025).
   - **licenses:** an explicit allow-list of licences compatible with GPL-3.0:
     - `MIT`, `Apache-2.0`, `Apache-2.0 WITH LLVM-exception`
     - `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Zlib`

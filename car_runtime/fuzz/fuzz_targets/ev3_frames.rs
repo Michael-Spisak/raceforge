@@ -19,7 +19,7 @@ fn check(data: &[u8]) {
 fuzz_target!(|data: &[u8]| {
     check(data);
     // Again with a valid CRC-16 trailer: random inputs almost never pass the CRC, so without
-    // this the fuzzer would not reach the field decoding behind it (ADR-0019).
+    // this the fuzzer would not reach the field decoding behind it (ADR-0025).
     if let Some(n) = data.len().checked_sub(2) {
         let mut v = data.to_vec();
         let crc = crc16_ccitt(&v[..n]);

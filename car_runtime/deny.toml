@@ -1,4 +1,4 @@
-# cargo-deny for the car runtime and its fuzz crate (spec 0005 AC9, ADR-0020).
+# cargo-deny for the car runtime and its fuzz crate (spec 0005 AC9, ADR-0026).
 #   cargo deny check                                  # runtime workspace
 #   cargo deny --manifest-path fuzz/Cargo.toml check  # fuzz crate (same rules)
 
