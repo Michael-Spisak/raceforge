@@ -132,11 +132,6 @@ class RaceSession:
             self.last_state = self.controller.state
         else:
             cmd, self.last_state = manual
-            info = self.io.info  # operator input gets the car's limits, like the car runtime
-            cmd = Command(
-                steering_rad=max(-info.max_steer_rad, min(info.max_steer_rad, cmd.steering_rad)),
-                speed_m_s=max(-info.max_speed_m_s, min(info.max_speed_m_s, cmd.speed_m_s)),
-            )
             self.io.write(cmd)
             self.last_cmd = self.io.last_cmd
         for other, offset in self.offsets.items():
