@@ -5,8 +5,12 @@ import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from raceforge import __version__
+
+if TYPE_CHECKING:
+    from raceforge.api.deploy import InstallResult
 
 
 def _cmd_parts_fetch(args: argparse.Namespace) -> int:
@@ -121,6 +125,45 @@ def _cmd_ui(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_install(r: "InstallResult") -> None:
+    if r.ok:
+        print(f"installed {r.name} ({(r.digest or '')[:12]}): {r.detail}")
+    else:
+        what = f"{r.name} " if r.name else ""
+        rolled = " (previous bundle restored)" if r.rolled_back else ""
+        print(f"NOT installed {what}{rolled}: {r.detail}")
+
+
+def _cmd_deploy(args: argparse.Namespace) -> int:
+    from raceforge.api.deploy import DeployError, deploy_ssh, deploy_usb, usb_result
+
+    try:
+        if args.usb_result:
+            r = usb_result(Path(args.usb_result))
+            if r is None:
+                print("no result on the stick yet: plug it into the car's board first")
+                return 1
+            _print_install(r)
+            return 0 if r.ok else 1
+        if not args.bundle:
+            print("error: give the bundle directory to deploy", file=sys.stderr)
+            return 2
+        bundle = Path(args.bundle)
+        if args.ssh:
+            r = deploy_ssh(bundle, args.ssh)
+            _print_install(r)
+            return 0 if r.ok else 1
+        path = deploy_usb(bundle, Path(args.usb))
+        print(
+            f"bundle written to {path}. Eject the stick and plug it into the car's board; "
+            f"afterwards check with: raceforge deploy --usb-result {args.usb}"
+        )
+        return 0
+    except DeployError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="raceforge", description="RaceForge command-line interface"
@@ -172,6 +215,18 @@ def main(argv: list[str] | None = None) -> int:
         "--watch", action="store_true", help="re-run whenever the controller file changes"
     )
     simp.set_defaults(func=_cmd_sim)
+
+    dep = sub.add_parser("deploy", help="install a bundle on the car (over SSH or a USB stick)")
+    dep.add_argument("bundle", nargs="?", help="bundle directory (raceforge.car.bundle)")
+    how = dep.add_mutually_exclusive_group(required=True)
+    how.add_argument(
+        "--ssh", metavar="[USER@]HOST", help="install now (default user raceforge-deploy)"
+    )
+    how.add_argument("--usb", metavar="STICK", help="write it to a mounted USB stick")
+    how.add_argument(
+        "--usb-result", metavar="STICK", help="show what the car reported on the stick"
+    )
+    dep.set_defaults(func=_cmd_deploy)
 
     ui = sub.add_parser("ui", help="start the local engine and the user interface")
     ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")

@@ -206,3 +206,13 @@ def verify_bundle(bundle_dir: Path) -> list[str]:
         elif sha256_file(path) != ref.sha256:
             problems.append(f"hash mismatch: {ref.file}")
     return problems
+
+
+def bundle_files(m: BundleManifest) -> list[str]:
+    """Every file of the bundle, manifest first (what a deploy transfers)."""
+    return [MANIFEST, m.controller.file] + ([m.params.file] if m.params else [])
+
+
+def bundle_digest(bundle_dir: Path) -> str:
+    """SHA-256 of the manifest. It lists every file's hash, so it identifies the whole bundle."""
+    return sha256_file(bundle_dir / MANIFEST)

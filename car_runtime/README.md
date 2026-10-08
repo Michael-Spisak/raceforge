@@ -68,6 +68,24 @@ Armbian; also turns swap off, sets the `performance` governor and reserves cores
 start-up failed (exit 1), never after a driving fault (3), an unusable bundle (4) or a race run that
 refused to arm (5).
 
+### Deploying a bundle to the car
+```sh
+raceforge deploy bundle/ --ssh car-1.local      # now, over Wi-Fi/Tailscale/Ethernet (test mode)
+raceforge deploy bundle/ --usb /media/STICK     # USB stick: plug it into the board, it installs itself
+raceforge deploy --usb-result /media/STICK      # afterwards: what the car reported
+```
+Both run the board's installer (`raceforge-install-bundle`, root). It checks every hash before
+anything changes, keeps the current and two previous bundles in `/opt/raceforge/bundles/` behind
+the `/opt/raceforge/bundle` symlink, restarts the runtime and rolls back automatically if the
+runtime refuses the bundle. A runtime still waiting for the EV3 counts as installed.
+
+- **SSH:** `sudo deploy/setup-board.sh --deploy-key team.pub` (one public key per line) creates
+  `raceforge-deploy`. Its keys can only run the installer: no shell, no forwarding, one sudo rule.
+  Nobody needs an admin account on the car to deploy. `--ssh` uses the system `ssh` and
+  `~/.ssh/config`; `user@host` overrides the default user.
+- **USB:** FAT/exFAT sticks only. A stick without `raceforge/bundle/` is ignored. Works with all
+  radios off. The board logs to `journalctl -t raceforge-usb-deploy`.
+
 Live telemetry and teleop (test mode only): add `telemetry=TelemetrySpec(token=...)` to the bundle and
 connect to `ws://<car>:8765/?token=<token>`. Clients get `TelemetryFrame` JSON at 20 Hz (same as the
 logs) plus events, and can send `stop`, `teleop {steer, speed}` (dead-man 300 ms, speed limits apply),
