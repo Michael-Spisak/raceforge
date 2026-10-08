@@ -79,6 +79,11 @@ fn mock_ev3(done: Arc<AtomicBool>) -> (String, Arc<Mutex<Vec<CommandFrame>>>) {
 }
 
 fn build_bundle(py: &str, dir: &Path, ev3_addr: &str, mode: &str) {
+    build_bundle_with(py, dir, ev3_addr, mode, "None");
+}
+
+/// `telemetry` is a Python expression, e.g. `TelemetrySpec(bind='127.0.0.1:9000')` or `None`.
+fn build_bundle_with(py: &str, dir: &Path, ev3_addr: &str, mode: &str, telemetry: &str) {
     let script = format!(
         "from pathlib import Path\n\
          from raceforge.car.bundle import *\n\
@@ -87,7 +92,7 @@ fn build_bundle(py: &str, dir: &Path, ev3_addr: &str, mode: &str) {
                      max_speed_m_s=1.5, wheelbase_m=0.2, track_m=0.15, control_rate_hz=50),\n\
            Ev3Spec(addr='{ev3_addr}', local='127.0.0.1:0', steer_motor_deg_per_rad=100.0,\n\
                    drive_counts_per_m=1000.0, ultrasonic={{'front':'1','left':'2','right':'3'}}),\n\
-           RuntimeSpec(mode='{mode}', test_speed_limit_m_s=0.25))\n",
+           RuntimeSpec(mode='{mode}', test_speed_limit_m_s=0.25), telemetry={telemetry})\n",
         dir = dir.display(),
         ctrl = repo()
             .join("controllers/templates/wall_follow.py")
@@ -338,4 +343,158 @@ fn missing_lidar_device_is_an_error() {
         "{err}"
     );
     assert!(!dir.join("logs").exists());
+}
+
+fn free_port() -> u16 {
+    std::net::TcpListener::bind("127.0.0.1:0")
+        .and_then(|l| l.local_addr())
+        .expect("port")
+        .port()
+}
+
+/// Minimal WebSocket client for the telemetry server; retries until the runtime listens.
+fn ws_connect(port: u16) -> std::net::TcpStream {
+    use std::io::{Read, Write};
+    let t = Instant::now();
+    let mut s = loop {
+        match std::net::TcpStream::connect(("127.0.0.1", port)) {
+            Ok(s) => break s,
+            Err(_) if t.elapsed() < Duration::from_secs(20) => {
+                std::thread::sleep(Duration::from_millis(20))
+            }
+            Err(e) => panic!("telemetry server not reachable: {e}"),
+        }
+    };
+    s.set_read_timeout(Some(Duration::from_secs(5)))
+        .expect("timeout");
+    write!(
+        s,
+        "GET / HTTP/1.1\r\nHost: car\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
+         Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+    )
+    .expect("request");
+    let mut head = Vec::new();
+    let mut b = [0u8; 1];
+    while !head.ends_with(b"\r\n\r\n") {
+        s.read_exact(&mut b).expect("response");
+        head.push(b[0]);
+    }
+    assert!(String::from_utf8_lossy(&head).starts_with("HTTP/1.1 101"));
+    s
+}
+
+fn ws_recv(s: &mut std::net::TcpStream) -> serde_json::Value {
+    let (_, p) = rf_telemetry::ws::read_server_frame(s).expect("frame");
+    serde_json::from_slice(&p).expect("json")
+}
+
+fn ws_send(s: &mut std::net::TcpStream, msg: &str) {
+    use std::io::Write;
+    s.write_all(&rf_telemetry::ws::encode_client(
+        1,
+        msg.as_bytes(),
+        [3, 1, 4, 1],
+    ))
+    .expect("send");
+}
+
+#[test]
+fn telemetry_and_teleop_through_the_runtime() {
+    let _serial = serial();
+    let Ok(py) = std::env::var("RF_PYTHON") else {
+        eprintln!("RF_PYTHON not set: skipping");
+        return;
+    };
+    let done = Arc::new(AtomicBool::new(false));
+    let (ev3_addr, cmds) = mock_ev3(done.clone());
+    let dir = tmp("telemetry");
+    let port = free_port();
+    let tel = format!("TelemetrySpec(bind='127.0.0.1:{port}')");
+    build_bundle_with(&py, &dir.join("bundle"), &ev3_addr, "test", &tel);
+    let mut o = opts(&dir.join("bundle"), &py, &dir.join("logs"));
+    o.max_ticks = Some(150); // 3 s
+    let runtime = std::thread::spawn(move || run(&o, &AtomicBool::new(false)));
+
+    let mut c = ws_connect(port);
+    assert_eq!(ws_recv(&mut c)["type"], "hello");
+    let first = loop {
+        let m = ws_recv(&mut c);
+        if m["type"] == "telemetry" {
+            break m;
+        }
+    };
+    assert_eq!(first["frame"]["schema"], "telemetry");
+    assert_eq!(first["frame"]["mode"], "test");
+    // Teleop at 0.2 m/s (wall_follow alone would drive 0.25 m/s = the bundle's test limit).
+    for _ in 0..15 {
+        ws_send(&mut c, r#"{"type":"teleop","steer":0.0,"speed":0.2}"#);
+        std::thread::sleep(Duration::from_millis(40));
+    }
+    ws_send(&mut c, r#"{"type":"note","text":"teleop check"}"#);
+    ws_send(&mut c, r#"{"type":"stop","reason":"end of teleop test"}"#);
+    let out = runtime.join().expect("thread").expect("run");
+    done.store(true, Ordering::Release);
+
+    let cmds = cmds.lock().expect("lock").clone();
+    assert!(
+        cmds.iter()
+            .any(|c| c.drive_speed_cps == 200 && c.steer_target_cdeg == 0),
+        "teleop drove"
+    );
+    assert!(
+        cmds.iter().any(|c| c.drive_speed_cps == 250),
+        "controller drove before teleop"
+    );
+    assert_eq!(
+        out.report.fault,
+        Some(rf_core::runtime::Fault::OperatorStop(
+            "end of teleop test".into()
+        ))
+    );
+    assert!(out
+        .report
+        .events
+        .iter()
+        .any(|e| e.kind == "note" && e.detail == "teleop check"));
+    assert!(
+        std::net::TcpStream::connect(("127.0.0.1", port)).is_err(),
+        "server closed after run"
+    );
+}
+
+#[test]
+fn race_mode_never_listens_for_telemetry() {
+    let _serial = serial();
+    let Ok(py) = std::env::var("RF_PYTHON") else {
+        eprintln!("RF_PYTHON not set: skipping");
+        return;
+    };
+    let done = Arc::new(AtomicBool::new(false));
+    let (ev3_addr, cmds) = mock_ev3(done.clone());
+    let dir = tmp("race-telemetry");
+    let port = free_port();
+    let tel = format!("TelemetrySpec(bind='127.0.0.1:{port}')");
+    build_bundle_with(&py, &dir.join("bundle"), &ev3_addr, "race", &tel);
+    let mut o = opts(&dir.join("bundle"), &py, &dir.join("logs"));
+    o.sys_root = fake_sys("race-telemetry", false);
+    o.max_ticks = Some(100);
+    let runtime = std::thread::spawn(move || run(&o, &AtomicBool::new(false)));
+    // Wait until the car is driving, then probe the port while the race runs.
+    let t = Instant::now();
+    while !cmds
+        .lock()
+        .expect("lock")
+        .iter()
+        .any(|c| c.drive_speed_cps > 0)
+    {
+        assert!(t.elapsed() < Duration::from_secs(20), "car never drove");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(
+        std::net::TcpStream::connect(("127.0.0.1", port)).is_err(),
+        "telemetry port must not listen in race mode"
+    );
+    let out = runtime.join().expect("thread").expect("run");
+    done.store(true, Ordering::Release);
+    assert!(out.report.fault.is_none(), "{:?}", out.report.fault);
 }

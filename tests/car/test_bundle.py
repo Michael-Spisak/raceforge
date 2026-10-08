@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -12,6 +13,7 @@ from raceforge.car.bundle import (
     LidarSpec,
     RobotSpec,
     RuntimeSpec,
+    TelemetrySpec,
     build_bundle,
     load_manifest,
     verify_bundle,
@@ -102,3 +104,29 @@ def test_lidar_section(tmp_path: Path) -> None:
     assert json.loads((tmp_path / "c" / MANIFEST).read_text())["lidar"] is None
     with pytest.raises(ValidationError):
         LidarSpec(timeout_ms=50)
+
+
+def test_telemetry_section_and_token_rule(tmp_path: Path) -> None:
+    tel = TelemetrySpec(token="Xq3_kL9-vB2nM7pR")
+    build_bundle(tmp_path / "b", TEMPLATES / "centering.py", ROBOT, EV3, telemetry=tel)
+    raw = json.loads((tmp_path / "b" / MANIFEST).read_text())
+    assert raw["telemetry"] == {
+        "bind": "0.0.0.0:8765",
+        "rate_hz": 20.0,
+        "token": "Xq3_kL9-vB2nM7pR",
+        "max_clients": 4,
+    }
+    assert TelemetrySpec(bind="127.0.0.1:8765").token is None  # loopback: no token needed
+    assert TelemetrySpec(bind="[::1]:8765").token is None
+    bad_cases: list[dict[str, Any]] = [
+        {},  # default bind 0.0.0.0 without a token
+        {"bind": "10.0.0.5:8765"},
+        {"token": "too-short"},
+        {"token": "has spaces in it, sixteen+"},
+        {"bind": "car.local:8765", "token": "Xq3_kL9-vB2nM7pR"},
+        {"bind": "127.0.0.1:70000"},
+        {"bind": "127.0.0.1:8765", "rate_hz": 100},
+    ]
+    for bad in bad_cases:
+        with pytest.raises(ValidationError):
+            TelemetrySpec(**bad)

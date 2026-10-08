@@ -19,6 +19,7 @@ use rf_ev3::{Ev3Link, UdpTransport};
 use rf_lidar::{Lidar, LidarConfig};
 use rf_log::Logger;
 use rf_proto::ipc::Mode;
+use rf_telemetry::{TelemetryConfig, TelemetryServer};
 use sensors::{CarSensors, LidarSource};
 use std::path::PathBuf;
 use std::process::Command;
@@ -171,6 +172,27 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
     }
     let mut rt = Runtime::new(cfg, sensors, ev3.clone(), link, opts.setup_timeout)?;
     rt.add_sink(logger.clone());
+    // Live telemetry + teleop: test mode only. In race mode nothing listens (spec 0005 AC5).
+    if let (Mode::Test, Some(t)) = (mode, &manifest.telemetry) {
+        let bind = t
+            .bind
+            .parse()
+            .map_err(|_| BundleError::Invalid(format!("telemetry bind {:?}", t.bind)))?;
+        let cfg = TelemetryConfig {
+            bind,
+            rate_hz: t.rate_hz,
+            token: t.token.clone(),
+            max_clients: t.max_clients,
+        };
+        let server = TelemetryServer::start(
+            cfg,
+            &manifest.robot.car_name,
+            Mode::Test,
+            rt.teleop.clone(),
+            rt.remote.clone(),
+        )?;
+        rt.add_sink(Arc::new(server));
+    }
     let report = rt.run(stop, opts.max_ticks);
     drop(rt); // controller host shut down
     logger.close()?;

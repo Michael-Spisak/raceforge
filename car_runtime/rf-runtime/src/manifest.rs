@@ -66,6 +66,16 @@ pub struct LidarSpec {
     pub timeout_ms: u64,
 }
 
+/// Live telemetry + teleop server (test mode only). Non-loopback binds need a token.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TelemetrySpec {
+    pub bind: String,
+    pub rate_hz: f64,
+    pub token: Option<String>,
+    pub max_clients: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BundleMode {
@@ -99,6 +109,8 @@ pub struct Manifest {
     pub ev3: Ev3Spec,
     #[serde(default)]
     pub lidar: Option<LidarSpec>,
+    #[serde(default)]
+    pub telemetry: Option<TelemetrySpec>,
     pub runtime: RuntimeSpec,
 }
 
@@ -153,6 +165,32 @@ impl Manifest {
             return Err(BundleError::Invalid(
                 "radio_usb_ids must look like 0bda:8179".into(),
             ));
+        }
+        if let Some(t) = &m.telemetry {
+            let bind: SocketAddr = t
+                .bind
+                .parse()
+                .map_err(|_| BundleError::Invalid(format!("telemetry bind {:?}", t.bind)))?;
+            let token_ok = t.token.as_ref().is_none_or(|k| {
+                (16..=128).contains(&k.len())
+                    && k.bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+            });
+            if !token_ok {
+                return Err(BundleError::Invalid(
+                    "telemetry token: 16-128 of [A-Za-z0-9_-]".into(),
+                ));
+            }
+            if !bind.ip().is_loopback() && t.token.is_none() {
+                return Err(BundleError::Invalid(
+                    "telemetry: a token is required for a non-loopback bind".into(),
+                ));
+            }
+            if !(1.0..=50.0).contains(&t.rate_hz) || !(1..=16).contains(&t.max_clients) {
+                return Err(BundleError::Invalid(
+                    "telemetry rate_hz 1-50, max_clients 1-16".into(),
+                ));
+            }
         }
         if let Some(l) = &m.lidar {
             if !l.mount_offset_rad.is_finite() || !(150..=2000).contains(&l.timeout_ms) {
@@ -276,6 +314,41 @@ mod tests {
         {
             assert!(
                 Manifest::load_verified(&bundle(&format!("usb-bad{i}"), &with(bad), b"code"))
+                    .is_err(),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn telemetry_section_is_validated() {
+        let h = sha256_hex(b"code");
+        let with = |t: &str| {
+            sample(&h).replace(
+                "\"runtime\":",
+                &format!("\"telemetry\": {t},\n  \"runtime\":"),
+            )
+        };
+        let ok = r#"{"bind": "0.0.0.0:8765", "rate_hz": 20.0, "token": "abcdefghijklmnop", "max_clients": 4}"#;
+        let m = Manifest::load_verified(&bundle("tel-ok", &with(ok), b"code")).expect("valid");
+        assert_eq!(
+            m.telemetry.expect("telemetry").token.as_deref(),
+            Some("abcdefghijklmnop")
+        );
+        let loopback =
+            r#"{"bind": "127.0.0.1:8765", "rate_hz": 20.0, "token": null, "max_clients": 4}"#;
+        assert!(Manifest::load_verified(&bundle("tel-lo", &with(loopback), b"code")).is_ok());
+        for (i, bad) in [
+            r#"{"bind": "0.0.0.0:8765", "rate_hz": 20.0, "token": null, "max_clients": 4}"#,
+            r#"{"bind": "0.0.0.0:8765", "rate_hz": 20.0, "token": "short", "max_clients": 4}"#,
+            r#"{"bind": "car:8765", "rate_hz": 20.0, "token": null, "max_clients": 4}"#,
+            r#"{"bind": "127.0.0.1:8765", "rate_hz": 500.0, "token": null, "max_clients": 4}"#,
+        ]
+        .iter()
+        .enumerate()
+        {
+            assert!(
+                Manifest::load_verified(&bundle(&format!("tel-bad{i}"), &with(bad), b"code"))
                     .is_err(),
                 "{bad}"
             );

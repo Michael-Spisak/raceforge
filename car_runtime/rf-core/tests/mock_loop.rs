@@ -370,3 +370,32 @@ fn lidar_scan_time_is_converted_to_the_runtime_clock() {
     assert!(lidar.t_s > 0.0 && lidar.t_s < 0.2, "{}", lidar.t_s);
     assert!(last.t_s >= lidar.t_s - 0.05);
 }
+
+#[test]
+fn operator_stop_and_notes_from_another_thread() {
+    let _serial = serial();
+    let (mut rt, act, _) = runtime(
+        RuntimeConfig::new(info(), Mode::Test),
+        mock_host(|_| Act::Reply(DRIVE)),
+    );
+    let remote = rt.remote.clone();
+    let t = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(100));
+        remote.note("cone at 3 m");
+        remote.request_stop("operator pressed stop");
+    });
+    let report = rt.run(&AtomicBool::new(false), Some(15));
+    t.join().expect("join");
+    assert_eq!(
+        report.fault,
+        Some(Fault::OperatorStop("operator pressed stop".into()))
+    );
+    assert!(report
+        .events
+        .iter()
+        .any(|e| e.kind == "note" && e.detail == "cone at 3 m"));
+    let outs = act.outputs();
+    let stop_at = outs.iter().position(|(_, o)| o.fault).expect("fault stop");
+    assert!(stop_at > 0, "drove before the stop");
+    assert!(outs[stop_at..].iter().all(|(_, o)| o.stop));
+}

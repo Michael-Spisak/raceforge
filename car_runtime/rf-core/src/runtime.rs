@@ -49,13 +49,55 @@ impl RuntimeConfig {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Fault {
-    Deadline { seq: u64 },
-    Controller { seq: u64, detail: String },
-    LinkClosed { seq: u64 },
-    Protocol { seq: u64, detail: String },
+    Deadline {
+        seq: u64,
+    },
+    Controller {
+        seq: u64,
+        detail: String,
+    },
+    LinkClosed {
+        seq: u64,
+    },
+    Protocol {
+        seq: u64,
+        detail: String,
+    },
     EStop,
     LinkLost(String),
     LoopStall,
+    /// Stop requested by an operator (telemetry/teleop client), latched like any fault.
+    OperatorStop(String),
+}
+
+/// Requests from outside the control thread (telemetry server), picked up at the next tick.
+#[derive(Debug, Default)]
+pub struct Remote {
+    stop: std::sync::atomic::AtomicBool,
+    stop_reason: Mutex<String>,
+    notes: Mutex<Vec<String>>,
+}
+
+impl Remote {
+    /// Stop the car now (next tick, at most one control period away) and latch a fault.
+    pub fn request_stop(&self, reason: &str) {
+        if let Ok(mut r) = self.stop_reason.lock() {
+            reason.clone_into(&mut r);
+        }
+        self.stop.store(true, Ordering::Release);
+    }
+
+    /// A stop was requested and the runtime has not picked it up yet.
+    pub fn stop_pending(&self) -> bool {
+        self.stop.load(Ordering::Acquire)
+    }
+
+    /// Add a note to the run log (`/events`, kind `note`).
+    pub fn note(&self, text: &str) {
+        if let Ok(mut n) = self.notes.lock() {
+            n.push(text.to_string());
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -147,6 +189,8 @@ pub struct Runtime<S: Sensors, A: Actuators + 'static> {
     link: ControllerLink,
     /// Teleop input (fed by the telemetry server in test mode).
     pub teleop: Arc<Mutex<DeadMan>>,
+    /// Operator stop and notes (fed by the telemetry server in test mode).
+    pub remote: Arc<Remote>,
     fault: Option<Fault>,
     events: Vec<Event>,
     start: Instant,
@@ -173,6 +217,7 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         link.hello(&cfg.info, setup_timeout)?;
         Ok(Self {
             teleop: Arc::new(Mutex::new(DeadMan::new(cfg.deadman_timeout))),
+            remote: Arc::new(Remote::default()),
             cfg,
             sensors,
             act,
@@ -326,6 +371,24 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             out: DriveOutput::FAULT_STOP,
             state: "fault",
         };
+        let notes: Vec<String> = self
+            .remote
+            .notes
+            .lock()
+            .map(|mut n| std::mem::take(&mut *n))
+            .unwrap_or_default();
+        for n in notes {
+            self.event("note", n);
+        }
+        if self.fault.is_none() && self.remote.stop.swap(false, Ordering::AcqRel) {
+            let reason = self
+                .remote
+                .stop_reason
+                .lock()
+                .map(|r| r.clone())
+                .unwrap_or_default();
+            self.trip(Fault::OperatorStop(reason), true);
+        }
         if self.fault.is_some() {
             // Keep commanding stop so the EV3 failsafe never sees a gap.
             self.act.send(DriveOutput::FAULT_STOP);

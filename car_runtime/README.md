@@ -10,6 +10,7 @@ The team's Python controllers run unchanged in a separate host process (ADR-0014
 | `rf-ev3` | EV3 link over UDP (USB-Ethernet gadget) |
 | `rf-lidar` | LD06/LD19 LiDAR UART driver |
 | `rf-log` | MCAP logging (same `/telemetry` schema as the simulator) |
+| `rf-telemetry` | Live telemetry + teleop over WebSocket (test mode only) |
 | `rf-runtime` | The `rf-runtime` binary: runs a deploy bundle |
 
 The EV3 side lives in [`../ev3_side`](../ev3_side/README.md).
@@ -54,6 +55,11 @@ installed with `sudo deploy/setup-board.sh --binary rf-runtime --python-pkg <whe
 Armbian; also turns swap off, sets the `performance` governor and reserves cores 2-3, then asks for a reboot): SCHED_FIFO on isolated cores per ADR-0016, restarted only when
 start-up failed (exit 1), never after a driving fault (3), an unusable bundle (4) or a race run that
 refused to arm (5).
+
+Live telemetry and teleop (test mode only): add `telemetry=TelemetrySpec(token=...)` to the bundle and
+connect to `ws://<car>:8765/?token=<token>`. Clients get `TelemetryFrame` JSON at 20 Hz (same as the
+logs) plus events, and can send `stop`, `teleop {steer, speed}` (dead-man 300 ms, speed limits apply),
+`teleop_release` and `note`. A token is required unless the server binds to loopback.
 
 Race mode (`RuntimeSpec(mode="race")`) arms only when no radio can be active: every Wi-Fi/Bluetooth
 radio rfkill-blocked, no Wi-Fi interface up, no USB Wi-Fi/Bluetooth dongle (plus `radio_usb_ids` from

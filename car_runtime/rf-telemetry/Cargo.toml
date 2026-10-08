@@ -1,0 +1,19 @@
+[package]
+name = "rf-telemetry"
+description = "RaceForge car runtime: live telemetry and teleop over WebSocket (test mode only)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rf-core = { path = "../rf-core" }
+rf-log = { path = "../rf-log" }
+rf-proto = { path = "../rf-proto" }
+serde_json = "1"
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true

@@ -279,9 +279,21 @@ dependencies = [
  "rf-lidar",
  "rf-log",
  "rf-proto",
+ "rf-telemetry",
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "rf-telemetry"
+version = "0.0.1"
+dependencies = [
+ "proptest",
+ "rf-core",
+ "rf-log",
+ "rf-proto",
+ "serde_json",
 ]
 
 [[package]]

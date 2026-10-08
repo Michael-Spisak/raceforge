@@ -12,12 +12,13 @@ not match, so the car always drives exactly what was deployed. Field names and u
 """
 
 import hashlib
+import ipaddress
 import shutil
 import time
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 import raceforge
 from raceforge.control.controller import load_controller
@@ -87,6 +88,33 @@ class LidarSpec(_Model):
     timeout_ms: int = Field(default=300, ge=150, le=2000)
 
 
+class TelemetrySpec(_Model):
+    """Live telemetry + teleop WebSocket server (test mode only; never started in race mode).
+
+    Anything that can reach a non-loopback address can steer the car, so binding to one requires
+    a token; clients connect to ``ws://<car>:<port>/?token=<token>``.
+    """
+
+    bind: str = "0.0.0.0:8765"
+    rate_hz: float = Field(default=20.0, ge=1, le=50)
+    token: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{16,128}$")] | None = None
+    max_clients: int = Field(default=4, ge=1, le=16)
+
+    @model_validator(mode="after")
+    def _token_unless_loopback(self) -> "TelemetrySpec":
+        host, _, port = self.bind.rpartition(":")
+        try:
+            ip = ipaddress.ip_address(host.strip("[]"))
+            port_ok = 0 <= int(port) <= 65535
+        except ValueError as e:
+            raise ValueError(f"bind must be IP:port, got {self.bind!r}") from e
+        if not port_ok:
+            raise ValueError(f"bad port in {self.bind!r}")
+        if not ip.is_loopback and self.token is None:
+            raise ValueError("a token is required when binding to a non-loopback address")
+        return self
+
+
 UsbId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{4}:[0-9a-f]{4}$")]
 
 
@@ -110,6 +138,7 @@ class BundleManifest(_Model):
     robot: RobotSpec
     ev3: Ev3Spec
     lidar: LidarSpec | None = None
+    telemetry: TelemetrySpec | None = None
     runtime: RuntimeSpec = RuntimeSpec()
 
 
@@ -126,6 +155,7 @@ def build_bundle(
     params: Path | None = None,
     lidar: LidarSpec | None = None,
     name: str | None = None,
+    telemetry: TelemetrySpec | None = None,
 ) -> BundleManifest:
     """Copy controller (+ params) into ``out_dir`` and write the manifest with file hashes.
 
@@ -150,6 +180,7 @@ def build_bundle(
         robot=robot,
         ev3=ev3,
         lidar=lidar,
+        telemetry=telemetry,
         runtime=runtime or RuntimeSpec(),
     )
     (out_dir / MANIFEST).write_text(
