@@ -1,6 +1,6 @@
 # Spec 0010: Teleop v1 — drive the sim and the real car by hand, record demonstrations
 
-- **Status:** approved (owner request 2026-10-08: "mach mit Teleop weiter")
+- **Status:** implemented (PR) — AC5 needs the real car (owner request 2026-10-08: "mach mit Teleop weiter")
 - **Owner:** @Michael-Spisak · **Author:** Claude
 - **Plan section:** docs/PLAN.md §5 (real demonstrations), §5d (safety), §7 (live screen), milestone weeks 4–5
 - **Related:** Spec 0005 (car runtime: teleop/stop over WebSocket, dead-man 300 ms, speed limit, race mode),
@@ -47,14 +47,14 @@ dead-man, speed limit and race-mode block (spec 0005); this spec adds the operat
 - Race mode: the car refuses teleop (spec 0005); the UI shows the refusal and disables the panel.
 
 ## Acceptance criteria (→ tests)
-- [ ] AC1 (Vitest): input mapping — dead zone, steering/speed scaling, speed limit, reverse, dead-man
+- [x] AC1 (Vitest): input mapping — dead zone, steering/speed scaling, speed limit, reverse, dead-man
       engagement for gamepad/keyboard/touch, STOP has priority.
-- [ ] AC2 (pytest): sim teleop overrides the controller; without new messages for > 300 ms the car stops with
+- [x] AC2 (pytest): sim teleop overrides the controller; without new messages for > 300 ms the car stops with
       state `deadman_stop`; `teleop_release` hands back to the controller; recorded run log contains the teleop
       commands with state `teleop`; controller `none` stands still.
-- [ ] AC3 (Playwright): Simulate with controller "none" → arm teleop → hold `W` → the car moves
+- [x] AC3 (Playwright): Simulate with controller "none" → arm teleop → hold `W` → the car moves
       (distance increases) → release → it stops.
-- [ ] AC4 (pytest, delivery B): car link against a fake car WebSocket server: telemetry forwarded, teleop/stop
+- [x] AC4 (pytest, delivery B): car link against a fake car WebSocket server: telemetry forwarded, teleop/stop
       forwarded, RTT reported, connection errors reported, token passed.
 - [ ] AC5 (manual, real car): Xbox controller drives the car in test mode; releasing RB stops it within 300 ms;
       the MCAP on the car contains the teleop drive.

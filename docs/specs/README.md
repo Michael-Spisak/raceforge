@@ -14,4 +14,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0007 | TrackScout v1 (recording, passes, .tscan, upload routing, importer) | 2–5 | approved |
 | 0008 | Frontend shell v1 (engine API, Electron, parts, construct, simulate, replay) | 2–3 | implemented (PR) |
 | 0009 | Scan viewer v1 (TrackScout passes in the desktop app) | 4–5 | implemented (PR) |
-| 0010 | Teleop v1 (gamepad/keyboard/touch; sim + real car; demonstrations) | 4–5 | approved |
+| 0010 | Teleop v1 (gamepad/keyboard/touch; sim + real car; demonstrations) | 4–5 | implemented (PR) |
