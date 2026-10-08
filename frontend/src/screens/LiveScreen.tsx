@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, api, type CarPairingCode } from "../api/client";
+import { DeployPanel } from "../live/DeployPanel";
 import { LATENCY_WARN_MS, useCarLink } from "../live/useCarLink";
 import { TeleopPanel } from "../teleop/TeleopPanel";
 
@@ -86,6 +87,7 @@ export function LiveScreen() {
             </div>
           </form>
         )}
+        <DeployPanel />
       </aside>
       <section className="main" style={{ display: "block", overflow: "auto", padding: 12 }}>
         <div className="panel" data-testid="car-status">
