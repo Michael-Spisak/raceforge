@@ -36,8 +36,10 @@ export function useCarLink() {
     setEvents((e) => [{ at: Date.now(), kind, detail: text }, ...e].slice(0, 200));
 
   const disconnect = useCallback(() => {
-    ws.current?.close();
+    if (!ws.current) return;
+    ws.current.close();
     ws.current = null;
+    setState((s) => (s === "error" ? s : "closed"));
   }, []);
 
   const connect = useCallback((url: string, token: string) => {
@@ -51,7 +53,13 @@ export function useCarLink() {
     ws.current = socket;
     socket.onopen = () => socket.send(JSON.stringify({ type: "connect", url, token: token || null }));
     socket.onmessage = (ev: MessageEvent<string>) => {
-      const msg = JSON.parse(ev.data) as Record<string, unknown>;
+      if (ws.current !== socket) return; // a newer connection replaced this one
+      let msg: Record<string, unknown>;
+      try {
+        msg = JSON.parse(ev.data) as Record<string, unknown>;
+      } catch {
+        return;
+      }
       switch (msg.type) {
         case "link":
           setState(msg.state as LinkState);
@@ -72,7 +80,9 @@ export function useCarLink() {
           break;
       }
     };
-    socket.onclose = () => setState((s) => (s === "error" ? s : "closed"));
+    socket.onclose = () => {
+      if (ws.current === socket) setState((s) => (s === "error" ? s : "closed"));
+    };
   }, [disconnect]);
 
   const send = useCallback((msg: object) => {
