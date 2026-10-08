@@ -134,6 +134,46 @@ def _print_install(r: "InstallResult") -> None:
         print(f"NOT installed {what}{rolled}: {r.detail}")
 
 
+def _cmd_bundle(args: argparse.Namespace) -> int:
+    from raceforge.api.deploy import (
+        TOKEN_ENV,
+        BundleError,
+        build_car_bundle,
+        bundle_digest,
+        load_car_config,
+        token_in_file,
+    )
+
+    car_path, out = Path(args.car), Path(args.out)
+    try:
+        car = load_car_config(car_path)
+        m = build_car_bundle(
+            out,
+            Path(args.controller),
+            car,
+            params=Path(args.params) if args.params else None,
+            name=args.name,
+            race=args.race,
+        )
+    except BundleError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    if car.telemetry is not None and token_in_file(car_path):
+        print(
+            f"warning: {car_path} contains the telemetry token; keep it out of git "
+            f"(set {TOKEN_ENV} instead)",
+            file=sys.stderr,
+        )
+    limit = m.runtime.test_speed_limit_m_s
+    mode = "race" if m.runtime.mode == "race" else f"test (speed limit {limit or 'car max'})"
+    print(
+        f"bundle {m.name} ({bundle_digest(out)[:12]}) -> {out}: {m.controller.file}"
+        f"{' + ' + m.params.file if m.params else ''}, {m.robot.car_name}, {mode}\n"
+        f"next: raceforge deploy {out} --ssh <car> | --usb <stick>"
+    )
+    return 0
+
+
 def _cmd_deploy(args: argparse.Namespace) -> int:
     from raceforge.api.deploy import DeployError, deploy_ssh, deploy_usb, usb_result
 
@@ -215,6 +255,19 @@ def main(argv: list[str] | None = None) -> int:
         "--watch", action="store_true", help="re-run whenever the controller file changes"
     )
     simp.set_defaults(func=_cmd_sim)
+
+    bun = sub.add_parser("bundle", help="build a deploy bundle: controller + car config")
+    bun.add_argument("controller", help="Python file with one Controller subclass")
+    bun.add_argument(
+        "--car", required=True, help="car config YAML (see controllers/car.example.yaml)"
+    )
+    bun.add_argument("--out", default="bundle", help="bundle directory (replaced if it is one)")
+    bun.add_argument("--params", help="YAML parameters (default: <controller>.yaml if present)")
+    bun.add_argument("--name", help="bundle name (default: the controller file name)")
+    bun.add_argument(
+        "--race", action="store_true", help="race mode: radios must be off, no teleop, no limit"
+    )
+    bun.set_defaults(func=_cmd_bundle)
 
     dep = sub.add_parser("deploy", help="install a bundle on the car (over SSH or a USB stick)")
     dep.add_argument("bundle", nargs="?", help="bundle directory (raceforge.car.bundle)")

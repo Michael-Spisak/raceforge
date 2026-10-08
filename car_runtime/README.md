@@ -16,31 +16,17 @@ The team's Python controllers run unchanged in a separate host process (ADR-0014
 The EV3 side lives in [`../ev3_side`](../ev3_side/README.md).
 
 ## Run a bundle
-1. Build a bundle on the dev machine (Python):
-   ```python
-   from pathlib import Path
-   from raceforge.car.bundle import build_bundle, RobotSpec, Ev3Spec
-
-   build_bundle(
-       Path("bundle"),
-       Path("controllers/templates/wall_follow.py"),
-       RobotSpec(
-           car_name="car",
-           sensors=["front", "left", "right", "gyro"],
-           max_steer_rad=0.45,
-           max_speed_m_s=1.5,
-           wheelbase_m=0.2,
-           track_m=0.15,
-           control_rate_hz=50,
-       ),
-       Ev3Spec(
-           steer_motor_deg_per_rad=171.9,
-           drive_counts_per_m=2046.0,
-           ultrasonic={"front": "1", "left": "2", "right": "3"},
-       ),
-   )
+1. Build a bundle on the dev machine: a controller plus the car config (copy
+   [`controllers/car.example.yaml`](../controllers/car.example.yaml) and fill in your car):
+   ```sh
+   raceforge bundle controllers/templates/wall_follow.py --car car.yaml --out bundle
    ```
-2. Copy `bundle/` to the board, start the EV3 program, then on the board:
+   The controller is loaded once (a broken file fails here, not on the car), its parameters
+   (`<controller>.yaml` or `--params`) are copied, and every file's hash goes into `bundle.json`.
+   `--race` builds a race-mode bundle. A telemetry token comes from `RACEFORGE_TELEMETRY_TOKEN`,
+   so it never has to be written into `car.yaml`. From Python, use
+   `raceforge.car.bundle.build_bundle`.
+2. Copy `bundle/` to the board (or `raceforge deploy`, below), start the EV3 program, then on the board:
    ```sh
    rf-runtime --bundle bundle --log-dir logs
    ```
@@ -63,8 +49,9 @@ With a `lidar` section in the bundle (`LidarSpec`: device, mount offset, policy 
 no new scan arrives, so the LiDAR goes stale and its policy applies.
 
 On the board, `rf-runtime` runs as the systemd service in [`deploy/rf-runtime.service`](deploy/rf-runtime.service),
-installed with `sudo deploy/setup-board.sh --binary rf-runtime --python-pkg <wheel>` (Raspberry Pi OS or
-Armbian; also turns swap off, sets the `performance` governor and reserves cores 2-3, then asks for a reboot): SCHED_FIFO on isolated cores per ADR-0016, restarted only when
+installed with `sudo deploy/setup-board.sh --binary rf-runtime --python-pkg <wheel>` (Raspberry Pi OS
+Trixie or Armbian on Debian 13 / Ubuntu 24.04: raceforge needs Python 3.12 or newer, so Bookworm-based
+images are refused; also turns swap off, sets the `performance` governor and reserves cores 2-3, then asks for a reboot): SCHED_FIFO on isolated cores per ADR-0016, restarted only when
 start-up failed (exit 1), never after a driving fault (3), an unusable bundle (4) or a race run that
 refused to arm (5).
 

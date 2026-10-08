@@ -307,3 +307,17 @@ def test_existing_bundle_directory_is_left_for_the_installer(tmp_path: Path) -> 
     # The next deploy moves it into bundles/ (raceforge.car.install); nothing is lost here.
     assert (old / "bundle.json").read_text() == "{}"
     assert "no bundle deployed yet" not in r.stdout
+
+
+def test_board_python_older_than_312_is_refused_before_any_change(tmp_path: Path) -> None:
+    # raceforge (controller host, bundle installer) needs Python >= 3.12; Raspberry Pi OS and
+    # Armbian Bookworm ship 3.11. Test hook: the fake board's python3 version.
+    cmdline = pi_os(tmp_path)
+    original = cmdline.read_text()
+    (tmp_path / ".python3_version").write_text("3.11\n")
+    r = run(tmp_path)
+    assert r.returncode != 0 and "RUN " not in r.stdout
+    assert "Python >= 3.12" in r.stderr and "3.11" in r.stderr and "Trixie" in r.stderr
+    assert cmdline.read_text() == original
+    (tmp_path / ".python3_version").write_text("3.12\n")
+    assert run(tmp_path).returncode == 0

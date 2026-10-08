@@ -97,6 +97,23 @@ done
 # Validate everything before changing anything, so a bad option never leaves a half-set-up board.
 [[ "$CORES" =~ ^[0-9]+(,[0-9]+)*$ ]] || die "--cores must look like 2,3"
 [ -z "$BINARY" ] || [ -f "$BINARY" ] || die "binary $BINARY not found"
+# raceforge (controller host, bundle installer) needs Python >= 3.12. An existing venv decides;
+# otherwise the system python3 it will be created from. Test hook: $ROOT/.python3_version.
+board_python_version() {
+    if [ "$TEST" = 1 ]; then
+        cat "$ROOT/.python3_version" 2>/dev/null || echo 3.13
+        return
+    fi
+    local py=python3
+    [ -x /opt/raceforge/venv/bin/python ] && py=/opt/raceforge/venv/bin/python
+    "$py" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo none
+}
+PY_VERSION="$(board_python_version)"
+[ "$PY_VERSION" != none ] || die "python3 not found (apt install python3 python3-venv)"
+IFS=. read -r py_major py_minor _ <<< "$PY_VERSION"
+if [ "$py_major" -lt 3 ] || { [ "$py_major" -eq 3 ] && [ "$py_minor" -lt 12 ]; }; then
+    die "raceforge needs Python >= 3.12, this board has $PY_VERSION (Debian 12 Bookworm): use Raspberry Pi OS Trixie (Debian 13), or Armbian based on Debian 13 or Ubuntu 24.04"
+fi
 for f in rf-runtime.service raceforge-install-bundle.sh raceforge-usb-deploy.sh \
     raceforge-usb-deploy@.service 90-raceforge-usb-deploy.rules; do
     [ -f "$SCRIPT_DIR/$f" ] || die "$f missing next to this script"
