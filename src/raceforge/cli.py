@@ -11,6 +11,7 @@ from raceforge import __version__
 
 if TYPE_CHECKING:
     from raceforge.api.deploy import InstallResult
+    from raceforge.backend.service import Backend
     from raceforge.backend.settings import Settings
 
 
@@ -129,6 +130,28 @@ def _cmd_ui(args: argparse.Namespace) -> int:
     return 0
 
 
+def lan_ip() -> str:
+    """This machine's address in the local network (the interface used for outgoing traffic)."""
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        try:
+            s.connect(("192.0.2.1", 9))  # UDP connect sends nothing; it only picks the route
+            return str(s.getsockname()[0])
+        except OSError:
+            return socket.gethostbyname(socket.gethostname())
+
+
+def _dev_host(args: argparse.Namespace) -> str:
+    return "0.0.0.0" if getattr(args, "lan", False) else getattr(args, "host", "127.0.0.1")
+
+
+def _dev_public_host(args: argparse.Namespace) -> str:
+    """Address that phones and other laptops use (invite links, TrackScout pairing)."""
+    host = _dev_host(args)
+    return lan_ip() if host in ("0.0.0.0", "::") else host
+
+
 def _backend_settings(args: argparse.Namespace) -> "Settings":
     from raceforge.backend.settings import Settings
 
@@ -143,10 +166,29 @@ def _backend_settings(args: argparse.Namespace) -> "Settings":
                 "blob_dir": data / "blobs",
                 "data_path": data,
                 "secure_cookies": False,
-                "public_url": f"http://127.0.0.1:{args.port}",
+                "public_url": f"http://{_dev_public_host(args)}:{args.port}",
             }
         )
     return settings
+
+
+def _dev_reset_admin(backend: "Backend", username: str, password: str) -> bool:
+    """`backend dev --admin USER:PW` on an existing test database: make the account usable again.
+
+    Returns False when there is no such user (the bootstrap error was something else)."""
+    from sqlalchemy import select
+
+    from raceforge.backend import db
+    from raceforge.backend.models import Role
+
+    with backend.db.session() as s:
+        user = s.scalars(select(db.User).where(db.User.username == username)).one_or_none()
+        if user is None:
+            return False
+        user.password_hash = backend.passwords.hash(password)
+        user.role, user.disabled = Role.ADMIN.value, False
+        user.totp_enabled, user.totp_secret = False, None
+        return True
 
 
 def _cmd_backend(args: argparse.Namespace) -> int:
@@ -176,9 +218,11 @@ def _cmd_backend(args: argparse.Namespace) -> int:
             backend.bootstrap_admin(username, password)
             print(f"admin {username!r} created; log in and set up TOTP 2FA")
         except ApiError as exc:
-            print(f"error: {exc.detail}")
-            if cmd == "bootstrap-admin":
+            if cmd == "bootstrap-admin" or not _dev_reset_admin(backend, username, password):
+                print(f"error: {exc.detail}")
                 return 1
+            # test server: --admin always wins for an existing account
+            print(f"admin {username!r} exists: password reset, 2FA off (dev server only)")
         if cmd == "dev" and args.admin_totp:
             from sqlalchemy import select
 
@@ -200,15 +244,23 @@ def _cmd_backend(args: argparse.Namespace) -> int:
         return 0
     import uvicorn
 
-    host = "127.0.0.1" if cmd == "dev" else args.host
-    print(f"RACEFORGE_BACKEND_URL=http://{host}:{args.port}/", flush=True)
+    host = _dev_host(args) if cmd == "dev" else args.host
+    public = _dev_public_host(args) if cmd == "dev" else host
+    print(f"RACEFORGE_BACKEND_URL=http://{public}:{args.port}/", flush=True)
+    if cmd == "dev" and host in ("0.0.0.0", "::"):
+        print(
+            f"Reachable in the local network (e.g. TrackScout): log in on the Team tab with "
+            f"http://{public}:{args.port} — test data only, plain HTTP, no TLS.",
+            flush=True,
+        )
     uvicorn.run(
         create_backend_app(backend),
         host=host,
         port=args.port,
         log_level="info" if cmd == "serve" else "warning",
-        proxy_headers=True,
-        forwarded_allow_ips="*",
+        # Only `serve` sits behind a reverse proxy; a LAN dev server must not trust client headers.
+        proxy_headers=cmd == "serve",
+        forwarded_allow_ips="*" if cmd == "serve" else None,
     )
     return 0
 
@@ -433,6 +485,14 @@ def main(argv: list[str] | None = None) -> int:
     bsub.add_parser("purge-trash", help="delete objects older than 30 days in the trash")
     dev = bsub.add_parser("dev", help="local backend with SQLite and a blob folder (testing)")
     dev.add_argument("--port", type=int, default=8080)
+    dev.add_argument(
+        "--host", default="127.0.0.1", help="bind address (default: this machine only)"
+    )
+    dev.add_argument(
+        "--lan",
+        action="store_true",
+        help="reachable from phones/laptops in the local network (binds 0.0.0.0, uses the LAN IP)",
+    )
     dev.add_argument("--data", default=".raceforge-backend", help="data directory")
     dev.add_argument("--admin", help="create admin USER:PASSWORD if missing")
     dev.add_argument("--admin-totp", help="enable TOTP for that admin with this base32 secret")

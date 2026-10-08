@@ -26,6 +26,24 @@ final class RecorderTests: XCTestCase {
             depth: [1, 2, 3, 4], confidence: [2, 2, 2, 2])
     }
 
+    /// Regression: "Maximum" (4K video) made ARKit deliver another depth resolution than assumed → crash.
+    func testDepthResolutionComesFromTheFrames() throws {
+        let r = try recorder(.maximum)
+        try r.start(at: 0)
+        let big = (width: 3, height: 2)
+        XCTAssertTrue(
+            try r.append(
+                t: 0.1, pose: Synthetic.pose(0), intrinsics: Synthetic.intrinsics, exposureS: 0, tracking: .normal,
+                depth: [1, 2, 3, 4, 5, 6], confidence: [2, 2, 2, 2, 2, 2], depthSize: big))
+        XCTAssertEqual(r.manifest.depth.width, 3)
+        XCTAssertEqual(r.manifest.depth.height, 2)
+        // a frame with another size mid-pass keeps its pose but loses its depth — no crash
+        XCTAssertFalse(try frame(r, 0.2))
+        XCTAssertEqual(r.depthFramesSkipped, 1)
+        XCTAssertEqual(r.depthFramesWritten, 1)
+        XCTAssertEqual(r.framesWritten, 2)
+    }
+
     func testStateMachine() throws {
         let r = try recorder()
         XCTAssertThrowsError(try r.pause(at: 0))

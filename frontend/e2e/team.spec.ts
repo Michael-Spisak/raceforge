@@ -58,6 +58,7 @@ test("team: login with 2FA, workspace, save as version, history, invite", async 
   await page.getByTestId("trackscout-pair").click();
   await expect(page.getByTestId("trackscout-qr")).toBeVisible();
   await expect(page.getByTestId("trackscout-link")).toContainText("raceforge://pair?v=1&d=");
+  await expect(page.getByTestId("trackscout-warning")).toBeVisible(); // e2e backend runs on 127.0.0.1
   await expect(page.getByText(/\(trackscout\) · (read, edit|edit, read) ·/)).toBeVisible();
 
   // Receive by cable without a phone: the Team tab reports why instead of hanging

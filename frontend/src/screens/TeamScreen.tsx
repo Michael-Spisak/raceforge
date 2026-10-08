@@ -230,6 +230,9 @@ function TrackScoutPanel({ onPaired }: { onPaired: () => void }) {
           <img data-testid="trackscout-qr" alt={t("team.trackscout_qr")} width={240} height={240}
                style={{ background: "#fff", padding: 8 }}
                src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(pairing.qr_svg)}`} />
+          {pairing.warning === "loopback" && (
+            <p className="warning" role="alert" data-testid="trackscout-warning">{t("team.trackscout_loopback")}</p>
+          )}
           <p className="muted">{t("team.trackscout_hint")}</p>
           <code data-testid="trackscout-link" style={{ wordBreak: "break-all", fontSize: 11 }}>{pairing.url}</code>
         </div>

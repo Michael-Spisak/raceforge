@@ -1,96 +1,106 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "CFBundleDisplayName" : {
-      "comment" : "Bundle display name",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "TrackScout"
+  "sourceLanguage": "en",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "TrackScout"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "TrackScout"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "TrackScout"
           }
         }
       }
     },
-    "CFBundleName" : {
-      "comment" : "Bundle name",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "TrackScout"
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "TrackScout"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "TrackScout"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "TrackScout"
           }
         }
       }
     },
-    "NSBluetoothAlwaysUsageDescription" : {
-      "comment" : "Privacy - Bluetooth Always Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "TrackScout kann Aufnahmen per Bluetooth an deinen Laptop senden."
+    "NSBluetoothAlwaysUsageDescription": {
+      "comment": "Privacy - Bluetooth Always Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "TrackScout kann Aufnahmen per Bluetooth an deinen Laptop senden."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "TrackScout can send recordings to your laptop over Bluetooth."
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "TrackScout can send recordings to your laptop over Bluetooth."
           }
         }
       }
     },
-    "NSCameraUsageDescription" : {
-      "comment" : "Privacy - Camera Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "TrackScout nimmt den Gang mit Kamera und LiDAR auf."
+    "NSCameraUsageDescription": {
+      "comment": "Privacy - Camera Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "TrackScout nimmt den Gang mit Kamera und LiDAR auf."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "TrackScout records the corridor with the camera and LiDAR."
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "TrackScout records the corridor with the camera and LiDAR."
           }
         }
       }
     },
-    "NSMotionUsageDescription" : {
-      "comment" : "Privacy - Motion Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "TrackScout zeichnet Schwerkraft und Bewegung auf, um den Scan auszurichten."
+    "NSLocalNetworkUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrackScout lädt Aufnahmen auf den RaceForge-Server deines Teams hoch – das kann auch ein Computer in deinem WLAN sein."
+          }
+        }
+      }
+    },
+    "NSMotionUsageDescription": {
+      "comment": "Privacy - Motion Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "TrackScout zeichnet Schwerkraft und Bewegung auf, um den Scan auszurichten."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "TrackScout records gravity and motion to align the scan."
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "TrackScout records gravity and motion to align the scan."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

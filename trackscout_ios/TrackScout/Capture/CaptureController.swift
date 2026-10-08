@@ -184,15 +184,17 @@ final class CaptureController: NSObject, ObservableObject, ARSessionDelegate, @u
         lastFrameT = t
         var depth: [UInt16]?
         var confidence: [UInt8]?
+        var depthSize: (width: Int, height: Int)?
         if let d = frame.sceneDepth {
             depth = Self.float16Depth(d.depthMap)
             confidence = d.confidenceMap.map(Self.bytes)
+            depthSize = (CVPixelBufferGetWidth(d.depthMap), CVPixelBufferGetHeight(d.depthMap))
         }
         do {
             try rec.append(
                 t: t, pose: Self.columns(frame.camera.transform), intrinsics: Self.columns(frame.camera.intrinsics),
                 exposureS: Float(frame.camera.exposureDuration), tracking: Self.tracking(frame.camera.trackingState),
-                depth: depth, confidence: confidence)
+                depth: depth, confidence: confidence, depthSize: depthSize)
         } catch {
             return
         }

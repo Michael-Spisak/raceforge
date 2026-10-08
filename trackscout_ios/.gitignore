@@ -3,3 +3,4 @@ TrackScout.xcodeproj/
 *.xcworkspace/
 .build/
 build/
+.swiftpm/

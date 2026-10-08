@@ -2145,6 +2145,18 @@
             "title": "Url",
             "type": "string"
           },
+          "warning": {
+            "anyOf": [
+              {
+                "const": "loopback",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          },
           "workspace_id": {
             "anyOf": [
               {
