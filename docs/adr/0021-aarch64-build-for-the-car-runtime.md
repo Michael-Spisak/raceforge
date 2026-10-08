@@ -1,6 +1,6 @@
 # ADR-0021: aarch64 build of the car runtime (static musl)
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-08)
 - **Date:** 2026-10-08
 
 ## Context
