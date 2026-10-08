@@ -155,8 +155,9 @@ jobs:
           git diff --exit-code src/raceforge/parts/data/bboxes.yaml
 
   trackscout:
-    # Spec 0007 AC1–AC3: TrackScoutKit unit tests, unsigned simulator build, Swift → Python .tscan contract.
+    # Spec 0007 AC1–AC3, AC7, AC9: TrackScoutKit tests, unsigned simulator build, Swift ↔ Python contracts.
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -164,8 +165,12 @@ jobs:
       - run: sh scripts/trackscout_free_check.sh
       - run: swift test
         working-directory: trackscout_ios/TrackScoutKit
-      - run: swift run tscan-synth "$RUNNER_TEMP/synthetic.tscan"
+      - run: |
+          swift run tscan-synth "$RUNNER_TEMP/synthetic.tscan"
+          swift build --product rftx-phone
+          echo "RF_RFTX_PHONE=$(swift build --show-bin-path)/rftx-phone" >> "$GITHUB_ENV"
         working-directory: trackscout_ios/TrackScoutKit
+      # AC3: Swift-written .tscan read by Python; AC9: Python laptop pulls passes from the Swift phone session.
       - run: RF_TSCAN_FIXTURE="$RUNNER_TEMP/synthetic.tscan" PYTHONPATH=src uv run pytest tests/capture --no-cov -q
       - run: brew install xcodegen
       - run: |

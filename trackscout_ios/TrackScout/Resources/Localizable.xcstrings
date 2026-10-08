@@ -1,6 +1,5 @@
 {
   "sourceLanguage": "en",
-  "version": "1.0",
   "strings": {
     "%lld passes": {
       "localizations": {
@@ -8,6 +7,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld Durchgänge"
+          }
+        }
+      }
+    },
+    "A laptop that is not paired with this phone tried to connect.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Laptop, der nicht mit diesem Handy gekoppelt ist, wollte sich verbinden."
           }
         }
       }
@@ -52,6 +61,36 @@
         }
       }
     },
+    "Ask when an upload needs more than %lld min": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nachfragen, wenn ein Upload länger als %lld min braucht"
+          }
+        }
+      }
+    },
+    "Backend slow: %@ MB/s, %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backend langsam: %@ MB/s, %@"
+          }
+        }
+      }
+    },
+    "Bluetooth access is off for TrackScout (Settings → TrackScout).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth ist für TrackScout ausgeschaltet (Einstellungen → TrackScout)."
+          }
+        }
+      }
+    },
     "Cancel": {
       "localizations": {
         "de": {
@@ -78,6 +117,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bedingungen"
+          }
+        }
+      }
+    },
+    "Connect the phone to the paired laptop and click “Receive by cable” on the Team tab.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinde das Handy mit dem gekoppelten Laptop und klicke im Team-Tab auf „Per Kabel empfangen“."
           }
         }
       }
@@ -153,6 +202,7 @@
       }
     },
     "Detail": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -203,6 +253,7 @@
       }
     },
     "Economy": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -233,6 +284,7 @@
       }
     },
     "Gap fill": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -243,6 +295,7 @@
       }
     },
     "High": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -253,6 +306,7 @@
       }
     },
     "High / overview": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -268,6 +322,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öffne in der RaceForge-App Team → TrackScout koppeln und scanne den QR-Code."
+          }
+        }
+      }
+    },
+    "Keep TrackScout open and click “Receive by Bluetooth” on the laptop's Team tab.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lass TrackScout offen und klicke im Team-Tab des Laptops auf „Per Bluetooth empfangen“."
+          }
+        }
+      }
+    },
+    "Keep uploading to the backend": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter zum Backend hochladen"
           }
         }
       }
@@ -288,6 +362,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laptop"
+          }
+        }
+      }
+    },
+    "Later": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Später"
           }
         }
       }
@@ -313,6 +397,7 @@
       }
     },
     "Low / car height": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -323,6 +408,7 @@
       }
     },
     "Maximum": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -343,6 +429,7 @@
       }
     },
     "Move more slowly": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -462,6 +549,16 @@
         }
       }
     },
+    "On the laptop — it uploads the pass": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf dem Laptop – er lädt den Durchgang hoch"
+          }
+        }
+      }
+    },
     "Only on this phone": {
       "localizations": {
         "de": {
@@ -498,6 +595,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zum Hochladen mit RaceForge koppeln"
+          }
+        }
+      }
+    },
+    "Parts already uploaded are kept. The laptop uploads the pass later, when its connection is good.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereits hochgeladene Teile bleiben erhalten. Der Laptop lädt den Durchgang später hoch, wenn seine Verbindung gut ist."
           }
         }
       }
@@ -543,6 +650,7 @@
       }
     },
     "Point at an area from the first pass": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -568,6 +676,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "RaceForge-Backend"
+          }
+        }
+      }
+    },
+    "Recommended": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empfohlen"
           }
         }
       }
@@ -662,6 +780,36 @@
         }
       }
     },
+    "Send to the laptop by Bluetooth": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per Bluetooth an den Laptop senden"
+          }
+        }
+      }
+    },
+    "Send to the laptop by cable": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per Kabel an den Laptop senden"
+          }
+        }
+      }
+    },
+    "Sending by Bluetooth…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sende per Bluetooth…"
+          }
+        }
+      }
+    },
     "Server": {
       "localizations": {
         "de": {
@@ -702,6 +850,26 @@
         }
       }
     },
+    "Slow connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langsame Verbindung"
+          }
+        }
+      }
+    },
+    "Then TrackScout offers to send the pass to the paired laptop by cable or Bluetooth instead.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dann bietet TrackScout an, den Durchgang stattdessen per Kabel oder Bluetooth an den gekoppelten Laptop zu senden."
+          }
+        }
+      }
+    },
     "This is not a RaceForge pairing code.": {
       "localizations": {
         "de": {
@@ -713,6 +881,7 @@
       }
     },
     "Too dark or too few details": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -723,6 +892,7 @@
       }
     },
     "Too far from the walls (> 4 m)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -763,6 +933,7 @@
       }
     },
     "Tracking lost — go back to a known spot": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -778,6 +949,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Strecken"
+          }
+        }
+      }
+    },
+    "Turn on Bluetooth to send to the laptop.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schalte Bluetooth ein, um an den Laptop zu senden."
           }
         }
       }
@@ -852,6 +1033,16 @@
         }
       }
     },
+    "Uploading to the backend runs at %@ MB/s.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Upload zum Backend läuft mit %@ MB/s."
+          }
+        }
+      }
+    },
     "Uploading…": {
       "localizations": {
         "de": {
@@ -882,7 +1073,18 @@
         }
       }
     },
+    "Waiting for the laptop (cable)…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte auf den Laptop (Kabel)…"
+          }
+        }
+      }
+    },
     "Walkthrough": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -921,6 +1123,17 @@
           }
         }
       }
+    },
+    "…or runs slower than %@ MB/s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "…oder langsamer als %@ MB/s läuft"
+          }
+        }
+      }
     }
-  }
+  },
+  "version": "1.0"
 }

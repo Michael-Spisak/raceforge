@@ -47,6 +47,18 @@ struct SettingsView: View {
                     Toggle("Upload automatically on Wi-Fi", isOn: $store.autoUpload)
                 }
                 Section {
+                    Stepper(value: $store.maxUploadMinutes, in: 1...120, step: 1) {
+                        Text("Ask when an upload needs more than \(Int(store.maxUploadMinutes)) min")
+                    }
+                    Stepper(value: $store.minUploadMBps, in: 0.1...20, step: 0.1) {
+                        Text("…or runs slower than \(String(format: "%.1f", store.minUploadMBps)) MB/s")
+                    }
+                } header: {
+                    Text("Slow connection")
+                } footer: {
+                    Text("Then TrackScout offers to send the pass to the paired laptop by cable or Bluetooth instead.")
+                }
+                Section {
                     Text("TrackScout is free and open source (GPL-3.0). It only talks to your own RaceForge backend.")
                         .font(.caption).foregroundStyle(.secondary)
                 }

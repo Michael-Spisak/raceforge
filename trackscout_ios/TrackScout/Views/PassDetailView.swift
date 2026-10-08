@@ -39,11 +39,33 @@ struct PassDetailView: View {
                         Label { Text(verbatim: msg) } icon: { Image(systemName: "exclamationmark.icloud") }
                             .foregroundStyle(.red)
                     case .local: Text("Only on this phone").foregroundStyle(.secondary)
+                    case .slow(let rate, let eta):
+                        Label("Backend slow: \(mbps(rate)) MB/s, \(etaText(eta))", systemImage: "tortoise")
+                            .foregroundStyle(.orange)
+                    case .toLaptop(let via, let p):
+                        ProgressView(value: p) { Text(via == "cable" ? "Waiting for the laptop (cable)…" : "Sending by Bluetooth…") }
+                        if via == "cable" {
+                            Text("Connect the phone to the paired laptop and click “Receive by cable” on the Team tab.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text("Keep TrackScout open and click “Receive by Bluetooth” on the laptop's Team tab.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    case .onLaptop: Label("On the laptop — it uploads the pass", systemImage: "laptopcomputer")
+                    }
+                    if let note = uploader.bluetoothNote {
+                        Text(verbatim: note).font(.caption).foregroundStyle(.orange)
                     }
                     if uploader.pairing == nil {
                         Text("Pair with RaceForge in the settings to upload.").font(.caption)
                     } else if !isUploaded(pass.upload) {
                         Button("Upload now") { uploader.requestUpload(project: projectID, pass: passID) }
+                        Button("Send to the laptop by cable") {
+                            uploader.route(.cable, project: projectID, pass: passID)
+                        }
+                        Button("Send to the laptop by Bluetooth") {
+                            uploader.route(.bluetooth, project: projectID, pass: passID)
+                        }
                     }
                     ShareLink(item: Store.documents.appendingPathComponent(pass.file)) {
                         Label("Share file (AirDrop, Files)", systemImage: "square.and.arrow.up")
@@ -65,7 +87,7 @@ struct PassDetailView: View {
 
     private func isUploaded(_ s: UploadState) -> Bool {
         switch s {
-        case .uploaded, .uploading: return true
+        case .uploaded, .uploading, .toLaptop, .onLaptop: return true
         default: return false
         }
     }

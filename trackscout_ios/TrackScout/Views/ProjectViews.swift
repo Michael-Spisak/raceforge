@@ -70,8 +70,73 @@ struct ProjectsView: View {
             } message: {
                 Text("Recordings are large. Uploading over mobile data can use up your data plan.")
             }
+            .sheet(item: $uploader.routeRequest) { request in
+                RouteSheet(request: request).presentationDetents([.medium])
+            }
         }
     }
+}
+
+/// "The backend is slow" (spec 0007 scope 8): keep uploading, or send the pass to the paired laptop.
+struct RouteSheet: View {
+    @EnvironmentObject var uploader: Uploader
+    @Environment(\.dismiss) private var dismiss
+    let request: Uploader.RouteRequest
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("Uploading to the backend runs at \(mbps(request.slow.rate)) MB/s.")
+                } footer: {
+                    Text("Parts already uploaded are kept. The laptop uploads the pass later, when its connection is good.")
+                }
+                ForEach(request.slow.options, id: \.kind) { option in
+                    Button {
+                        uploader.route(option.kind, project: request.project, pass: request.pass)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Label(LocalizedStringKey(title(option.kind)), systemImage: icon(option.kind))
+                            Spacer()
+                            VStack(alignment: .trailing) {
+                                Text(verbatim: etaText(option.eta)).monospacedDigit()
+                                if option.recommended { Text("Recommended").font(.caption2).foregroundStyle(.green) }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Slow connection")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Later") { dismiss() } } }
+        }
+    }
+
+    private func title(_ k: RouteOption.Kind) -> String {
+        switch k {
+        case .backend: return "Keep uploading to the backend"
+        case .cable: return "Send to the laptop by cable"
+        case .bluetooth: return "Send to the laptop by Bluetooth"
+        }
+    }
+
+    private func icon(_ k: RouteOption.Kind) -> String {
+        switch k {
+        case .backend: return "icloud.and.arrow.up"
+        case .cable: return "cable.connector"
+        case .bluetooth: return "dot.radiowaves.left.and.right"
+        }
+    }
+}
+
+func mbps(_ rate: Double) -> String { String(format: "%.2f", rate / 1_000_000) }
+
+/// "≈ 12 min" style estimate.
+func etaText(_ seconds: Double) -> String {
+    guard seconds.isFinite else { return "–" }
+    let d = Duration.seconds(max(1, seconds.rounded()))
+    return "≈ " + d.formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated, maximumUnitCount: 2))
 }
 
 struct ProjectView: View {
@@ -140,6 +205,9 @@ struct UploadBadge: View {
         case .uploading(let p): ProgressView(value: p).frame(width: 60)
         case .uploaded: Image(systemName: "checkmark.icloud").foregroundStyle(.green)
         case .failed: Image(systemName: "exclamationmark.icloud").foregroundStyle(.red)
+        case .slow: Image(systemName: "tortoise").foregroundStyle(.orange)
+        case .toLaptop(_, let p): ProgressView(value: p).frame(width: 60).tint(.purple)
+        case .onLaptop: Image(systemName: "laptopcomputer").foregroundStyle(.purple)
         }
     }
 }

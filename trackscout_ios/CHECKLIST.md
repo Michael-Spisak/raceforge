@@ -25,3 +25,6 @@ iTunes/Apple Devices driver, on Linux `usbmuxd`.
 - [ ] Cable: the pass reaches the paired laptop; the laptop relays it to the backend.
 - [ ] Bluetooth: a small pass reaches the laptop; disconnect mid-transfer resumes.
 - [ ] An unpaired laptop is rejected (cable and Bluetooth).
+- [ ] Settings → Slow connection: changed thresholds are used for the next upload.
+- [ ] Pass detail → "Send to the laptop by cable/Bluetooth" works without a slow upload; the badge turns purple
+      ("on the laptop") once the laptop has verified the file.
