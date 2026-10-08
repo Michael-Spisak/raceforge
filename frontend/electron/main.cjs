@@ -2,7 +2,7 @@
 // Dev setup: run from frontend/ after `uv sync` (repo root) and `npm run build`.
 // `electron . --smoke` starts, waits for the UI to load, checks /api/v1/health and quits (CI smoke test).
 const { app, BrowserWindow, dialog } = require("electron");
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 const path = require("node:path");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
@@ -12,7 +12,8 @@ let engine = null;
 function startEngine() {
   return new Promise((resolve, reject) => {
     const env = { ...process.env, PYTHONPATH: path.join(repoRoot, "src") };
-    engine = spawn("uv", ["run", "raceforge", "ui", "--port", "0"], { cwd: repoRoot, env, shell: process.platform === "win32" });
+    // No shell: on Windows killing a shell would leave the uv/python engine running.
+    engine = spawn("uv", ["run", "raceforge", "ui", "--port", "0"], { cwd: repoRoot, env, windowsHide: true });
     const timer = setTimeout(() => reject(new Error("engine did not start within 60 s")), 60_000);
     engine.stdout.on("data", (chunk) => {
       const match = /RACEFORGE_ENGINE_URL=(\S+)/.exec(String(chunk));
@@ -40,7 +41,13 @@ async function waitForHealth(url) {
 }
 
 function stopEngine() {
-  if (engine && !engine.killed) engine.kill();
+  if (!engine || engine.exitCode !== null || engine.killed) return;
+  if (process.platform === "win32") {
+    // uv run starts python as a child: terminate the whole process tree.
+    spawnSync("taskkill", ["/pid", String(engine.pid), "/T", "/F"], { windowsHide: true });
+  } else {
+    engine.kill();
+  }
 }
 
 app.whenReady().then(async () => {

@@ -1,0 +1,15 @@
+[package]
+name = "rf-log"
+description = "RaceForge car runtime: on-car MCAP logging (same /telemetry schema as the simulator)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rf-core = { path = "../rf-core" }
+rf-proto = { path = "../rf-proto" }
+serde_json = "1"
+
+[lints]
+workspace = true

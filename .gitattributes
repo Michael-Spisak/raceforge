@@ -1,0 +1,2 @@
+# Shell scripts run on Linux boards and are linted by shellcheck on every OS: always LF.
+*.sh text eol=lf

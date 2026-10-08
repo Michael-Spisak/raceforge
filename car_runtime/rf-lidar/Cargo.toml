@@ -1,0 +1,13 @@
+[package]
+name = "rf-lidar"
+description = "RaceForge car runtime: LD06/LD19 LiDAR UART driver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rf-proto = { path = "../rf-proto" }
+
+[lints]
+workspace = true

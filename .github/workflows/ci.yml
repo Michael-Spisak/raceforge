@@ -24,6 +24,23 @@ jobs:
       - run: uv sync --locked
       - run: sh scripts/check.sh
 
+  rust:
+    # Spec 0005 AC1/AC3/AC4/AC6/AC9: car runtime crates (fmt, clippy -D warnings, tests).
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: car_runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+        working-directory: .
+      - run: rustup component add rustfmt clippy
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      # RF_PYTHON enables the end-to-end tests against the Python controller host (AC3/AC4).
+      - run: RF_PYTHON="$GITHUB_WORKSPACE/.venv/bin/python" cargo test --locked
+
   frontend:
     # Spec 0008: lint, types, unit tests, build, Playwright e2e against the real engine, Electron smoke.
     strategy:

@@ -27,6 +27,7 @@ dev = [
     "import-linter>=2.1",
     "hypothesis>=6.100",
     "types-pyyaml>=6.0.12.20260906",
+    "shellcheck-py>=0.11",
     "httpx>=0.27",
 ]
 
@@ -46,7 +47,8 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src", "tests", "ev3_side"]
+extraPaths = ["src", "ev3_side"]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
 strict = ["src/raceforge/core", "src/raceforge/api", "src/raceforge/control"]
@@ -54,7 +56,7 @@ strict = ["src/raceforge/core", "src/raceforge/api", "src/raceforge/control"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Python ≥3.13 on macOS skips .pth files with the "hidden" flag (uv venvs may set it), so put src on the path explicitly.
-pythonpath = ["src"]
+pythonpath = ["src", "ev3_side"]
 addopts = "--cov=raceforge --cov-report=term-missing -m 'not slow'"
 markers = ["slow: long-running acceptance runs (nightly CI job; run with -m slow)"]
 
@@ -73,6 +75,13 @@ name = "core depends on nothing else in raceforge"
 type = "forbidden"
 source_modules = ["raceforge.core"]
 forbidden_modules = ["raceforge.control", "raceforge.sim", "raceforge.train", "raceforge.api", "raceforge.cli", "raceforge.mcp", "raceforge.backend"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "car host runs controllers only: no sim, train or front-ends"
+type = "forbidden"
+source_modules = ["raceforge.car"]
+forbidden_modules = ["raceforge.sim", "raceforge.train", "raceforge.construct", "raceforge.cli", "raceforge.mcp", "raceforge.backend"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
