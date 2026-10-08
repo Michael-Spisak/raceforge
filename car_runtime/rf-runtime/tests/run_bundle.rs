@@ -188,14 +188,99 @@ fn hand_bundle_with(name: &str, mode: &str, ev3_addr: &str, lidar: &str) -> Path
     dir
 }
 
+/// Fake sysfs: wired Ethernet only (race ready), or additionally a Wi-Fi interface that is up.
+fn fake_sys(name: &str, wifi_up: bool) -> PathBuf {
+    let r = tmp(&format!("sys-{name}"));
+    let eth = r.join("sys/class/net/eth0");
+    std::fs::create_dir_all(&eth).expect("eth0");
+    std::fs::write(eth.join("flags"), "0x1003\n").expect("flags");
+    if wifi_up {
+        let wlan = r.join("sys/class/net/wlan0");
+        std::fs::create_dir_all(wlan.join("wireless")).expect("wlan0");
+        std::fs::write(wlan.join("flags"), "0x1003\n").expect("flags");
+    }
+    r
+}
+
 #[test]
-fn race_mode_is_refused_until_radio_check_exists() {
-    let dir = hand_bundle("race", "race", "127.0.0.1:9");
-    let o = opts(&dir, "python3", &dir.join("logs"));
+fn race_mode_refuses_to_arm_with_wifi_up_before_touching_the_ev3() {
+    let _serial = serial();
+    let silent = UdpSocket::bind("127.0.0.1:0").expect("bind");
+    silent
+        .set_read_timeout(Some(Duration::from_millis(300)))
+        .expect("timeout");
+    let dir = hand_bundle(
+        "race-wifi",
+        "race",
+        &silent.local_addr().expect("addr").to_string(),
+    );
+    let mut o = opts(&dir, "python3", &dir.join("logs"));
+    o.sys_root = fake_sys("wifi", true);
+    let err = run(&o, &AtomicBool::new(false)).err().expect("refused");
+    assert!(
+        matches!(&err, AppError::RadiosActive(v) if v == &vec!["Wi-Fi interface wlan0 is up".to_string()]),
+        "{err}"
+    );
+    let mut buf = [0u8; 64];
+    assert!(
+        silent.recv(&mut buf).is_err(),
+        "no EV3 frame may be sent when not armed"
+    );
+}
+
+#[test]
+fn race_mode_arms_when_radios_are_off() {
+    let _serial = serial();
+    // Check passes, start-up continues to the EV3 link (which is silent here).
+    let silent = UdpSocket::bind("127.0.0.1:0").expect("bind");
+    let dir = hand_bundle(
+        "race-ok",
+        "race",
+        &silent.local_addr().expect("addr").to_string(),
+    );
+    let mut o = opts(&dir, "python3", &dir.join("logs"));
+    o.sys_root = fake_sys("clean", false);
+    o.ev3_wait = Duration::from_millis(200);
     assert!(matches!(
         run(&o, &AtomicBool::new(false)),
-        Err(AppError::RaceUnavailable)
+        Err(AppError::Ev3NotConnected(_))
     ));
+}
+
+#[test]
+fn race_bundle_drives_in_race_mode_end_to_end() {
+    let _serial = serial();
+    let Ok(py) = std::env::var("RF_PYTHON") else {
+        eprintln!("RF_PYTHON not set: skipping");
+        return;
+    };
+    let done = Arc::new(AtomicBool::new(false));
+    let (ev3_addr, cmds) = mock_ev3(done.clone());
+    let dir = tmp("race-e2e");
+    build_bundle(&py, &dir.join("bundle"), &ev3_addr, "race");
+    let mut o = opts(&dir.join("bundle"), &py, &dir.join("logs"));
+    o.sys_root = fake_sys("race-e2e", false);
+    let out = run(&o, &AtomicBool::new(false)).expect("run");
+    done.store(true, Ordering::Release);
+    assert!(out.report.fault.is_none(), "{:?}", out.report.fault);
+    // The bundle's test speed limit (0.25 m/s = 250 cps) does not apply in race mode:
+    // wall_follow cruises at 0.3 m/s = 300 cps.
+    let cmds = cmds.lock().expect("lock").clone();
+    assert!(
+        cmds.iter().any(|c| c.drive_speed_cps == 300),
+        "race mode keeps the test limit"
+    );
+    let check = std::process::Command::new(&py)
+        .env("PYTHONPATH", repo().join("src"))
+        .args([
+            "-c",
+            "import sys; from pathlib import Path; from raceforge.sim.record import read_frames; \
+             print({f.mode.value for f in read_frames(Path(sys.argv[1]))})",
+        ])
+        .arg(&out.log)
+        .output()
+        .expect("python");
+    assert_eq!(String::from_utf8_lossy(&check.stdout).trim(), "{'race'}");
 }
 
 #[test]

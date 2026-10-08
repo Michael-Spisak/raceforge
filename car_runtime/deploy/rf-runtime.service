@@ -38,10 +38,11 @@ CPUAffinity=2 3
 # Exit codes of rf-runtime (src/main.rs): 1 = start-up failed but may succeed later (EV3/LiDAR not
 # connected yet) -> restart; 2 = bad command line; 3 = driving fault (spec 0005: the controller is
 # restarted only via the resume button or a new deploy); 4 = bundle cannot run as deployed (hash
-# mismatch, invalid manifest, race mode without the radio check). 2-4 are never restarted.
+# mismatch, invalid manifest); 5 = race mode not armed because a radio may be active (the car must
+# never arm by itself when someone switches Wi-Fi off). 2-5 are never restarted.
 Restart=on-failure
 RestartSec=2
-RestartPreventExitStatus=2 3 4
+RestartPreventExitStatus=2 3 4 5
 # A stopped or killed runtime is safe: the EV3 brakes after 150 ms without frames, and the MCAP
 # log stays readable up to the last complete record.
 KillSignal=SIGTERM

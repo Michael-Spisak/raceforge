@@ -87,10 +87,16 @@ class LidarSpec(_Model):
     timeout_ms: int = Field(default=300, ge=150, le=2000)
 
 
+UsbId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{4}:[0-9a-f]{4}$")]
+
+
 class RuntimeSpec(_Model):
     mode: Literal["test", "race"] = "test"
     deadline_ms: float = Field(default=15.0, gt=0, le=50)
     test_speed_limit_m_s: float | None = Field(default=None, gt=0)
+    # Race mode refuses to arm while any radio may be active (spec 0005 AC5). USB dongles that
+    # do not advertise the wireless USB class are listed here as "vendor:product" (lowercase hex).
+    radio_usb_ids: list[UsbId] = Field(default_factory=list[UsbId])
 
 
 class BundleManifest(_Model):

@@ -52,9 +52,13 @@ With a `lidar` section in the bundle (`LidarSpec`: device, mount offset, policy 
 On the board, `rf-runtime` runs as the systemd service in [`deploy/rf-runtime.service`](deploy/rf-runtime.service),
 installed with `sudo deploy/setup-board.sh --binary rf-runtime --python-pkg <wheel>` (Raspberry Pi OS or
 Armbian; also turns swap off, sets the `performance` governor and reserves cores 2-3, then asks for a reboot): SCHED_FIFO on isolated cores per ADR-0016, restarted only when
-start-up failed (exit 1), never after a driving fault (3) or an unusable bundle (4).
+start-up failed (exit 1), never after a driving fault (3), an unusable bundle (4) or a race run that
+refused to arm (5).
 
-Race mode is refused until the radio check (AC5) exists. Stopping the process (Ctrl-C/kill) is safe:
+Race mode (`RuntimeSpec(mode="race")`) arms only when no radio can be active: every Wi-Fi/Bluetooth
+radio rfkill-blocked, no Wi-Fi interface up, no USB Wi-Fi/Bluetooth dongle (plus `radio_usb_ids` from
+the bundle). Otherwise it exits with code 5 before opening the EV3 link. In race mode the test speed
+limit is lifted and teleop is refused. Stopping the process (Ctrl-C/kill) is safe:
 the EV3 brakes after 150 ms without frames and the log stays readable up to the last record.
 
 ## Develop

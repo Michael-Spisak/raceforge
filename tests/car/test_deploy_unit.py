@@ -39,11 +39,12 @@ def test_realtime_scheduling_per_adr_0016() -> None:
 
 def test_restart_policy_matches_exit_codes() -> None:
     codes = exit_codes()
-    assert set(codes) == {"EXIT_RETRY", "EXIT_USAGE", "EXIT_FAULT", "EXIT_CONFIG"}
+    assert "EXIT_RETRY" in codes and len(codes) >= 5
     s = settings()
     assert s["Restart"] == "on-failure"
     never = {int(c) for c in s["RestartPreventExitStatus"].split()}
-    assert never == {codes["EXIT_USAGE"], codes["EXIT_FAULT"], codes["EXIT_CONFIG"]}
+    # Only the retryable start-up failure is restarted; every other exit code is final.
+    assert never == {v for k, v in codes.items() if k != "EXIT_RETRY"}
     assert codes["EXIT_RETRY"] not in never
 
 

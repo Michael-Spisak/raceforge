@@ -79,6 +79,10 @@ pub struct RuntimeSpec {
     pub mode: BundleMode,
     pub deadline_ms: f64,
     pub test_speed_limit_m_s: Option<f64>,
+    /// Extra USB `vendor:product` ids treated as radios in race mode (dongles that do not
+    /// advertise the wireless USB class).
+    #[serde(default)]
+    pub radio_usb_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -138,6 +142,18 @@ impl Manifest {
         }
         m.ev3_config()?;
         m.ev3_addrs()?;
+        let usb_id = |s: &String| {
+            s.len() == 9
+                && s.as_bytes()[4] == b':'
+                && s.chars()
+                    .filter(|c| *c != ':')
+                    .all(|c| c.is_ascii_hexdigit())
+        };
+        if !m.runtime.radio_usb_ids.iter().all(usb_id) {
+            return Err(BundleError::Invalid(
+                "radio_usb_ids must look like 0bda:8179".into(),
+            ));
+        }
         if let Some(l) = &m.lidar {
             if !l.mount_offset_rad.is_finite() || !(150..=2000).contains(&l.timeout_ms) {
                 return Err(BundleError::Invalid("lidar mount offset / timeout".into()));
@@ -238,6 +254,32 @@ mod tests {
                 .lidar
                 .is_none()
         );
+    }
+
+    #[test]
+    fn radio_usb_ids_are_validated() {
+        let h = sha256_hex(b"code");
+        let with = |ids: &str| {
+            sample(&h).replace(
+                "\"test_speed_limit_m_s\": null",
+                &format!("\"test_speed_limit_m_s\": null, \"radio_usb_ids\": {ids}"),
+            )
+        };
+        let ok = Manifest::load_verified(&bundle("usb-ok", &with(r#"["0bda:8179"]"#), b"code"));
+        assert_eq!(
+            ok.expect("valid").runtime.radio_usb_ids,
+            vec!["0bda:8179".to_string()]
+        );
+        for (i, bad) in [r#"["0bda8179"]"#, r#"["0bda:81"]"#, r#"["xyzw:8179"]"#]
+            .iter()
+            .enumerate()
+        {
+            assert!(
+                Manifest::load_verified(&bundle(&format!("usb-bad{i}"), &with(bad), b"code"))
+                    .is_err(),
+                "{bad}"
+            );
+        }
     }
 
     #[test]

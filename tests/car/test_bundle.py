@@ -45,7 +45,12 @@ def test_build_copies_files_and_hashes(tmp_path: Path) -> None:
     raw = json.loads((b / MANIFEST).read_text())
     assert raw["schema"] == "car_bundle" and raw["schema_version"] == 1
     assert raw["ev3"]["ultrasonic"] == {"front": "1", "left": "2", "right": "3"}
-    assert raw["runtime"] == {"mode": "test", "deadline_ms": 15.0, "test_speed_limit_m_s": None}
+    assert raw["runtime"] == {
+        "mode": "test",
+        "deadline_ms": 15.0,
+        "test_speed_limit_m_s": None,
+        "radio_usb_ids": [],
+    }
 
 
 def test_tampered_or_missing_file_is_detected(tmp_path: Path) -> None:
@@ -70,6 +75,8 @@ def test_invalid_specs_rejected() -> None:
         Ev3Spec(steer_motor_deg_per_rad=1, drive_counts_per_m=1, steer_motor="E")  # type: ignore[arg-type]
     with pytest.raises(ValidationError):
         RuntimeSpec(deadline_ms=100)
+    with pytest.raises(ValidationError):
+        RuntimeSpec(radio_usb_ids=["0BDA-8179"])
     with pytest.raises(ValidationError):
         RobotSpec(**{**ROBOT.model_dump(), "control_rate_hz": 500})
 

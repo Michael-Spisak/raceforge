@@ -1,12 +1,13 @@
 //! `rf-runtime`: runs a deploy bundle on the car (spec 0005).
 //!
-//! Start-up order: verify bundle hashes -> refuse race mode until the radio check exists (AC5)
-//! -> EV3 link up -> LiDAR delivering scans (if configured) -> controller host process ready
+//! Start-up order: verify bundle hashes -> race mode: radio check (AC5), refuse to arm if any
+//! radio may be active -> EV3 link up -> LiDAR delivering scans (if configured) -> controller host process ready
 //! -> MCAP log open -> control loop. The motors
 //! are commanded to stop at every step until the loop runs; any failure before that exits with
 //! an error and the EV3 failsafe keeps the car stopped.
 
 pub mod manifest;
+pub mod radio;
 pub mod sensors;
 pub mod sha256;
 
@@ -30,8 +31,8 @@ use thiserror::Error;
 pub enum AppError {
     #[error(transparent)]
     Bundle(#[from] BundleError),
-    #[error("race mode is not available yet: the radio check (spec 0005 AC5) is not implemented")]
-    RaceUnavailable,
+    #[error("race mode not armed, radios may be active: {}", .0.join("; "))]
+    RadiosActive(Vec<String>),
     #[error(
         "EV3 not connected after {0:?} (is the EV3 program running and the USB cable plugged in?)"
     )]
@@ -55,6 +56,9 @@ pub struct Options {
     pub max_ticks: Option<u64>,
     pub ev3_wait: Duration,
     pub setup_timeout: Duration,
+    /// File-system root for the race-mode radio check (`/` on the car; tests use a fake tree).
+    /// Deliberately not a command-line option, so it cannot be pointed elsewhere on the board.
+    pub sys_root: PathBuf,
 }
 
 impl Options {
@@ -66,6 +70,7 @@ impl Options {
             pythonpath: None,
             max_ticks: None,
             ev3_wait: Duration::from_secs(10),
+            sys_root: PathBuf::from("/"),
             setup_timeout: Duration::from_secs(20),
         }
     }
@@ -79,9 +84,18 @@ pub struct Outcome {
 
 pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
     let manifest = Manifest::load_verified(&opts.bundle)?;
-    if manifest.runtime.mode == BundleMode::Race {
-        return Err(AppError::RaceUnavailable);
-    }
+    // Race mode arms only when no radio can be active (spec 0005 AC5). Checked before anything
+    // else starts, so a refused race run never opens the EV3 link or the controller.
+    let mode = match manifest.runtime.mode {
+        BundleMode::Test => Mode::Test,
+        BundleMode::Race => {
+            let violations = radio::check(&opts.sys_root, &manifest.runtime.radio_usb_ids);
+            if !violations.is_empty() {
+                return Err(AppError::RadiosActive(violations));
+            }
+            Mode::Race
+        }
+    };
 
     let (local, ev3_addr) = manifest.ev3_addrs()?;
     let ev3 = Arc::new(Ev3Link::start(
@@ -150,7 +164,7 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
     let log_path = opts.log_dir.join(format!("run-{stamp}-{name}.mcap"));
     let logger = Arc::new(Logger::start(&log_path, 1024, Duration::from_millis(500))?);
 
-    let mut cfg = RuntimeConfig::new(manifest.robot.clone(), Mode::Test);
+    let mut cfg = RuntimeConfig::new(manifest.robot.clone(), mode);
     cfg.deadline = Duration::from_secs_f64(manifest.runtime.deadline_ms / 1000.0).min(cfg.period());
     if let Some(v) = manifest.runtime.test_speed_limit_m_s {
         cfg.test_speed_limit_m_s = v;

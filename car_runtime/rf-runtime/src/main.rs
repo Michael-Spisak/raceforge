@@ -22,13 +22,16 @@ const EXIT_RETRY: u8 = 1;
 const EXIT_USAGE: u8 = 2;
 /// The car stopped because of a driving fault: restart only via resume button or new deploy.
 const EXIT_FAULT: u8 = 3;
-/// The bundle cannot run as deployed (hash mismatch, invalid manifest, race mode without the
-/// radio check): restarting would not help.
+/// The bundle cannot run as deployed (hash mismatch, invalid manifest): restarting would not help.
 const EXIT_CONFIG: u8 = 4;
+/// Race mode refused to arm because a radio may be active. Not restarted automatically: the car
+/// must never arm by itself the moment someone switches Wi-Fi off.
+const EXIT_NOT_ARMED: u8 = 5;
 
 fn exit_code(e: &AppError) -> u8 {
     match e {
-        AppError::Bundle(_) | AppError::RaceUnavailable => EXIT_CONFIG,
+        AppError::Bundle(_) => EXIT_CONFIG,
+        AppError::RadiosActive(_) => EXIT_NOT_ARMED,
         AppError::Ev3NotConnected(_)
         | AppError::Lidar(..)
         | AppError::Controller(_)
@@ -111,7 +114,10 @@ mod tests {
 
     #[test]
     fn permanent_errors_are_not_retried() {
-        assert_eq!(exit_code(&AppError::RaceUnavailable), EXIT_CONFIG);
+        assert_eq!(
+            exit_code(&AppError::RadiosActive(vec!["wlan0".into()])),
+            EXIT_NOT_ARMED
+        );
         let bundle = rf_runtime::manifest::BundleError::HashMismatch("controller.py".into());
         assert_eq!(exit_code(&AppError::Bundle(bundle)), EXIT_CONFIG);
         let ev3 = AppError::Ev3NotConnected(Duration::from_secs(10));
