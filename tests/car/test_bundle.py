@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from raceforge.car.bundle import (
     MANIFEST,
     Ev3Spec,
+    LidarSpec,
     RobotSpec,
     RuntimeSpec,
     build_bundle,
@@ -78,3 +79,19 @@ def test_race_mode_and_speed_limit_round_trip(tmp_path: Path) -> None:
     build_bundle(tmp_path / "b", TEMPLATES / "centering.py", ROBOT, EV3, runtime=rt, name="quali")
     m = load_manifest(tmp_path / "b")
     assert m.runtime == rt and m.name == "quali"
+
+
+def test_lidar_section(tmp_path: Path) -> None:
+    lidar = LidarSpec(device="/dev/ttyAMA0", mount_offset_rad=3.14159, policy="optional")
+    build_bundle(tmp_path / "b", TEMPLATES / "centering.py", ROBOT, EV3, lidar=lidar)
+    raw = json.loads((tmp_path / "b" / MANIFEST).read_text())
+    assert raw["lidar"] == {
+        "device": "/dev/ttyAMA0",
+        "mount_offset_rad": 3.14159,
+        "policy": "optional",
+        "timeout_ms": 300,
+    }
+    build_bundle(tmp_path / "c", TEMPLATES / "centering.py", ROBOT, EV3)
+    assert json.loads((tmp_path / "c" / MANIFEST).read_text())["lidar"] is None
+    with pytest.raises(ValidationError):
+        LidarSpec(timeout_ms=50)

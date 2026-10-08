@@ -50,6 +50,24 @@ pub struct Ev3Spec {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
+pub enum SensorPolicy {
+    /// Missing data stops the car (fault).
+    Critical,
+    /// Missing data: continue at reduced speed.
+    Optional,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LidarSpec {
+    pub device: String,
+    pub mount_offset_rad: f64,
+    pub policy: SensorPolicy,
+    pub timeout_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum BundleMode {
     Test,
     Race,
@@ -75,6 +93,8 @@ pub struct Manifest {
     pub params: Option<FileRef>,
     pub robot: RobotInfo,
     pub ev3: Ev3Spec,
+    #[serde(default)]
+    pub lidar: Option<LidarSpec>,
     pub runtime: RuntimeSpec,
 }
 
@@ -118,6 +138,11 @@ impl Manifest {
         }
         m.ev3_config()?;
         m.ev3_addrs()?;
+        if let Some(l) = &m.lidar {
+            if !l.mount_offset_rad.is_finite() || !(150..=2000).contains(&l.timeout_ms) {
+                return Err(BundleError::Invalid("lidar mount offset / timeout".into()));
+            }
+        }
         Ok(m)
     }
 
@@ -193,6 +218,26 @@ mod tests {
         assert_eq!(c.link_timeout, Duration::from_millis(100));
         assert_eq!(m.robot.max_steer_rad, 0.4);
         assert_eq!(m.runtime.mode, BundleMode::Test);
+    }
+
+    #[test]
+    fn lidar_section_is_optional_and_parsed() {
+        let h = sha256_hex(b"code");
+        let with = sample(&h).replace(
+            "\"runtime\":",
+            "\"lidar\": {\"device\": \"/dev/ttyUSB0\", \"mount_offset_rad\": 3.14, \"policy\": \"optional\", \"timeout_ms\": 300},\n  \"runtime\":",
+        );
+        let m = Manifest::load_verified(&bundle("lidar", &with, b"code")).expect("valid");
+        let l = m.lidar.expect("lidar");
+        assert_eq!((l.policy, l.timeout_ms), (SensorPolicy::Optional, 300));
+        let bad = with.replace("\"timeout_ms\": 300}", "\"timeout_ms\": 5}");
+        assert!(Manifest::load_verified(&bundle("lidar-bad", &bad, b"code")).is_err());
+        assert!(
+            Manifest::load_verified(&bundle("nolidar", &sample(&h), b"code"))
+                .expect("ok")
+                .lidar
+                .is_none()
+        );
     }
 
     #[test]

@@ -298,3 +298,75 @@ fn ac6_teleop_dead_man_stops_when_not_refreshed() {
     let tail = &outs[outs.len() - 3..];
     assert!(tail.iter().all(|(_, o)| o.stop && o.speed_m_s == 0.0));
 }
+
+/// Records every tick (for checking what the controller was given).
+#[derive(Default)]
+struct Ticks(std::sync::Mutex<Vec<rf_core::runtime::TickRecord>>);
+
+impl rf_core::runtime::TickSink for Ticks {
+    fn tick(&self, rec: &rf_core::runtime::TickRecord) {
+        self.0.lock().expect("lock").push(rec.clone());
+    }
+    fn event(&self, _: u64, _: &rf_core::runtime::Event) {}
+}
+
+#[test]
+fn missing_optional_sensor_halves_speed_and_logs_event() {
+    let _serial = serial();
+    let (mut rt, act, sensors) = runtime(
+        RuntimeConfig::new(info(), Mode::Test),
+        mock_host(|_| Act::Reply(DRIVE)),
+    );
+    sensors.set(SensorSnapshot {
+        degraded: vec!["lidar".into()],
+        ..Default::default()
+    });
+    let ticks = Arc::new(Ticks::default());
+    rt.add_sink(ticks.clone());
+    let report = rt.run(&AtomicBool::new(false), Some(5));
+    assert!(report.fault.is_none());
+    let driving: Vec<_> = act.outputs().into_iter().filter(|(_, o)| !o.stop).collect();
+    assert_eq!(driving.len(), 5);
+    assert!(driving.iter().all(|(_, o)| o.speed_m_s == 0.5)); // 1.0 m/s * 0.5
+    assert!(report
+        .events
+        .iter()
+        .any(|e| e.kind == "degraded" && e.detail == "lidar"));
+    assert!(ticks
+        .0
+        .lock()
+        .expect("lock")
+        .iter()
+        .all(|r| r.state == "degraded"));
+}
+
+#[test]
+fn lidar_scan_time_is_converted_to_the_runtime_clock() {
+    let _serial = serial();
+    let (mut rt, _, sensors) = runtime(
+        RuntimeConfig::new(info(), Mode::Test),
+        mock_host(|_| Act::Reply(DRIVE)),
+    );
+    let ticks = Arc::new(Ticks::default());
+    rt.add_sink(ticks.clone());
+    let scan_done = Instant::now() + Duration::from_millis(30);
+    sensors.set(SensorSnapshot {
+        lidar: Some(rf_proto::ipc::LidarScan {
+            angles_rad: vec![0.0],
+            ranges_m: vec![Some(1.0)],
+            t_s: 999.0,
+        }),
+        lidar_at: Some(scan_done),
+        ..Default::default()
+    });
+    rt.run(&AtomicBool::new(false), Some(5));
+    let recs = ticks.0.lock().expect("lock");
+    let last = recs
+        .last()
+        .and_then(|r| r.obs.clone())
+        .expect("observation");
+    let lidar = last.lidar.expect("lidar");
+    // The scan finished ~30 ms after the runtime started (it was created just before).
+    assert!(lidar.t_s > 0.0 && lidar.t_s < 0.2, "{}", lidar.t_s);
+    assert!(last.t_s >= lidar.t_s - 0.05);
+}

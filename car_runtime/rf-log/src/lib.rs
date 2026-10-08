@@ -7,8 +7,10 @@
 //! - `/telemetry`: `TelemetryFrame` JSON (schema `raceforge.TelemetryFrame`, identical to the
 //!   simulator's recorder, so `raceforge.sim.record.read_frames` reads car logs too)
 //! - `/events`: faults, notes and runtime events
+//! - `/lidar_raw`: each new LiDAR revolution once (not every tick), reduced to at most
+//!   [`LIDAR_MAX_POINTS`] points
 //!
-//! `/ev3_raw` and `/lidar_raw` follow with the LiDAR driver.
+//! `/ev3_raw` (raw EV3 frames) follows with the EV3 link statistics in telemetry.
 
 pub mod frame;
 pub mod mcap;
@@ -26,9 +28,13 @@ use std::time::{Duration, Instant};
 
 pub const TELEMETRY_TOPIC: &str = "/telemetry";
 pub const EVENTS_TOPIC: &str = "/events";
+pub const LIDAR_TOPIC: &str = "/lidar_raw";
+pub const LIDAR_MAX_POINTS: usize = 360;
 /// JSON Schema of `TelemetryFrame` v1, exported from `raceforge.core` (drift-checked by
 /// `tests/car/test_log_schema.py`).
 pub const TELEMETRY_SCHEMA: &str = include_str!("../schemas/telemetry.v1.schema.json");
+
+const LIDAR_SCHEMA: &str = r#"{"type":"object","properties":{"t":{"type":"object","properties":{"mono_ns":{"type":"integer"}}},"angles_rad":{"type":"array","items":{"type":["number","null"]}},"ranges_m":{"type":"array","items":{"type":["number","null"]}}}}"#;
 
 const EVENT_SCHEMA: &str = r#"{"type":"object","properties":{"t":{"type":"object","properties":{"mono_ns":{"type":"integer"}}},"kind":{"type":"string"},"detail":{"type":"string"}}}"#;
 
@@ -63,9 +69,13 @@ impl Logger {
         let tel = w.channel(tel_schema, TELEMETRY_TOPIC, "json")?;
         let ev_schema = w.schema("raceforge.Event", "jsonschema", EVENT_SCHEMA.as_bytes())?;
         let ev = w.channel(ev_schema, EVENTS_TOPIC, "json")?;
+        let lidar_schema =
+            w.schema("raceforge.LidarScan", "jsonschema", LIDAR_SCHEMA.as_bytes())?;
+        let lidar = w.channel(lidar_schema, LIDAR_TOPIC, "json")?;
         w.flush()?;
         let (tx, rx) = mpsc::sync_channel(queue);
-        let thread = std::thread::spawn(move || write_loop(w, rx, tel, ev, flush_every));
+        let ch = Channels { tel, ev, lidar };
+        let thread = std::thread::spawn(move || write_loop(w, rx, ch, flush_every));
         Ok(Self {
             tx: Mutex::new(Some(tx)),
             dropped: Arc::new(AtomicU64::new(0)),
@@ -126,15 +136,22 @@ impl TickSink for Logger {
     }
 }
 
+struct Channels {
+    tel: u16,
+    ev: u16,
+    lidar: u16,
+}
+
 fn write_loop(
     mut w: McapWriter<BufWriter<File>>,
     rx: Receiver<Msg>,
-    tel: u16,
-    ev: u16,
+    ch: Channels,
     flush_every: Duration,
 ) -> io::Result<u64> {
     let mut last_flush = Instant::now();
     let mut ev_seq = 0u32;
+    let mut lidar_seq = 0u32;
+    let mut last_scan_t: Option<f64> = None;
     loop {
         let msg = match rx.recv_timeout(flush_every) {
             Ok(m) => Some(m),
@@ -145,14 +162,29 @@ fn write_loop(
             Some(Msg::Tick(r)) => {
                 let data =
                     serde_json::to_vec(&frame::telemetry_frame(&r)).map_err(io::Error::other)?;
-                w.message(tel, r.seq as u32, r.mono_ns, &data)?;
+                w.message(ch.tel, r.seq as u32, r.mono_ns, &data)?;
+                if let Some(scan) = r.obs.as_ref().and_then(|o| o.lidar.as_ref()) {
+                    if last_scan_t != Some(scan.t_s) {
+                        last_scan_t = Some(scan.t_s);
+                        let ns = if scan.t_s.is_finite() && scan.t_s >= 0.0 {
+                            (scan.t_s * 1e9) as u64
+                        } else {
+                            r.mono_ns
+                        };
+                        let data =
+                            serde_json::to_vec(&frame::lidar_raw(scan, ns, LIDAR_MAX_POINTS))
+                                .map_err(io::Error::other)?;
+                        w.message(ch.lidar, lidar_seq, ns, &data)?;
+                        lidar_seq = lidar_seq.wrapping_add(1);
+                    }
+                }
             }
             Some(Msg::Event(ns, e)) => {
                 let data = serde_json::to_vec(&serde_json::json!({
                     "t": { "mono_ns": ns }, "kind": e.kind, "detail": e.detail
                 }))
                 .map_err(io::Error::other)?;
-                w.message(ev, ev_seq, ns, &data)?;
+                w.message(ch.ev, ev_seq, ns, &data)?;
                 ev_seq = ev_seq.wrapping_add(1);
             }
             None => {}

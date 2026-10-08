@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 rf-core = { path = "../rf-core" }
 rf-ev3 = { path = "../rf-ev3" }
+rf-lidar = { path = "../rf-lidar" }
 rf-log = { path = "../rf-log" }
 rf-proto = { path = "../rf-proto" }
 serde = { version = "1", features = ["derive"] }

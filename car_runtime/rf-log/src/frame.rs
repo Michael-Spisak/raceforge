@@ -135,9 +135,44 @@ pub fn telemetry_frame(r: &TickRecord) -> Value {
     })
 }
 
+/// One LiDAR revolution for `/lidar_raw`, evenly thinned to at most `max_points` points.
+pub fn lidar_raw(scan: &rf_proto::ipc::LidarScan, mono_ns: u64, max_points: usize) -> Value {
+    let n = scan.angles_rad.len().min(scan.ranges_m.len());
+    let step = n.div_ceil(max_points.max(1)).max(1);
+    let idx = (0..n).step_by(step);
+    let angles: Vec<Value> = idx.clone().map(|i| num(scan.angles_rad[i])).collect();
+    let ranges: Vec<Value> = idx.map(|i| non_neg(scan.ranges_m[i])).collect();
+    json!({ "t": { "mono_ns": mono_ns }, "angles_rad": angles, "ranges_m": ranges })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lidar_raw_is_thinned_and_sanitized() {
+        let scan = rf_proto::ipc::LidarScan {
+            angles_rad: (0..450).map(|i| f64::from(i) * 0.01).collect(),
+            ranges_m: (0..450)
+                .map(|i| if i % 2 == 0 { Some(1.0) } else { None })
+                .collect(),
+            t_s: 1.0,
+        };
+        let v = lidar_raw(&scan, 7, 360);
+        let a = v["angles_rad"].as_array().map(Vec::len);
+        assert_eq!(a, Some(225)); // every 2nd point
+        assert_eq!(v["ranges_m"][0], 1.0);
+        let small = lidar_raw(
+            &rf_proto::ipc::LidarScan {
+                angles_rad: vec![f64::NAN],
+                ranges_m: vec![Some(-1.0)],
+                t_s: 0.0,
+            },
+            0,
+            360,
+        );
+        assert!(small["angles_rad"][0].is_null() && small["ranges_m"][0].is_null());
+    }
 
     #[test]
     fn key_patterns() {

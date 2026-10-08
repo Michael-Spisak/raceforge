@@ -127,6 +127,7 @@ impl Ev3Config {
             estop: f.flags & status_flags::ESTOP_PRESSED != 0
                 || self.estop_touch_port.is_some_and(touch),
             link_lost: None,
+            ..SensorSnapshot::default()
         }
     }
 }

@@ -137,6 +137,9 @@ struct Outcome {
     state: &'static str,
 }
 
+/// Speed factor while an optional sensor is missing (spec 0005 sensor policy).
+pub const DEGRADED_SPEED_FACTOR: f64 = 0.5;
+
 pub struct Runtime<S: Sensors, A: Actuators + 'static> {
     cfg: RuntimeConfig,
     sensors: Arc<S>,
@@ -154,6 +157,7 @@ pub struct Runtime<S: Sensors, A: Actuators + 'static> {
     sinks: Vec<Arc<dyn TickSink>>,
     wall_offset_ns: Option<i64>,
     deadline_misses: u64,
+    degraded: Vec<String>,
 }
 
 impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
@@ -186,6 +190,7 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
                 .ok()
                 .and_then(|d| i64::try_from(d.as_nanos()).ok()),
             deadline_misses: 0,
+            degraded: Vec::new(),
         })
     }
 
@@ -335,11 +340,31 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             self.trip(Fault::LinkLost(what), false);
             return fault_stop(None);
         }
+        if snap.degraded != self.degraded {
+            let detail = if snap.degraded.is_empty() {
+                "all sensors back".to_string()
+            } else {
+                snap.degraded.join(", ")
+            };
+            self.event("degraded", detail);
+            self.degraded = snap.degraded.clone();
+        }
+        // Sensors report when a scan finished; the controller gets it in the runtime's time base.
+        let lidar = snap.lidar.map(|mut l| {
+            if let Some(at) = snap.lidar_at {
+                l.t_s = if at >= self.start {
+                    at.duration_since(self.start).as_secs_f64()
+                } else {
+                    -self.start.duration_since(at).as_secs_f64()
+                };
+            }
+            l
+        });
         let obs = Observation {
             t_s,
             dt_s,
             ultrasonic_m: snap.ultrasonic_m,
-            lidar: snap.lidar,
+            lidar,
             yaw_rate_rad_s: snap.yaw_rate_rad_s,
             heading_rad: snap.heading_rad,
             speed_m_s: snap.speed_m_s,
@@ -401,9 +426,14 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             info.max_speed_m_s,
             self.cfg.test_speed_limit_m_s,
         );
+        let degraded = !self.degraded.is_empty();
         let out = DriveOutput {
             steering_rad: c.steering_rad,
-            speed_m_s: c.speed_m_s,
+            speed_m_s: if degraded {
+                c.speed_m_s * DEGRADED_SPEED_FACTOR
+            } else {
+                c.speed_m_s
+            },
             stop: teleop == Teleop::Expired,
             fault: false,
         };
@@ -412,6 +442,7 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             obs: logged_obs,
             out,
             state: match teleop {
+                Teleop::Off if degraded => "degraded",
                 Teleop::Off => "run",
                 Teleop::Drive(_) => "teleop",
                 Teleop::Expired => "deadman_stop",

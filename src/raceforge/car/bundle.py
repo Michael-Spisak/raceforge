@@ -77,6 +77,16 @@ class Ev3Spec(_Model):
     link_timeout_ms: int = Field(default=100, ge=20, le=1000)
 
 
+class LidarSpec(_Model):
+    """LD06/LD19 on a UART. ``critical``: no scan for ``timeout_ms`` stops the car;
+    ``optional``: the car continues at half speed without LiDAR data."""
+
+    device: str = "/dev/ttyUSB0"
+    mount_offset_rad: float = 0.0  # CCW angle of the sensor's zero mark from the forward axis
+    policy: Literal["critical", "optional"] = "critical"
+    timeout_ms: int = Field(default=300, ge=150, le=2000)
+
+
 class RuntimeSpec(_Model):
     mode: Literal["test", "race"] = "test"
     deadline_ms: float = Field(default=15.0, gt=0, le=50)
@@ -93,6 +103,7 @@ class BundleManifest(_Model):
     params: FileRef | None = None
     robot: RobotSpec
     ev3: Ev3Spec
+    lidar: LidarSpec | None = None
     runtime: RuntimeSpec = RuntimeSpec()
 
 
@@ -107,6 +118,7 @@ def build_bundle(
     ev3: Ev3Spec,
     runtime: RuntimeSpec | None = None,
     params: Path | None = None,
+    lidar: LidarSpec | None = None,
     name: str | None = None,
 ) -> BundleManifest:
     """Copy controller (+ params) into ``out_dir`` and write the manifest with file hashes.
@@ -131,6 +143,7 @@ def build_bundle(
         params=params_ref,
         robot=robot,
         ev3=ev3,
+        lidar=lidar,
         runtime=runtime or RuntimeSpec(),
     )
     (out_dir / MANIFEST).write_text(

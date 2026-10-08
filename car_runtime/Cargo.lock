@@ -245,6 +245,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-lidar"
+version = "0.0.1"
+dependencies = [
+ "rf-proto",
+]
+
+[[package]]
 name = "rf-log"
 version = "0.0.1"
 dependencies = [
@@ -269,6 +276,7 @@ version = "0.0.1"
 dependencies = [
  "rf-core",
  "rf-ev3",
+ "rf-lidar",
  "rf-log",
  "rf-proto",
  "serde",

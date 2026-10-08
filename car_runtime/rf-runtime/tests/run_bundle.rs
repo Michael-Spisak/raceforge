@@ -167,6 +167,10 @@ fn runs_python_built_bundle_end_to_end() {
 }
 
 fn hand_bundle(name: &str, mode: &str, ev3_addr: &str) -> PathBuf {
+    hand_bundle_with(name, mode, ev3_addr, "null")
+}
+
+fn hand_bundle_with(name: &str, mode: &str, ev3_addr: &str, lidar: &str) -> PathBuf {
     let dir = tmp(name);
     let code = b"# controller\n";
     std::fs::write(dir.join("controller.py"), code).expect("write");
@@ -177,6 +181,7 @@ fn hand_bundle(name: &str, mode: &str, ev3_addr: &str) -> PathBuf {
   "robot":{{"car_name":"car","sensors":[],"max_steer_rad":0.4,"max_speed_m_s":1.0,"wheelbase_m":0.2,"track_m":0.15,"control_rate_hz":50.0}},
   "ev3":{{"addr":"{ev3_addr}","local":"127.0.0.1:0","steer_motor":"A","drive_motor":"B","steer_motor_deg_per_rad":100.0,
          "drive_counts_per_m":1000.0,"ultrasonic":{{}},"gyro":true,"estop_touch_port":null,"link_timeout_ms":100}},
+  "lidar":{lidar},
   "runtime":{{"mode":"{mode}","deadline_ms":15.0,"test_speed_limit_m_s":null}}}}"#
     );
     std::fs::write(dir.join("bundle.json"), manifest).expect("manifest");
@@ -231,4 +236,21 @@ fn tampered_bundle_is_refused() {
     let o = opts(&dir, "python3", &dir.join("logs"));
     let err = run(&o, &AtomicBool::new(false)).err().expect("refused");
     assert!(err.to_string().contains("hash mismatch"), "{err}");
+}
+
+#[test]
+fn missing_lidar_device_is_an_error() {
+    let _serial = serial();
+    let done = Arc::new(AtomicBool::new(false));
+    let (ev3_addr, _) = mock_ev3(done.clone());
+    let lidar = r#"{"device":"/nonexistent/ttyLIDAR","mount_offset_rad":0.0,"policy":"critical","timeout_ms":300}"#;
+    let dir = hand_bundle_with("nolidar", "test", &ev3_addr, lidar);
+    let o = opts(&dir, "python3", &dir.join("logs"));
+    let err = run(&o, &AtomicBool::new(false)).err().expect("refused");
+    done.store(true, Ordering::Release);
+    assert!(
+        matches!(err, AppError::Lidar(ref dev, _) if dev == "/nonexistent/ttyLIDAR"),
+        "{err}"
+    );
+    assert!(!dir.join("logs").exists());
 }

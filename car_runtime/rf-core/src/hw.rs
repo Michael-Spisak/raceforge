@@ -24,6 +24,11 @@ pub struct SensorSnapshot {
     pub estop: bool,
     /// A critical sensor link (e.g. the EV3) delivered no valid data within its timeout.
     pub link_lost: Option<String>,
+    /// When the LiDAR revolution in `lidar` finished (the runtime converts it to `t_s`).
+    pub lidar_at: Option<Instant>,
+    /// Optional sensors that are currently missing: the runtime halves the speed (spec 0005
+    /// sensor policy `optional`).
+    pub degraded: Vec<String>,
 }
 
 pub trait Sensors: Send + Sync {

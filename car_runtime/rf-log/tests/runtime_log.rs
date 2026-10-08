@@ -264,3 +264,66 @@ fn full_queue_drops_instead_of_blocking() {
     assert_eq!(stats.written + stats.dropped, 10_000);
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn each_lidar_revolution_is_logged_once() {
+    let path = tmp("lidar");
+    let logger = Logger::start(&path, 64, Duration::from_millis(50)).expect("logger");
+    let scan = |t_s: f64| rf_proto::ipc::LidarScan {
+        angles_rad: (0..450).map(|i| f64::from(i) * 0.014).collect(),
+        ranges_m: vec![Some(1.5); 450],
+        t_s,
+    };
+    let rec = |seq: u64, t_s: f64| TickRecord {
+        mono_ns: seq * 20_000_000,
+        wall_offset_ns: None,
+        seq,
+        mode: Mode::Test,
+        state: "run".into(),
+        faults: vec![],
+        out: DriveOutput::STOP,
+        obs: Some(Observation {
+            lidar: Some(scan(t_s)),
+            ..Default::default()
+        }),
+        rate_hz: 50.0,
+        lateness_us: 0.0,
+        tick_us: 0.0,
+        deadline_misses: 0,
+        channels: BTreeMap::new(),
+    };
+    // 50 Hz ticks, 10 Hz LiDAR: the same revolution is seen by 5 ticks in a row.
+    for seq in 0..10 {
+        logger.tick(&rec(seq, 0.1 * (seq / 5) as f64));
+    }
+    logger.close().expect("close");
+    let (msgs, _) = messages(&path);
+    let lidar: Vec<_> = msgs
+        .iter()
+        .filter(|(ch, _)| *ch == 2)
+        .map(|(_, v)| v)
+        .collect();
+    assert_eq!(lidar.len(), 2);
+    assert_eq!(lidar[1]["t"]["mono_ns"], 100_000_000);
+    assert_eq!(lidar[0]["angles_rad"].as_array().map(Vec::len), Some(225)); // 450 -> <= 360
+                                                                            // The /telemetry frames stay valid without the LiDAR (it lives in /lidar_raw only).
+    if let Some(n) = python_read_frames(&path) {
+        assert_eq!(n, 10);
+    }
+    if let Ok(py) = std::env::var("RF_PYTHON") {
+        let out = std::process::Command::new(py)
+            .args(["-c", "import sys; from mcap.reader import make_reader; \
+                          f = open(sys.argv[1], 'rb'); \
+                          print(sum(1 for _ in make_reader(f).iter_messages(topics=['/lidar_raw'])))"])
+            .arg(&path)
+            .output()
+            .expect("python");
+        assert_eq!(
+            String::from_utf8_lossy(&out.stdout).trim(),
+            "2",
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    let _ = std::fs::remove_file(&path);
+}

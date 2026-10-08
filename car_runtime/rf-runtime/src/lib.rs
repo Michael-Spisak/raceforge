@@ -1,11 +1,13 @@
 //! `rf-runtime`: runs a deploy bundle on the car (spec 0005).
 //!
 //! Start-up order: verify bundle hashes -> refuse race mode until the radio check exists (AC5)
-//! -> EV3 link up -> controller host process ready -> MCAP log open -> control loop. The motors
+//! -> EV3 link up -> LiDAR delivering scans (if configured) -> controller host process ready
+//! -> MCAP log open -> control loop. The motors
 //! are commanded to stop at every step until the loop runs; any failure before that exits with
 //! an error and the EV3 failsafe keeps the car stopped.
 
 pub mod manifest;
+pub mod sensors;
 pub mod sha256;
 
 use manifest::{BundleError, BundleMode, Manifest};
@@ -13,8 +15,10 @@ use rf_core::hw::Sensors;
 use rf_core::link::{ControllerLink, LinkError};
 use rf_core::runtime::{RunReport, Runtime, RuntimeConfig};
 use rf_ev3::{Ev3Link, UdpTransport};
+use rf_lidar::{Lidar, LidarConfig};
 use rf_log::Logger;
 use rf_proto::ipc::Mode;
+use sensors::{CarSensors, LidarSource};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -32,6 +36,8 @@ pub enum AppError {
         "EV3 not connected after {0:?} (is the EV3 program running and the USB cable plugged in?)"
     )]
     Ev3NotConnected(Duration),
+    #[error("LiDAR {0}: {1}")]
+    Lidar(String, String),
     #[error("controller host: {0}")]
     Controller(#[from] LinkError),
     #[error("io: {0}")]
@@ -90,6 +96,35 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
         std::thread::sleep(Duration::from_millis(20));
     }
 
+    let lidar = match &manifest.lidar {
+        None => None,
+        Some(spec) => {
+            let cfg = LidarConfig {
+                mount_offset_rad: spec.mount_offset_rad,
+                ..LidarConfig::default()
+            };
+            let lidar = Lidar::open_serial(std::path::Path::new(&spec.device), cfg)
+                .map_err(|e| AppError::Lidar(spec.device.clone(), e.to_string()))?;
+            let t = Instant::now();
+            while lidar.latest().is_none() {
+                if t.elapsed() > opts.ev3_wait {
+                    let why = format!("no scan after {:?} ({:?})", opts.ev3_wait, lidar.stats());
+                    return Err(AppError::Lidar(spec.device.clone(), why));
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Some(LidarSource {
+                lidar: Arc::new(lidar),
+                policy: spec.policy,
+                timeout: Duration::from_millis(spec.timeout_ms),
+            })
+        }
+    };
+    let sensors = Arc::new(CarSensors {
+        ev3: ev3.clone(),
+        lidar,
+    });
+
     let mut host = Command::new(&opts.python);
     host.args(["-m", "raceforge.car.host", "--controller"])
         .arg(opts.bundle.join(&manifest.controller.file));
@@ -120,7 +155,7 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
     if let Some(v) = manifest.runtime.test_speed_limit_m_s {
         cfg.test_speed_limit_m_s = v;
     }
-    let mut rt = Runtime::new(cfg, ev3.clone(), ev3.clone(), link, opts.setup_timeout)?;
+    let mut rt = Runtime::new(cfg, sensors, ev3.clone(), link, opts.setup_timeout)?;
     rt.add_sink(logger.clone());
     let report = rt.run(stop, opts.max_ticks);
     drop(rt); // controller host shut down
