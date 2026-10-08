@@ -19,6 +19,7 @@ export type ScanTrack = Schemas["ScanTrack"];
 export type ScanPassRef = Schemas["ScanPassRef"];
 export type ScanDetail = Schemas["ScanDetail"];
 export type ScanMesh = Schemas["ScanMesh"];
+export type CarPairingCode = Schemas["CarPairingCode"];
 export type WorkspaceStatus = Schemas["WorkspaceStatus"];
 export type WorkspaceInfo = Schemas["WorkspaceInfo"];
 export type LocalObject = Schemas["LocalObject"];
@@ -103,6 +104,9 @@ export const api = {
   openScan: (path: string) => request<ScanPassRef>("/api/v1/scans/open", { method: "POST", body: JSON.stringify({ path }) }),
   scan: (sha: string) => request<ScanDetail>(`/api/v1/scans/${sha}`),
   scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
+  /** QR code for TrackScout's drive mode (spec 0010 C): the phone connects to the car directly. */
+  carPairingCode: (url: string, token: string) =>
+    request<CarPairingCode>("/api/v1/car/pairing-code", { method: "POST", body: JSON.stringify({ url, token: token || null }) }),
 };
 
 const W = "/api/v1/workspace";

@@ -329,3 +329,15 @@ class ScanMesh(ApiModel):
 
 class ScanOpen(ApiModel):
     path: str
+
+
+class CarPairingRequest(ApiModel):
+    """Car address + token to hand to TrackScout's drive mode (spec 0010 C)."""
+
+    url: str
+    token: str | None = None
+
+
+class CarPairingCode(ApiModel):
+    code: str  # raceforge://car?v=1&d=<base64url(JSON)>
+    qr_svg: str

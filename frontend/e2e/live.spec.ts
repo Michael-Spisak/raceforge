@@ -12,6 +12,10 @@ test("live: connect to a car, drive with teleop, release, STOP (spec 0010 B)", a
   await expect(page.getByTestId("car-state")).toHaveText("run");
   await expect(page.getByTestId("car-rtt")).toHaveText(/\d+ ms/);
 
+  // spec 0010 AC7: QR code for TrackScout's drive mode
+  await page.getByTestId("car-pair-phone").click();
+  await expect(page.getByTestId("car-pair-qr")).toBeVisible();
+
   await page.getByTestId("teleop-arm").check();
   await page.keyboard.down("w");
   await expect(page.getByTestId("car-state")).toHaveText("teleop");

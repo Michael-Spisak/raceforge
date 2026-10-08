@@ -1,12 +1,34 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%.1f V": {},
+    "%@ refused: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ abgelehnt: %@"
+          }
+        }
+      }
+    },
+    "%lld ms": {},
     "%lld passes": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld Durchgänge"
+          }
+        }
+      }
+    },
+    "%lld° · %.2f m/s": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld° · %2$.2f m/s"
           }
         }
       }
@@ -27,6 +49,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Etwa %lld Minuten freier Speicher bei dieser Qualität."
+          }
+        }
+      }
+    },
+    "Above 100 ms — drive carefully.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über 100 ms – vorsichtig fahren."
+          }
+        }
+      }
+    },
+    "Add": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinzufügen"
           }
         }
       }
@@ -81,6 +123,16 @@
         }
       }
     },
+    "Battery": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Akku"
+          }
+        }
+      }
+    },
     "Bluetooth access is off for TrackScout (Settings → TrackScout).": {
       "localizations": {
         "de": {
@@ -101,12 +153,32 @@
         }
       }
     },
+    "Car": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto"
+          }
+        }
+      }
+    },
     "Closed": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Geschlossen"
+          }
+        }
+      }
+    },
+    "Command": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Befehl"
           }
         }
       }
@@ -121,6 +193,16 @@
         }
       }
     },
+    "Connect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinden"
+          }
+        }
+      }
+    },
     "Connect the phone to the paired laptop and click “Receive by cable” on the Team tab.": {
       "localizations": {
         "de": {
@@ -131,12 +213,42 @@
         }
       }
     },
+    "Connecting to the car…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinde mit dem Auto…"
+          }
+        }
+      }
+    },
+    "Connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung"
+          }
+        }
+      }
+    },
     "Continue": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Fortsetzen"
+          }
+        }
+      }
+    },
+    "Control loop": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regelschleife"
           }
         }
       }
@@ -232,6 +344,16 @@
         }
       }
     },
+    "Disconnect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trennen"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "de": {
@@ -252,6 +374,36 @@
         }
       }
     },
+    "Drive": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fahren"
+          }
+        }
+      }
+    },
+    "Drive the car": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto fahren"
+          }
+        }
+      }
+    },
+    "Driving": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fährt"
+          }
+        }
+      }
+    },
     "Economy": {
       "extractionState": "stale",
       "localizations": {
@@ -259,6 +411,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sparsam"
+          }
+        }
+      }
+    },
+    "Events": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ereignisse"
+          }
+        }
+      }
+    },
+    "Faults": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehler"
           }
         }
       }
@@ -316,12 +488,42 @@
         }
       }
     },
+    "In RaceForge open Live → Pair phone with car and scan the QR code.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne in RaceForge Live → Handy mit Auto koppeln und scanne den QR-Code."
+          }
+        }
+      }
+    },
+    "In RaceForge open Live, enter the car's address and token, then click “Pair phone with car”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne in RaceForge den Live-Tab, gib Adresse und Token des Autos ein und klicke auf „Handy mit Auto koppeln“."
+          }
+        }
+      }
+    },
     "In the RaceForge app, open Team → Pair TrackScout and scan the QR code.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Öffne in der RaceForge-App Team → TrackScout koppeln und scanne den QR-Code."
+          }
+        }
+      }
+    },
+    "Invalid car address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültige Adresse des Autos"
           }
         }
       }
@@ -337,6 +539,7 @@
       }
     },
     "Keep uploading to the backend": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -362,6 +565,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laptop"
+          }
+        }
+      }
+    },
+    "Latency": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latenz"
           }
         }
       }
@@ -418,12 +631,32 @@
         }
       }
     },
+    "Measured speed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemessenes Tempo"
+          }
+        }
+      }
+    },
     "Mixed": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Gemischt"
+          }
+        }
+      }
+    },
+    "Mode": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modus"
           }
         }
       }
@@ -489,6 +722,26 @@
         }
       }
     },
+    "No car paired": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Auto gekoppelt"
+          }
+        }
+      }
+    },
+    "No events yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Ereignisse"
+          }
+        }
+      }
+    },
     "No tracks yet. Create one per corridor or course.": {
       "localizations": {
         "de": {
@@ -505,6 +758,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Notiz"
+          }
+        }
+      }
+    },
+    "Note in the run log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz ins Fahrtprotokoll"
           }
         }
       }
@@ -575,6 +838,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Offen"
+          }
+        }
+      }
+    },
+    "Or enter by hand": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oder von Hand eingeben"
+          }
+        }
+      }
+    },
+    "Pair car": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto koppeln"
           }
         }
       }
@@ -670,6 +953,16 @@
         }
       }
     },
+    "Race mode: the car refuses teleop.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Race-Modus: Das Auto lehnt Teleop ab."
+          }
+        }
+      }
+    },
     "RaceForge backend": {
       "localizations": {
         "de": {
@@ -686,6 +979,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Empfohlen"
+          }
+        }
+      }
+    },
+    "Reconnect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu verbinden"
           }
         }
       }
@@ -746,6 +1049,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aufnahmen sind groß. Hochladen über mobile Daten kann dein Datenvolumen aufbrauchen."
+          }
+        }
+      }
+    },
+    "Released": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Losgelassen"
+          }
+        }
+      }
+    },
+    "Right pad: hold to drive, up = forward. Left pad: steer. Xbox: hold RB, RT/LT, left stick, B = stop.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechtes Pad: halten zum Fahren, oben = vorwärts. Linkes Pad: lenken. Xbox: RB halten, RT/LT, linker Stick, B = Stopp."
+          }
+        }
+      }
+    },
+    "STOP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STOPP"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichern"
           }
         }
       }
@@ -860,6 +1203,26 @@
         }
       }
     },
+    "Speed limit %.2f m/s": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tempolimit %.2f m/s"
+          }
+        }
+      }
+    },
+    "State": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zustand"
+          }
+        }
+      }
+    },
     "Then TrackScout offers to send the pass to the paired laptop by cable or Bluetooth instead.": {
       "localizations": {
         "de": {
@@ -870,12 +1233,32 @@
         }
       }
     },
+    "This is not a RaceForge car code.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist kein RaceForge-Autocode."
+          }
+        }
+      }
+    },
     "This is not a RaceForge pairing code.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Das ist kein RaceForge-Kopplungscode."
+          }
+        }
+      }
+    },
+    "Token": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token"
           }
         }
       }
@@ -959,6 +1342,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Schalte Bluetooth ein, um an den Laptop zu senden."
+          }
+        }
+      }
+    },
+    "Turn the phone sideways for more room.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Handy quer halten für mehr Platz."
           }
         }
       }
@@ -1114,6 +1507,28 @@
         }
       }
     },
+    "connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verbunden"
+          }
+        }
+      }
+    },
+    "not connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nicht verbunden"
+          }
+        }
+      }
+    },
+    "ws://raceforge-car.local:8765": {},
+    "–": {},
     "…or paste the pairing link": {
       "localizations": {
         "de": {

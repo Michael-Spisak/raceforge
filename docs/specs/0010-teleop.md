@@ -1,6 +1,6 @@
 # Spec 0010: Teleop v1 — drive the sim and the real car by hand, record demonstrations
 
-- **Status:** implemented (PR) — AC5 needs the real car (owner request 2026-10-08: "mach mit Teleop weiter")
+- **Status:** implemented (A + B: PR #15, C: TrackScout drive mode) — AC5 needs the real car (owner request 2026-10-08: "mach mit Teleop weiter")
 - **Owner:** @Michael-Spisak · **Author:** Claude
 - **Plan section:** docs/PLAN.md §5 (real demonstrations), §5d (safety), §7 (live screen), milestone weeks 4–5
 - **Related:** Spec 0005 (car runtime: teleop/stop over WebSocket, dead-man 300 ms, speed limit, race mode),
@@ -29,6 +29,18 @@ dead-man, speed limit and race-mode block (spec 0005); this spec adds the operat
      relays its telemetry/events to the UI and teleop/stop/note to the car (`/api/v1/car/live` WebSocket);
      it measures the round-trip time (WebSocket ping) and warns above 100 ms. A minimal **Live** tab shows
      connection, mode, controller state, speed/steer, battery, latency, events, and hosts the teleop panel.
+  4. **TrackScout drive mode** (delivery C, owner request 2026-10-08): drive the car from TrackScout.
+     - **iPhone** (landscape, full screen): driving only — steering pad (left thumb), throttle pad (right thumb;
+       finger down = dead-man), STOP, one status line (link, state, latency).
+     - **iPad**: the same controls plus live stats (mode, state, command, measured speed, battery, loop rate,
+       latency with the 100 ms warning, faults) and the event list.
+     - Xbox controller via Apple's GameController framework (same mapping as the desktop).
+     - The phone talks **directly** to the car runtime over Wi-Fi (spec 0005 protocol, `?token=`), no laptop
+       needed; the address + token come from a QR code shown in the desktop Live tab ("Pair phone with car")
+       or are typed in. The token is stored in the Keychain.
+     - Available on devices **without LiDAR** (e.g. iPad Air); only scanning needs LiDAR.
+     - Sending stops at once (release) when the app leaves the foreground, the controller disconnects or the
+       finger lifts; the runtime's 300 ms dead-man stays the guarantee.
 - Out of scope (later): Wi-Fi deploy of bundles, the full Live tab (plots, map, layouts), Bluetooth/ESP-NOW
   transports, telemetry relay through the backend, imitation learning itself.
 
@@ -56,6 +68,11 @@ dead-man, speed limit and race-mode block (spec 0005); this spec adds the operat
       (distance increases) → release → it stops.
 - [x] AC4 (pytest, delivery B): car link against a fake car WebSocket server: telemetry forwarded, teleop/stop
       forwarded, RTT reported, connection errors reported, token passed.
+- [x] AC6 (Swift tests): drive mapping (touch pads, gamepad, dead zone, limit, STOP priority), the 50 ms send
+      loop (teleop while engaged, one release, release on background), car-link message parsing; the Swift car
+      client against the Python fake car in CI (connect with token, teleop reaches the car, stop latches).
+- [x] AC7: desktop Live tab shows a "pair phone with car" QR code `raceforge://car?v=1&d=<base64url{url,token}>`;
+      TrackScout parses it.
 - [ ] AC5 (manual, real car): Xbox controller drives the car in test mode; releasing RB stops it within 300 ms;
       the MCAP on the car contains the teleop drive.
 
