@@ -248,6 +248,7 @@ class TrackScoutPairing(ApiModel):
     token_id: str
     laptop_name: str
     workspace_id: str | None
+    warning: Literal["loopback"] | None = None  # server address only reachable on this computer
 
 
 class TokenRequest(ApiModel):

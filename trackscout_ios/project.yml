@@ -22,6 +22,7 @@ targets:
       - path: TrackScout
     dependencies:
       - package: TrackScoutKit
+    scheme: {}  # shared scheme, so `xcodebuild -scheme TrackScout` and Xcode's Run work on a fresh checkout
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(RF_BUNDLE_PREFIX).trackscout
@@ -39,6 +40,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_NSCameraUsageDescription: "TrackScout records the corridor with the camera and LiDAR."
         INFOPLIST_KEY_NSMotionUsageDescription: "TrackScout records gravity and motion to align the scan."
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "TrackScout uploads recordings to your team's RaceForge server, which can be a computer in your Wi-Fi."
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "TrackScout can send recordings to your laptop over Bluetooth."
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES

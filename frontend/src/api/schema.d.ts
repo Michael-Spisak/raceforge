@@ -1407,6 +1407,8 @@ export interface components {
             token_id: string;
             /** Url */
             url: string;
+            /** Warning */
+            warning?: "loopback" | null;
             /** Workspace Id */
             workspace_id: string | null;
         };

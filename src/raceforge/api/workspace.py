@@ -11,6 +11,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import segno  # pyright: ignore[reportMissingTypeStubs]
 
@@ -165,6 +166,10 @@ class WorkspaceApi:
         status = self.ws.status()
         if status.server_url is None:
             raise BackendError(409, "log in first")
+        host = urlsplit(status.server_url).hostname or ""
+        warning = None
+        if host == "localhost" or host == "::1" or host.startswith("127."):
+            warning = "loopback"  # the phone cannot reach this address (UI explains --lan)
         laptop = socket.gethostname().removesuffix(".local")
         token = self.ws.client().create_token(
             f"TrackScout ({laptop}, {datetime.now(UTC):%Y-%m-%d})", ["read", "edit"], "trackscout"
@@ -186,6 +191,7 @@ class WorkspaceApi:
             token_id=token.id,
             laptop_name=laptop,
             workspace_id=self.ws.workspace_id,
+            warning=warning,
         )
 
     def invites(self) -> list[InviteInfo]:

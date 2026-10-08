@@ -32,6 +32,7 @@ def test_pair_trackscout(env: Env, team: Team, tmp_path: Path, cat: Catalogue) -
     engine, wsapi = _engine(env, tmp_path, cat)
     r = engine.post("/api/v1/workspace/pair-trackscout").json()
     assert r["qr_svg"].startswith("<svg") and r["url"].startswith("raceforge://pair?v=1&d=")
+    assert r["warning"] is None
     data = r["url"].split("d=", 1)[1]
     payload = json.loads(base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)))
     assert payload["server"] == "http://b" and payload["workspace_id"] == team.ws
@@ -66,3 +67,13 @@ def test_capture_versions_list_all_passes(
     blob = other.ws.blob(content["files"][1]["sha256"])
     with TscanPass(blob) as p:
         assert p.summary()["frames"] == 20
+
+
+def test_pairing_warns_when_the_phone_cannot_reach_the_backend(
+    env: Env, team: Team, tmp_path: Path, cat: Catalogue
+) -> None:
+    wsapi = WorkspaceApi(cat, tmp_path / "ws", factory(env.client.app, Net()))
+    engine = TestClient(create_app(Engine(cat), frontend_dist=None, workspace=wsapi))
+    login = {"server_url": "http://127.0.0.1:8080", "username": "anna", "password": MEMBER_PW}
+    assert engine.post("/api/v1/workspace/login", json=login).status_code == 200
+    assert engine.post("/api/v1/workspace/pair-trackscout").json()["warning"] == "loopback"
