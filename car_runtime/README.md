@@ -8,6 +8,7 @@ The team's Python controllers run unchanged in a separate host process (ADR-0014
 | `rf-proto` | Wire protocols: EV3 frames, LD06 LiDAR packets, controller IPC |
 | `rf-core` | Control loop, per-step deadline + watchdog, safety limits, controller link |
 | `rf-ev3` | EV3 link over UDP (USB-Ethernet gadget) |
+| `rf-lidar` | LD06/LD19 LiDAR UART driver |
 | `rf-log` | MCAP logging (same `/telemetry` schema as the simulator) |
 | `rf-runtime` | The `rf-runtime` binary: runs a deploy bundle |
 
@@ -44,6 +45,9 @@ The EV3 side lives in [`../ev3_side`](../ev3_side/README.md).
    ```
    The runtime checks every bundle file's SHA-256, waits for the EV3 link, starts the controller host
    and logs to `logs/run-<time>-<name>.mcap`. `--ticks N` stops after N control steps.
+
+With a `lidar` section in the bundle (`LidarSpec`: device, mount offset, policy `critical` or
+`optional`), the runtime also waits for the first LiDAR scan.
 
 Race mode is refused until the radio check (AC5) exists. Stopping the process (Ctrl-C/kill) is safe:
 the EV3 brakes after 150 ms without frames and the log stays readable up to the last record.
