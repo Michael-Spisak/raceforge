@@ -36,6 +36,21 @@ usage() { sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; }
 log() { printf '[setup-board] %s\n' "$*"; }
 die() { printf '[setup-board] error: %s\n' "$*" >&2; exit 1; }
 
+# Edit a file with sed, portably (BSD/macOS sed has no GNU-style `-i`). Writing back with `cat`
+# keeps the file's owner and permissions. Usage: sed_file FILE SED-ARGS...
+sed_file() {
+    local f="$1"
+    shift
+    sed "$@" "$f" > "$f.raceforge.tmp"
+    cat "$f.raceforge.tmp" > "$f"
+    rm -f "$f.raceforge.tmp"
+}
+
+# Keep the first original of a file we edit (never overwrite an existing backup).
+backup_once() {
+    [ -e "$1.raceforge.bak" ] || cp "$1" "$1.raceforge.bak"
+}
+
 # Run a command, or print it in test mode.
 run() {
     if [ "$TEST" = 1 ]; then
@@ -94,12 +109,12 @@ if [ -d "$ROOT/etc/systemd/zram-generator.conf.d" ] || [ -f "$ROOT/etc/systemd/z
     log "zram-generator disabled"
 fi
 if [ -f "$ROOT/etc/default/armbian-zram-config" ]; then
-    sed -i 's/^#\{0,1\}ENABLED=.*/ENABLED=false/' "$ROOT/etc/default/armbian-zram-config"
+    sed_file "$ROOT/etc/default/armbian-zram-config" 's/^#\{0,1\}ENABLED=.*/ENABLED=false/'
     log "armbian zram disabled"
 fi
 if [ -f "$ROOT/etc/fstab" ] && grep -Eq '^[^#].*[[:space:]]swap[[:space:]]' "$ROOT/etc/fstab"; then
-    cp -n "$ROOT/etc/fstab" "$ROOT/etc/fstab.raceforge.bak"
-    sed -i -E 's/^([^#].*[[:space:]]swap[[:space:]].*)$/# raceforge: swap off (ADR-0016) # \1/' "$ROOT/etc/fstab"
+    backup_once "$ROOT/etc/fstab"
+    sed_file "$ROOT/etc/fstab" -E 's/^([^#].*[[:space:]]swap[[:space:]].*)$/# raceforge: swap off (ADR-0016) # \1/'
     log "swap entries in /etc/fstab commented out"
 fi
 
@@ -156,7 +171,7 @@ if [ -f "$ROOT/boot/firmware/cmdline.txt" ] || [ -f "$ROOT/boot/cmdline.txt" ]; 
     old="$(head -n1 "$f")"
     new="$(set_args_line "$old")"
     if [ "$old" != "$new" ]; then
-        cp -n "$f" "$f.raceforge.bak"
+        backup_once "$f"
         printf '%s\n' "$new" > "$f"
         REBOOT=1
         log "kernel arguments in ${f#"$ROOT"}: $ARGS"
@@ -167,9 +182,9 @@ elif [ -f "$ROOT/boot/armbianEnv.txt" ]; then
     old="$(sed -n 's/^extraargs=//p' "$f" | head -n1)"
     new="$(set_args_line "$old")"
     if [ "$old" != "$new" ]; then
-        cp -n "$f" "$f.raceforge.bak"
+        backup_once "$f"
         if grep -q '^extraargs=' "$f"; then
-            sed -i "s|^extraargs=.*|extraargs=$new|" "$f"
+            sed_file "$f" "s|^extraargs=.*|extraargs=$new|"
         else
             printf 'extraargs=%s\n' "$new" >> "$f"
         fi
