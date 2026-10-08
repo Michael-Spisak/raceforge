@@ -16,6 +16,7 @@ from raceforge.car.bundle import (
     RuntimeSpec,
     TelemetrySpec,
     build_bundle,
+    bundle_digest,
     load_manifest,
     verify_bundle,
 )
@@ -55,6 +56,15 @@ def test_build_copies_files_and_hashes(tmp_path: Path) -> None:
         "test_speed_limit_m_s": None,
         "radio_usb_ids": [],
     }
+
+
+def test_bundle_digest_identifies_the_whole_bundle(tmp_path: Path) -> None:
+    import hashlib
+
+    # The manifest lists every file's hash, so its own hash identifies the whole bundle.
+    build_bundle(tmp_path / "b", TEMPLATES / "wall_follow.py", ROBOT, EV3)
+    digest = bundle_digest(tmp_path / "b")
+    assert digest == hashlib.sha256((tmp_path / "b" / MANIFEST).read_bytes()).hexdigest()
 
 
 def test_tampered_or_missing_file_is_detected(tmp_path: Path) -> None:
