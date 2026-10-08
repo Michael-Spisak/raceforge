@@ -92,3 +92,20 @@ def test_not_a_tscan(tmp_path: Path) -> None:
         z.writestr("manifest.json", '{"schema": "tscan", "schema_version": 9}')
     with pytest.raises(TscanError, match="version 9"):
         TscanPass(tmp_path / "y.tscan")
+
+
+def test_capture_slug_matches_trackscout() -> None:
+    from raceforge.cli import _capture_slug  # pyright: ignore[reportPrivateUsage]
+
+    # Same expectations as TrackScoutKit's captureSlug (RecorderTests.swift) + case folding.
+    assert _capture_slug("Gang 2. Stock \u2013 Süd") == "scan-gang-2-stock-sud"
+    assert _capture_slug("!!!") == "scan-track"
+    assert _capture_slug("Straße") == "scan-strasse"
+    assert len(_capture_slug("a" * 100)) <= 63
+
+
+def test_discarded_time_overlaps_and_clamps() -> None:
+    from raceforge.capture.tscan import _covered  # pyright: ignore[reportPrivateUsage]
+
+    assert _covered([(1.0, 3.0), (2.0, 4.0)], 0.0, 10.0) == 3.0
+    assert _covered([(-1.0, 1.0), (9.0, 12.0)], 0.0, 10.0) == 2.0

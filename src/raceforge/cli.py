@@ -253,8 +253,11 @@ def _capture_slug(project: str) -> str:
     import re
     import unicodedata
 
-    ascii_name = unicodedata.normalize("NFKD", project).encode("ascii", "ignore").decode().lower()
-    core = re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-") or "track"
+    # Swift's `folding([.diacriticInsensitive, .caseInsensitive])`: case-fold (ß → ss, ﬁ → fi)
+    # and drop accents; any other non-ASCII character becomes a separator.
+    folded = unicodedata.normalize("NFD", project.casefold())
+    folded = "".join(ch for ch in folded if unicodedata.category(ch) != "Mn")
+    core = re.sub(r"[^a-z0-9]+", "-", folded).strip("-") or "track"
     return f"scan-{core}"[:63].rstrip("-")
 
 
