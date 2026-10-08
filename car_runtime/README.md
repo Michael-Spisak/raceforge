@@ -58,7 +58,9 @@ stopped). The resume is refused while the e-stop is pressed or a link is lost. A
 only other way out of a fault.
 
 With a `lidar` section in the bundle (`LidarSpec`: device, mount offset, policy `critical` or
-`optional`), the runtime also waits for the first LiDAR scan.
+`optional`), the runtime also waits for the first LiDAR scan. If the scan angle stops advancing
+(e.g. a stalled scan motor), revolutions are dropped at 2,000 points instead of growing in memory;
+no new scan arrives, so the LiDAR goes stale and its policy applies.
 
 On the board, `rf-runtime` runs as the systemd service in [`deploy/rf-runtime.service`](deploy/rf-runtime.service),
 installed with `sudo deploy/setup-board.sh --binary rf-runtime --python-pkg <wheel>` (Raspberry Pi OS or

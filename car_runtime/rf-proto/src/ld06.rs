@@ -147,11 +147,20 @@ impl Revolution {
     }
 }
 
+/// Most points one revolution may collect. A real one has about 450 (4500 points/s at 10 Hz) and
+/// about 900 at the slowest scan rate; more means the angle is not advancing (e.g. a stalled scan
+/// motor), so the revolution is dropped instead of growing without bound.
+pub const MAX_REVOLUTION_POINTS: usize = 2000;
+
 /// Collects packets into revolutions; a revolution ends when the angle wraps past zero.
 #[derive(Debug, Default)]
 pub struct RevolutionBuilder {
     current: Vec<Point>,
     last_angle: Option<u16>,
+    /// After a dropped revolution the next one starts mid-way: discard it as well.
+    resync: bool,
+    /// Revolutions dropped because they exceeded [`MAX_REVOLUTION_POINTS`].
+    pub dropped: u64,
 }
 
 impl RevolutionBuilder {
@@ -159,16 +168,29 @@ impl RevolutionBuilder {
         Self::default()
     }
 
+    /// Points collected for the revolution in progress.
+    pub fn pending_points(&self) -> usize {
+        self.current.len()
+    }
+
     pub fn push(&mut self, packet: &Packet) -> Option<Revolution> {
         let mut done = None;
         for p in &packet.points {
             if let Some(last) = self.last_angle {
                 if p.angle_cdeg < last && !self.current.is_empty() {
-                    done = Some(Revolution {
-                        points: std::mem::take(&mut self.current),
-                        timestamp_ms: packet.timestamp_ms,
-                    });
+                    let points = std::mem::take(&mut self.current);
+                    if !std::mem::take(&mut self.resync) {
+                        done = Some(Revolution {
+                            points,
+                            timestamp_ms: packet.timestamp_ms,
+                        });
+                    }
                 }
+            }
+            if self.current.len() == MAX_REVOLUTION_POINTS {
+                self.current.clear();
+                self.dropped += 1;
+                self.resync = true;
             }
             self.last_angle = Some(p.angle_cdeg);
             self.current.push(*p);
@@ -286,6 +308,33 @@ mod tests {
         assert!(a
             .iter()
             .all(|x| *x > -std::f64::consts::PI - 1e-12 && *x <= std::f64::consts::PI));
+    }
+
+    #[test]
+    fn stuck_angle_is_bounded_then_resyncs() {
+        // A stalled scan motor keeps reporting the same angle: the angle never wraps, so no
+        // revolution ends. Memory must stay bounded and the partial data is dropped.
+        let stuck = Packet::decode(&encode(0, 1000, 1000, 0, &[(500, 100); 12])).expect("decodes");
+        let mut b = RevolutionBuilder::new();
+        for _ in 0..10_000 {
+            assert_eq!(b.push(&stuck), None);
+            assert!(b.pending_points() <= MAX_REVOLUTION_POINTS);
+        }
+        assert_eq!(b.dropped, 10_000 * 12 / (MAX_REVOLUTION_POINTS + 1) as u64);
+
+        // The motor recovers: the revolution in progress started mid-way and is discarded; the
+        // next full revolution is reported as usual.
+        let mut revs = Vec::new();
+        for k in 0..60u32 {
+            let start = (k * 1200 % 36000) as u16;
+            let end = ((k * 1200 + 1100) % 36000) as u16;
+            let p = Packet::decode(&encode(3600, start, end, k as u16, &[(500, 100); 12]))
+                .expect("decodes");
+            revs.extend(b.push(&p));
+        }
+        assert_eq!(revs.len(), 1);
+        assert_eq!(revs[0].points.len(), 30 * 12);
+        assert_eq!(revs[0].points[0].angle_cdeg, 0);
     }
 
     proptest! {
