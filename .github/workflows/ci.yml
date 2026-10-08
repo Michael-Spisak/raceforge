@@ -154,6 +154,26 @@ jobs:
           PYTHONPATH=src uv run raceforge parts build-catalogue
           git diff --exit-code src/raceforge/parts/data/bboxes.yaml
 
+  trackscout:
+    # Spec 0007 AC1–AC3: TrackScoutKit unit tests, unsigned simulator build, Swift → Python .tscan contract.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: sh scripts/trackscout_free_check.sh
+      - run: swift test
+        working-directory: trackscout_ios/TrackScoutKit
+      - run: swift run tscan-synth "$RUNNER_TEMP/synthetic.tscan"
+        working-directory: trackscout_ios/TrackScoutKit
+      - run: RF_TSCAN_FIXTURE="$RUNNER_TEMP/synthetic.tscan" PYTHONPATH=src uv run pytest tests/capture --no-cov -q
+      - run: brew install xcodegen
+      - run: |
+          xcodegen generate
+          xcodebuild -project TrackScout.xcodeproj -scheme TrackScout \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build -quiet
+        working-directory: trackscout_ios
+
   slow-acceptance:
     # Spec 0004 AC2: templates complete 3 laps on 20 generated corridors.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

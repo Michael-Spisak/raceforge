@@ -275,6 +275,7 @@ struct CameraView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(capture: capture) }
 
+    @objc(TSCameraViewCoordinator)
     final class Coordinator: NSObject {
         let capture: CaptureController
         var stopped = false
