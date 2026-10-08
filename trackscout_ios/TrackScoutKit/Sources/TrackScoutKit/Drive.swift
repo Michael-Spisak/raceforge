@@ -298,21 +298,48 @@ public final class CarLink: NSObject, @unchecked Sendable, URLSessionWebSocketDe
             case .success:
                 self.receive(task)
             case .failure(let error):
-                self.onClose(error.localizedDescription)
+                self.finish(task, error.localizedDescription)
             }
         }
     }
 
+    /// Ends `task` once if it is still the current connection: `onClose` fires exactly once, and never for
+    /// a connection that a newer `connect` already replaced.
+    private func finish(_ task: URLSessionWebSocketTask, _ reason: String?) {
+        let current = lock.withLock { () -> Bool in
+            guard self.task === task else { return false }
+            self.task = nil
+            return true
+        }
+        guard current else { return }
+        task.cancel(with: .goingAway, reason: nil)
+        onClose(reason)
+    }
+
+    static let pongTimeout: TimeInterval = 3
+
     private func ping(_ task: URLSessionWebSocketTask) {
         let t0 = Date()
+        let answered = NSLock()
+        var gotPong = false
         task.sendPing { [weak self] error in
-            guard let self, error == nil, self.lock.withLock({ self.task === task }) else { return }
+            answered.withLock { gotPong = true }
+            guard let self, self.lock.withLock({ self.task === task }) else { return }
+            guard error == nil else {
+                self.finish(task, String(localized: "car stopped answering"))
+                return
+            }
             self.onRTT(Date().timeIntervalSince(t0) * 1000)
             DispatchQueue.global().asyncAfter(deadline: .now() + 1) { [weak self] in self?.ping(task) }
+        }
+        // A silently dropped Wi-Fi link never answers: report it instead of showing a stale RTT.
+        DispatchQueue.global().asyncAfter(deadline: .now() + Self.pongTimeout) { [weak self] in
+            if !answered.withLock({ gotPong }) { self?.finish(task, String(localized: "car stopped answering")) }
         }
     }
 
     public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
+        guard lock.withLock({ task === webSocketTask }) else { return }
         onOpen()
     }
 
@@ -320,6 +347,6 @@ public final class CarLink: NSObject, @unchecked Sendable, URLSessionWebSocketDe
         _ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
         reason: Data?
     ) {
-        onClose(reason.flatMap { String(data: $0, encoding: .utf8) } ?? "closed (\(closeCode.rawValue))")
+        finish(webSocketTask, reason.flatMap { String(data: $0, encoding: .utf8) } ?? "closed (\(closeCode.rawValue))")
     }
 }
