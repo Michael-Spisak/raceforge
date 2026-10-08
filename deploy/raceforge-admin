@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Operate the RaceForge backend on the Proxmox VM (spec 0006 §10). Run from anywhere:
+#   deploy/raceforge-admin up | status | bootstrap-admin USER | update VERSION [--yes] [--no-pull]
+#                          backup | restore [SNAPSHOT] | purge-trash | logs
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="${RF_ENV_FILE:-$DIR/.env}"
+[ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE (copy .env.example)" >&2; exit 1; }
+set -a
+# shellcheck disable=SC1090
+. "$ENV_FILE"
+set +a
+COMPOSE=(docker compose --project-directory "$DIR" -f "$DIR/compose.yaml" --env-file "$ENV_FILE")
+STAGING_VOLUME="${COMPOSE_PROJECT_NAME:-raceforge}_backup-staging"
+
+compose() { "${COMPOSE[@]}" "$@"; }
+
+set_env() {  # set_env KEY VALUE: rewrite one line of the .env file
+  if grep -q "^$1=" "$ENV_FILE"; then
+    sed -i.bak "s|^$1=.*|$1=$2|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  else
+    printf '%s=%s\n' "$1" "$2" >>"$ENV_FILE"
+  fi
+  export "$1=$2"
+}
+
+wait_healthy() {  # wait_healthy SERVICE
+  local id status
+  for _ in $(seq 1 90); do
+    id="$(compose ps -q "$1")"
+    status="$(docker inspect --format '{{.State.Health.Status}}' "$id" 2>/dev/null || true)"
+    [ "$status" = healthy ] && return 0
+    sleep 1
+  done
+  echo "$1 did not become healthy" >&2
+  compose logs --tail 50 "$1" >&2
+  return 1
+}
+
+restic_run() {  # restic in a container; a local repository path is mounted at the same path
+  local mounts=(-v "$STAGING_VOLUME:/staging")
+  case "${RESTIC_REPOSITORY:?set RESTIC_REPOSITORY}" in
+    /*) mkdir -p "$RESTIC_REPOSITORY"; mounts+=(-v "$RESTIC_REPOSITORY:$RESTIC_REPOSITORY") ;;
+  esac
+  docker run --rm --network host "${mounts[@]}" -e RESTIC_REPOSITORY -e RESTIC_PASSWORD \
+    -e RESTIC_REST_USERNAME -e RESTIC_REST_PASSWORD restic/restic:0.18.1 "$@"
+}
+
+cmd="${1:-help}"
+shift || true
+case "$cmd" in
+  up)
+    compose up -d --wait "$@"
+    ;;
+  status)
+    compose ps
+    curl -fsS "http://127.0.0.1:${RF_HTTP_PORT:-80}/api/v1/status" -H "Host: localhost" && echo
+    ;;
+  logs)
+    compose logs --tail 100 -f "$@"
+    ;;
+  bootstrap-admin)
+    user="${1:?usage: bootstrap-admin USERNAME}"
+    compose exec -e RF_ADMIN_PASSWORD api-blue raceforge backend bootstrap-admin --username "$user"
+    ;;
+  purge-trash)  # run daily from cron
+    compose exec -T api-blue raceforge backend purge-trash
+    ;;
+  update)
+    version="${1:?usage: update VERSION [--yes] [--no-pull]}"
+    shift
+    yes=0 pull=1
+    for a in "$@"; do
+      case "$a" in --yes) yes=1 ;; --no-pull) pull=0 ;; *) echo "unknown option $a" >&2; exit 2 ;; esac
+    done
+    if [ "$yes" = 0 ]; then
+      echo "Take a Proxmox snapshot of this VM first (rollback = restore it, or update to the old version)."
+      read -r -p "Snapshot taken? [y/N] " ok
+      [ "$ok" = y ] || exit 1
+    fi
+    old_blue="${RF_TAG_BLUE:-dev}"
+    if [ "$pull" = 1 ]; then RF_TAG_GREEN="$version" compose pull migrate; fi
+    # 1. expand migrations (old and new code both work with the new schema)
+    RF_TAG_GREEN="$version" compose run --rm migrate
+    # 2. green → new version, wait until healthy (blue keeps serving)
+    set_env RF_TAG_GREEN "$version"
+    compose up -d --no-deps api-green
+    wait_healthy api-green
+    # 3. blue → new version (green serves meanwhile)
+    set_env RF_TAG_BLUE "$version"
+    compose up -d --no-deps api-blue
+    wait_healthy api-blue
+    echo "updated $old_blue → $version"
+    ;;
+  backup)  # nightly from cron; staging lives in the backup-staging volume (/backup in containers)
+    compose exec -T -u 0 postgres sh -c \
+      'pg_dump -U raceforge -d raceforge -Fc -f /backup/db.dump.tmp && mv /backup/db.dump.tmp /backup/db.dump'
+    compose exec -T -u 0 api-blue raceforge backend export-blobs /backup/blobs
+    restic_run cat config >/dev/null 2>&1 || restic_run init
+    restic_run backup --host raceforge --exclude /staging/restore /staging
+    restic_run forget --host raceforge --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+    ;;
+  restore)
+    snapshot="${1:-latest}"
+    compose up -d --wait postgres s3
+    compose stop api-blue api-green
+    compose run --rm --no-deps -u 0 --entrypoint sh api-blue -c 'rm -rf /backup/restore'
+    restic_run restore "$snapshot" --target /staging/restore
+    compose exec -T postgres pg_restore -U raceforge -d raceforge --clean --if-exists --no-owner \
+      /backup/restore/staging/db.dump
+    compose run --rm --no-deps -u 0 api-blue raceforge backend import-blobs /backup/restore/staging/blobs
+    compose up -d --wait api-blue api-green caddy
+    echo "restored snapshot $snapshot"
+    ;;
+  *)
+    sed -n '2,4p' "$0"
+    ;;
+esac

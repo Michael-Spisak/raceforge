@@ -8,8 +8,8 @@ Detail questions are asked just-in-time while writing each spec.
 | 0001 | Core schemas (vehicle/assembly, track, run log, telemetry frame) | 1–2 | implemented (PR) |
 | 0002 | Parametric quick-start (real LEGO parts) → MJCF | 2 | implemented (PR) |
 | 0003 | Sim runtime: sensors, procedural corridors, multi-car worlds, MCAP recording | 2–3 | implemented (PR) |
-| 0004 | RobotIO + controller SDK (for Java/C# devs) | 2–3 | approved |
-| 0005 | car_runtime (Rust core) + EV3 serial bridge + safety | 2–3 | to write |
-| 0006 | Backend v1 (auth, versions, blobs, sync) | 2–3 | to write |
+| 0004 | RobotIO + controller SDK (for Java/C# devs) | 2–3 | implemented |
+| 0005 | car_runtime (Rust core) + EV3 serial bridge + safety | 2–3 | implemented |
+| 0006 | Backend v1 (auth, versions, blobs, sync) | 2–3 | implemented (PR) |
 | 0007 | TrackScout v1 (recording, pause/continue, .tscan) | 2–3 | to write |
 | 0008 | Frontend shell v1 (engine API, Electron, parts, construct, simulate, replay) | 2–3 | implemented (PR) |

@@ -160,16 +160,362 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Conflicts */
+        get: operations["ws_conflicts_api_v1_workspace_conflicts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Invites */
+        get: operations["ws_invites_api_v1_workspace_invites_get"];
+        put?: never;
+        /** Ws Invite */
+        post: operations["ws_invite_api_v1_workspace_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Login */
+        post: operations["ws_login_api_v1_workspace_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Logout */
+        post: operations["ws_logout_api_v1_workspace_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/objects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Objects */
+        get: operations["ws_objects_api_v1_workspace_objects_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/objects/{object_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws History */
+        get: operations["ws_history_api_v1_workspace_objects__object_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Register */
+        post: operations["ws_register_api_v1_workspace_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/save/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Save Files */
+        post: operations["ws_save_files_api_v1_workspace_save_files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/save/quickstart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Save Quickstart */
+        post: operations["ws_save_quickstart_api_v1_workspace_save_quickstart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Select */
+        post: operations["ws_select_api_v1_workspace_select_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Status */
+        get: operations["ws_status_api_v1_workspace_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Sync */
+        post: operations["ws_sync_api_v1_workspace_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Tokens */
+        get: operations["ws_tokens_api_v1_workspace_tokens_get"];
+        put?: never;
+        /** Ws Token */
+        post: operations["ws_token_api_v1_workspace_tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/tokens/{token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Ws Revoke */
+        delete: operations["ws_revoke_api_v1_workspace_tokens__token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/totp/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Totp Setup */
+        post: operations["ws_totp_setup_api_v1_workspace_totp_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/totp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Totp Verify */
+        post: operations["ws_totp_verify_api_v1_workspace_totp_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/versions/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Version */
+        get: operations["ws_version_api_v1_workspace_versions__version_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws List */
+        get: operations["ws_list_api_v1_workspace_workspaces_get"];
+        put?: never;
+        /** Ws Create */
+        post: operations["ws_create_api_v1_workspace_workspaces_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApiTokenInfo */
+        ApiTokenInfo: {
+            /** Client */
+            client: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Id */
+            id: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Name */
+            name: string;
+            /** Revoked */
+            revoked: boolean;
+            /** Scopes */
+            scopes: components["schemas"]["Scope"][];
+            /** Token */
+            token?: string | null;
+            /** User */
+            user: string;
+        };
         /** CarScene */
         CarScene: {
             /** Bodies */
             bodies: components["schemas"]["SceneBody"][];
             /** Name */
             name: string;
+        };
+        /** Conflict */
+        Conflict: {
+            /** Object Id */
+            object_id: string;
+            /** Parent */
+            parent: string | null;
+            /** Slug */
+            slug: string;
+            /** Versions */
+            versions: components["schemas"]["LocalVersion"][];
         };
         /** ControllerInfo */
         ControllerInfo: {
@@ -365,11 +711,90 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** InviteInfo */
+        InviteInfo: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Id */
+            id: string;
+            /** Link */
+            link?: string | null;
+            role: components["schemas"]["Role"];
+            /** Token */
+            token?: string | null;
+            /** Used At */
+            used_at: string | null;
+        };
+        /** InviteRequest */
+        InviteRequest: {
+            /**
+             * Role
+             * @default member
+             * @enum {string}
+             */
+            role: "member" | "admin";
+        };
         /**
          * Layout
          * @enum {string}
          */
         Layout: "rwd" | "awd" | "fwd";
+        /** LocalObject */
+        LocalObject: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            latest: components["schemas"]["LocalVersion"] | null;
+            /** Pending */
+            pending: boolean;
+            /** Slug */
+            slug: string;
+            /** Tags */
+            tags: string[];
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** LocalVersion */
+        LocalVersion: {
+            /** Author */
+            author: string;
+            /** Branch */
+            branch: boolean;
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error?: string | null;
+            /** Id */
+            id: string;
+            /** Message */
+            message: string;
+            /** Name */
+            name: string | null;
+            /** Object Id */
+            object_id: string;
+            /** Parents */
+            parents: string[];
+            /** Pending */
+            pending: boolean;
+            /** Semver */
+            semver: string | null;
+        };
         /** PartSummary */
         PartSummary: {
             /** Category */
@@ -590,6 +1015,42 @@ export interface components {
             /** Wall Contacts */
             wall_contacts: number;
         };
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "admin" | "member";
+        /** SaveFiles */
+        SaveFiles: {
+            /**
+             * Kind
+             * @default controller
+             * @enum {string}
+             */
+            kind: "controller" | "dataset" | "model" | "capture" | "bundle";
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+            /** Paths */
+            paths: string[];
+            /** Slug */
+            slug: string;
+        };
+        /** SaveQuickstart */
+        SaveQuickstart: {
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+            /** Name */
+            name?: string | null;
+            params: components["schemas"]["QuickStartParams"];
+            /** Slug */
+            slug: string;
+        };
         /** SceneBody */
         SceneBody: {
             /** Name */
@@ -651,6 +1112,11 @@ export interface components {
                 number
             ];
         };
+        /**
+         * Scope
+         * @enum {string}
+         */
+        Scope: "read" | "sim_train" | "edit" | "admin";
         /** SensorSpec */
         SensorSpec: {
             /**
@@ -736,6 +1202,53 @@ export interface components {
              */
             type: "start";
         };
+        /** SyncResult */
+        SyncResult: {
+            /**
+             * Conflicts
+             * @default []
+             */
+            conflicts: components["schemas"]["Conflict"][];
+            /**
+             * Errors
+             * @default []
+             */
+            errors: string[];
+            /**
+             * Pulled
+             * @default 0
+             */
+            pulled: number;
+            /**
+             * Pushed
+             * @default 0
+             */
+            pushed: number;
+        };
+        /** TokenRequest */
+        TokenRequest: {
+            /**
+             * Client
+             * @default desktop
+             */
+            client: string;
+            /** Name */
+            name: string;
+            /** Scopes */
+            scopes: ("read" | "sim_train" | "edit" | "admin")[];
+        };
+        /** TotpCode */
+        TotpCode: {
+            /** Code */
+            code: string;
+        };
+        /** TotpSetup */
+        TotpSetup: {
+            /** Secret */
+            secret: string;
+            /** Uri */
+            uri: string;
+        };
         /** UltrasonicView */
         UltrasonicView: {
             /** Direction */
@@ -752,6 +1265,18 @@ export interface components {
             ];
             /** Value */
             value: number | null;
+        };
+        /** UserInfo */
+        UserInfo: {
+            /** Display Name */
+            display_name: string;
+            /** Id */
+            id: string;
+            role: components["schemas"]["Role"];
+            /** Totp Enabled */
+            totp_enabled: boolean;
+            /** Username */
+            username: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -772,6 +1297,72 @@ export interface components {
             code: string;
             /** Message */
             message: string;
+        };
+        /** WorkspaceInfo */
+        WorkspaceInfo: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** WorkspaceLogin */
+        WorkspaceLogin: {
+            /** Password */
+            password: string;
+            /** Server Url */
+            server_url: string;
+            /** Totp */
+            totp?: string | null;
+            /** Username */
+            username: string;
+        };
+        /** WorkspaceName */
+        WorkspaceName: {
+            /** Name */
+            name: string;
+        };
+        /** WorkspaceRegister */
+        WorkspaceRegister: {
+            /** Display Name */
+            display_name: string;
+            /**
+             * Invite
+             * @description invite link or token
+             */
+            invite: string;
+            /** Password */
+            password: string;
+            /** Server Url */
+            server_url: string;
+            /** Username */
+            username: string;
+        };
+        /** WorkspaceSelect */
+        WorkspaceSelect: {
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** WorkspaceStatus */
+        WorkspaceStatus: {
+            /** Conflicts */
+            conflicts: number;
+            /** Last Sync */
+            last_sync: string | null;
+            /** Logged In */
+            logged_in: boolean;
+            /** Online */
+            online: boolean;
+            /** Pending */
+            pending: number;
+            /** Server Url */
+            server_url: string | null;
+            user: components["schemas"]["UserInfo"] | null;
+            workspace: components["schemas"]["WorkspaceInfo"] | null;
         };
     };
     responses: never;
@@ -1035,6 +1626,598 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimProtocol"];
+                };
+            };
+        };
+    };
+    ws_conflicts_api_v1_workspace_conflicts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conflict"][];
+                };
+            };
+        };
+    };
+    ws_invites_api_v1_workspace_invites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteInfo"][];
+                };
+            };
+        };
+    };
+    ws_invite_api_v1_workspace_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_login_api_v1_workspace_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceLogin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_logout_api_v1_workspace_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceStatus"];
+                };
+            };
+        };
+    };
+    ws_objects_api_v1_workspace_objects_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalObject"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_history_api_v1_workspace_objects__object_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                object_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalVersion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_register_api_v1_workspace_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceRegister"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_save_files_api_v1_workspace_save_files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFiles"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalVersion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_save_quickstart_api_v1_workspace_save_quickstart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveQuickstart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalVersion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_select_api_v1_workspace_select_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceSelect"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_status_api_v1_workspace_status_get: {
+        parameters: {
+            query?: {
+                probe?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_sync_api_v1_workspace_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncResult"];
+                };
+            };
+        };
+    };
+    ws_tokens_api_v1_workspace_tokens_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenInfo"][];
+                };
+            };
+        };
+    };
+    ws_token_api_v1_workspace_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_revoke_api_v1_workspace_tokens__token_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_totp_setup_api_v1_workspace_totp_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TotpSetup"];
+                };
+            };
+        };
+    };
+    ws_totp_verify_api_v1_workspace_totp_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotpCode"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_version_api_v1_workspace_versions__version_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_list_api_v1_workspace_workspaces_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInfo"][];
+                };
+            };
+        };
+    };
+    ws_create_api_v1_workspace_workspaces_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceName"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

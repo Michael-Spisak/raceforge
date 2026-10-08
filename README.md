@@ -31,6 +31,12 @@ For real LEGO geometry download the LDraw library once: `PYTHONPATH=src uv run r
 UI development with hot reload: run `PYTHONPATH=src uv run raceforge ui` and, in `frontend/`, `npm run dev`
 (http://localhost:5173 proxies the engine).
 
+### Team backend
+The shared backend (accounts, versions, files, sync) runs with Docker Compose on a server:
+see [deploy/README.md](deploy/README.md). For a quick local test:
+`PYTHONPATH=src uv run raceforge backend dev --admin admin:some-password`, then log in on the **Team** tab
+with server address `http://127.0.0.1:8080`.
+
 Rules for contributors and AI agents: [AGENTS.md](AGENTS.md).
 
 ## License

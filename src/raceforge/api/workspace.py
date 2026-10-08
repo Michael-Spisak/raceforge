@@ -7,7 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from raceforge.api.models import SaveFiles, SaveQuickstart, WorkspaceLogin, WorkspaceRegister
-from raceforge.backend.models import ApiTokenInfo, InviteInfo, UserInfo, WorkspaceInfo
+from raceforge.backend.models import (
+    ApiTokenInfo,
+    InviteInfo,
+    TotpSetup,
+    UserInfo,
+    WorkspaceInfo,
+)
 from raceforge.construct.quickstart import generate
 from raceforge.core.io import to_jsonable
 from raceforge.parts.catalogue import Catalogue
@@ -110,6 +116,12 @@ class WorkspaceApi:
         if missing:
             raise FileNotFoundError(", ".join(missing))
         return self.ws.save_files(req.kind, req.slug, paths, req.message)
+
+    def totp_setup(self) -> TotpSetup:
+        return self.ws.client().totp_setup()
+
+    def totp_verify(self, code: str) -> UserInfo:
+        return self.ws.totp_verify(code)
 
     def invites(self) -> list[InviteInfo]:
         return self.ws.client().invites()

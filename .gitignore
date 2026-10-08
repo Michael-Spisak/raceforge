@@ -43,3 +43,4 @@ MUJOCO_LOG.TXT
 .raceforge-backend/
 raceforge-backend.db
 raceforge-blobs/
+!.env.example

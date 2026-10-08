@@ -38,7 +38,14 @@ from raceforge.api.models import (
 from raceforge.api.service import Engine
 from raceforge.api.sim_session import SimSession
 from raceforge.api.workspace import WorkspaceApi
-from raceforge.backend.models import ApiTokenInfo, InviteInfo, UserInfo, WorkspaceInfo
+from raceforge.backend.models import (
+    ApiTokenInfo,
+    InviteInfo,
+    TotpCode,
+    TotpSetup,
+    UserInfo,
+    WorkspaceInfo,
+)
 from raceforge.construct.quickstart import QuickStartParams
 from raceforge.parts.ldraw import library_dir
 from raceforge.track.procedural import CorridorParams
@@ -234,6 +241,14 @@ def create_app(
             return ws().save_files(req)
         except FileNotFoundError as exc:
             raise HTTPException(404, f"no such file: {exc}") from exc
+
+    @app.post(f"{w}/totp/setup")
+    def ws_totp_setup() -> TotpSetup:
+        return ws().totp_setup()
+
+    @app.post(f"{w}/totp/verify")
+    def ws_totp_verify(req: TotpCode) -> UserInfo:
+        return ws().totp_verify(req.code)
 
     @app.get(f"{w}/invites")
     def ws_invites() -> list[InviteInfo]:

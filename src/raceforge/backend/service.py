@@ -1116,3 +1116,41 @@ class Backend:
             disk_used=round(used, 4),
             disk_level=level,
         )
+
+    # ------------------------------------------------------------------ backup helpers
+    def export_blobs(self, dest: Path) -> int:
+        """Copy blobs that are not in ``dest`` yet (incremental; restic then backs ``dest`` up)."""
+        written = 0
+        with self.db.session() as s:
+            shas = list(s.scalars(select(db.Blob.sha256).order_by(db.Blob.sha256)))
+        for sha in shas:
+            path = dest / sha[:2] / sha
+            if path.exists():
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp")
+            with tmp.open("wb") as f:
+                for chunk in self.store.read(blob_key(sha)):
+                    f.write(chunk)
+            tmp.replace(path)
+            written += 1
+        return written
+
+    def import_blobs(self, src: Path) -> int:
+        """Put every blob the restored database knows back into the store (checksum-verified)."""
+        restored = 0
+        with self.db.session() as s:
+            shas = list(s.scalars(select(db.Blob.sha256)))
+        for sha in shas:
+            if self.store.exists(blob_key(sha)):
+                continue
+            path = src / sha[:2] / sha
+            digest = hashlib.sha256()
+            with path.open("rb") as f:
+                for chunk in iter(lambda: f.read(1 << 20), b""):
+                    digest.update(chunk)
+            if digest.hexdigest() != sha:
+                raise ApiError(500, f"backup copy of blob {sha} is corrupt")
+            self.store.put_file(blob_key(sha), path)
+            restored += 1
+        return restored

@@ -13,6 +13,7 @@ from raceforge.backend.models import (
     ObjectInfo,
     Status,
     TokenPair,
+    TotpSetup,
     UploadInfo,
     UserInfo,
     VersionContent,
@@ -115,6 +116,13 @@ class BackendClient:
             "password": password,
         }
         return UserInfo.model_validate(self.request("POST", "/auth/register", json=body).json())
+
+    def totp_setup(self) -> TotpSetup:
+        return TotpSetup.model_validate(self.request("POST", "/auth/totp/setup").json())
+
+    def totp_verify(self, code: str) -> UserInfo:
+        r = self.request("POST", "/auth/totp/verify", json={"code": code})
+        return UserInfo.model_validate(r.json())
 
     def me(self) -> UserInfo:
         return UserInfo.model_validate(self.request("GET", "/users/me").json())

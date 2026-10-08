@@ -1,0 +1,14 @@
+# One entry point for the Tailscale name and the public (Cloudflare) host name.
+# RF_SITE_ADDRESS examples: ":80" (CI/LAN), "raceforge.example.org, raceforge.tailnet.ts.net".
+{$RF_SITE_ADDRESS::80} {
+	reverse_proxy api-blue:8000 api-green:8000 {
+		lb_policy round_robin
+		# Blue-green: a stopped container is skipped and the request retried on the other one.
+		lb_try_duration 15s
+		lb_try_interval 250ms
+		health_uri /api/v1/status
+		health_interval 2s
+		health_timeout 2s
+		fail_duration 5s
+	}
+}

@@ -90,3 +90,23 @@ def test_uploads_are_private(env: Env, team: Team) -> None:
         content=data,
     )
     assert r.status_code == 404
+
+
+def test_export_import_blobs(env: Env, team: Team, tmp_path) -> None:
+    """Backup helpers (AC8 code part): export is incremental, import restores verified bytes."""
+    data = os.urandom(3000)
+    sha = _sha(data)
+    up = env.client.post(
+        "/api/v1/uploads", headers=team.member, json={"sha256": sha, "size": len(data)}
+    ).json()
+    for n in range(up["parts"]):
+        assert _put(env, team, up["id"], n, data[n * PART : (n + 1) * PART]) == 200
+    env.client.post(f"/api/v1/uploads/{up['id']}/complete", headers=team.member)
+    backup = tmp_path / "backup"
+    assert env.backend.export_blobs(backup) == 1
+    assert env.backend.export_blobs(backup) == 0
+    from raceforge.backend.blobs import blob_key
+
+    env.backend.store.delete(blob_key(sha))  # "fresh" store after a disaster
+    assert env.backend.import_blobs(backup) == 1
+    assert env.client.get(f"/api/v1/blobs/{sha}", headers=team.member).content == data

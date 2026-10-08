@@ -1929,6 +1929,41 @@
         "title": "TokenRequest",
         "type": "object"
       },
+      "TotpCode": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 8,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "TotpCode",
+        "type": "object"
+      },
+      "TotpSetup": {
+        "additionalProperties": false,
+        "properties": {
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          },
+          "uri": {
+            "title": "Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "uri"
+        ],
+        "title": "TotpSetup",
+        "type": "object"
+      },
       "UltrasonicView": {
         "additionalProperties": false,
         "properties": {
@@ -3141,6 +3176,62 @@
           }
         },
         "summary": "Ws Revoke"
+      }
+    },
+    "/api/v1/workspace/totp/setup": {
+      "post": {
+        "operationId": "ws_totp_setup_api_v1_workspace_totp_setup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotpSetup"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Totp Setup"
+      }
+    },
+    "/api/v1/workspace/totp/verify": {
+      "post": {
+        "operationId": "ws_totp_verify_api_v1_workspace_totp_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Totp Verify"
       }
     },
     "/api/v1/workspace/versions/{version_id}": {

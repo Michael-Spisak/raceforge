@@ -227,3 +227,49 @@ def test_workspaces_and_copy(env: Env, team: Team, assembly: dict[str, Any]) -> 
 def test_status(env: Env) -> None:
     st = env.client.get("/api/v1/status").json()
     assert st["database"] and st["blobs"] and st["disk_level"] in ("ok", "warn", "high", "critical")
+
+
+def test_list_1000_objects_fast(env: Env, team: Team) -> None:
+    """Plan §9d: version list of a workspace with 1,000 objects < 300 ms."""
+    import time
+
+    from raceforge.backend import db
+    from raceforge.core.ids import new_object_id
+
+    now = env.clock()
+    with env.backend.db.session() as s:
+        author = s.query(db.User).filter_by(username="anna").one().id
+        for i in range(1000):
+            oid = new_object_id()
+            s.add(
+                db.Object(
+                    id=oid,
+                    workspace_id=team.ws,
+                    kind="assembly",
+                    slug=f"car-{i:04d}",
+                    tags=[],
+                    created_by=author,
+                    created_at=now,
+                )
+            )
+            s.add(
+                db.Version(
+                    id=new_object_id(),
+                    object_id=oid,
+                    semver="1.0.0",
+                    name=None,
+                    message="",
+                    author=author,
+                    created_at=now,
+                    content_hash="0" * 64,
+                    content="{}",
+                    parents=[],
+                    branch=False,
+                )
+            )
+    env.client.get(f"/api/v1/workspaces/{team.ws}/objects", headers=team.member)  # warm-up
+    t0 = time.perf_counter()
+    r = env.client.get(f"/api/v1/workspaces/{team.ws}/objects", headers=team.member)
+    elapsed = time.perf_counter() - t0
+    assert len(r.json()) == 1000 and all(o["latest"] for o in r.json())
+    assert elapsed < 0.3, f"{elapsed * 1000:.0f} ms"

@@ -190,6 +190,12 @@ def _cmd_backend(args: argparse.Namespace) -> int:
     if cmd == "purge-trash":
         print(f"purged {backend.purge_trash()} objects")
         return 0
+    if cmd == "export-blobs":
+        print(f"exported {backend.export_blobs(Path(args.dir))} new blobs")
+        return 0
+    if cmd == "import-blobs":
+        print(f"restored {backend.import_blobs(Path(args.dir))} blobs")
+        return 0
     import uvicorn
 
     host = "127.0.0.1" if cmd == "dev" else args.host
@@ -276,7 +282,11 @@ def main(argv: list[str] | None = None) -> int:
     dev.add_argument("--data", default=".raceforge-backend", help="data directory")
     dev.add_argument("--admin", help="create admin USER:PASSWORD if missing")
     dev.add_argument("--admin-totp", help="enable TOTP for that admin with this base32 secret")
-    for p in (serve, boot, dev, bsub.choices["migrate"], bsub.choices["purge-trash"]):
+    exp = bsub.add_parser("export-blobs", help="copy new blobs into a backup folder")
+    exp.add_argument("dir")
+    imp = bsub.add_parser("import-blobs", help="restore blobs from a backup folder")
+    imp.add_argument("dir")
+    for p in (serve, boot, dev, exp, imp, bsub.choices["migrate"], bsub.choices["purge-trash"]):
         p.set_defaults(func=_cmd_backend)
 
     args = parser.parse_args(argv)

@@ -56,6 +56,26 @@ def test_engine_workspace_flow(env: Env, team: Team, tmp_path: Path, cat: Catalo
     assert engine.get(f"{w}/status").json()["pending"] == 0
 
 
+def test_totp_setup_through_engine(env: Env, tmp_path: Path, cat: Catalogue) -> None:
+    from raceforge.backend.security import totp_now
+
+    env.backend.bootstrap_admin("boss", "boss-password-1")
+    wsapi = WorkspaceApi(cat, tmp_path / "ws", factory(env.client.app, Net()))
+    engine = TestClient(create_app(Engine(cat), frontend_dist=None, workspace=wsapi))
+    w = "/api/v1/workspace"
+    engine.post(
+        f"{w}/login",
+        json={"server_url": "http://b", "username": "boss", "password": "boss-password-1"},
+    )
+    assert engine.get(f"{w}/invites").status_code == 403  # admin without 2FA
+    setup = engine.post(f"{w}/totp/setup").json()
+    assert setup["uri"].startswith("otpauth://")
+    code = totp_now(setup["secret"], env.clock())
+    user = engine.post(f"{w}/totp/verify", json={"code": code}).json()
+    assert user["totp_enabled"] and engine.get(f"{w}/status").json()["user"]["totp_enabled"]
+    assert engine.get(f"{w}/invites").status_code == 200
+
+
 def test_register_through_engine(env: Env, team: Team, tmp_path: Path, cat: Catalogue) -> None:
     inv = env.client.post("/api/v1/invites", headers=team.admin, json={}).json()
     wsapi = WorkspaceApi(cat, tmp_path / "ws", factory(env.client.app, Net()))

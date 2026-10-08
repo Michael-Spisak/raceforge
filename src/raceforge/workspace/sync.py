@@ -9,7 +9,7 @@ import json
 import shutil
 import sqlite3
 import threading
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -30,7 +30,8 @@ from raceforge.workspace.client import (
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS objects (
   id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, kind TEXT NOT NULL, slug TEXT NOT NULL,
   tags TEXT NOT NULL DEFAULT '[]', pending INTEGER NOT NULL DEFAULT 0);
@@ -41,6 +42,17 @@ CREATE TABLE IF NOT EXISTS versions (
   pending INTEGER NOT NULL DEFAULT 0, error TEXT);
 CREATE TABLE IF NOT EXISTS pending_blobs (sha256 TEXT PRIMARY KEY);
 """
+
+
+class _Rows:
+    def __init__(self, rows: list[sqlite3.Row]) -> None:
+        self.rows = rows
+
+    def fetchone(self) -> sqlite3.Row | None:
+        return self.rows[0] if self.rows else None
+
+    def fetchall(self) -> list[sqlite3.Row]:
+        return self.rows
 
 
 class LocalVersion(BaseModel):
@@ -130,8 +142,13 @@ class Workspace:
         with self._lock, self._db:
             yield self._db
 
+    def _q(self, sql: str, args: Sequence[Any] = ()) -> "_Rows":
+        """Read query; the connection is shared by request threads and the sync thread."""
+        with self._lock:
+            return _Rows(self._db.execute(sql, args).fetchall())
+
     def _get(self, key: str) -> str | None:
-        row = self._db.execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
+        row = self._q("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
         return None if row is None else str(row["value"])
 
     def _set(self, key: str, value: str | None) -> None:
@@ -202,6 +219,11 @@ class Workspace:
         for key in ("access", "refresh"):
             self._set(key, None)
 
+    def totp_verify(self, code: str) -> UserInfo:
+        user = self.client().totp_verify(code)
+        self._set("user", user.model_dump_json())
+        return user
+
     def check_online(self) -> bool:
         if self._get("server_url") is None or self._get("access") is None:
             self._online = False
@@ -217,13 +239,13 @@ class Workspace:
         online = self.check_online() if probe else self._online
         ws = None
         if (wid := self.workspace_id) is not None:
-            row = self._db.execute("SELECT * FROM workspaces WHERE id = ?", (wid,)).fetchone()
+            row = self._q("SELECT * FROM workspaces WHERE id = ?", (wid,)).fetchone()
             if row is not None:
-                ws = WorkspaceInfo(id=row["id"], name=row["name"], created_at=datetime.now(UTC))
-        pending = self._db.execute(
+                ws = self._ws_info(row)
+        pending = self._q(
             "SELECT (SELECT count(*) FROM versions WHERE pending = 1)"
             " + (SELECT count(*) FROM objects WHERE pending = 1)"
-        ).fetchone()[0]
+        ).fetchall()[0][0]
         last = self._get("last_sync")
         return WorkspaceStatus(
             logged_in=self._get("access") is not None,
@@ -237,6 +259,12 @@ class Workspace:
         )
 
     # ------------------------------------------------------------ workspaces
+    @staticmethod
+    def _ws_info(row: sqlite3.Row) -> WorkspaceInfo:
+        return WorkspaceInfo(
+            id=row["id"], name=row["name"], created_at=datetime.fromisoformat(row["created_at"])
+        )
+
     def workspaces(self) -> list[WorkspaceInfo]:
         try:
             remote = self.client().workspaces()
@@ -244,12 +272,13 @@ class Workspace:
             with self._tx() as c:
                 c.execute("DELETE FROM workspaces")
                 c.executemany(
-                    "INSERT INTO workspaces VALUES (?, ?)", [(w.id, w.name) for w in remote]
+                    "INSERT INTO workspaces VALUES (?, ?, ?)",
+                    [(w.id, w.name, w.created_at.isoformat()) for w in remote],
                 )
             return remote
         except OfflineError:
             self._online = False
-        rows = self._db.execute("SELECT * FROM workspaces ORDER BY name").fetchall()
+        rows = self._q("SELECT * FROM workspaces ORDER BY name").fetchall()
         return [
             WorkspaceInfo(id=r["id"], name=r["name"], created_at=datetime.now(UTC)) for r in rows
         ]
@@ -257,7 +286,10 @@ class Workspace:
     def create_workspace(self, name: str) -> WorkspaceInfo:
         ws = self.client().create_workspace(name)
         with self._tx() as c:
-            c.execute("INSERT OR REPLACE INTO workspaces VALUES (?, ?)", (ws.id, ws.name))
+            c.execute(
+                "INSERT OR REPLACE INTO workspaces VALUES (?, ?, ?)",
+                (ws.id, ws.name, ws.created_at.isoformat()),
+            )
         return ws
 
     def select(self, workspace_id: str) -> None:
@@ -282,7 +314,7 @@ class Workspace:
         )
 
     def _latest(self, object_id: str) -> LocalVersion | None:
-        row = self._db.execute(
+        row = self._q(
             "SELECT * FROM versions WHERE object_id = ? ORDER BY created_at DESC, id DESC LIMIT 1",
             (object_id,),
         ).fetchone()
@@ -306,11 +338,11 @@ class Workspace:
                 pending=bool(r["pending"]),
                 latest=self._latest(r["id"]),
             )
-            for r in self._db.execute(q + " ORDER BY slug", args).fetchall()
+            for r in self._q(q + " ORDER BY slug", args).fetchall()
         ]
 
     def history(self, object_id: str) -> list[LocalVersion]:
-        rows = self._db.execute(
+        rows = self._q(
             "SELECT * FROM versions WHERE object_id = ? ORDER BY created_at, id", (object_id,)
         ).fetchall()
         return [self._version(r) for r in rows]
@@ -387,9 +419,7 @@ class Workspace:
         return self.save(kind, slug, content.model_dump(mode="json", by_alias=True), message)
 
     def version_content(self, version_id: str) -> dict[str, Any]:
-        row = self._db.execute(
-            "SELECT content FROM versions WHERE id = ?", (version_id,)
-        ).fetchone()
+        row = self._q("SELECT content FROM versions WHERE id = ?", (version_id,)).fetchone()
         if row is None:
             raise BackendError(404, "unknown version")
         if row["content"] is None:  # fetched lazily
@@ -409,7 +439,7 @@ class Workspace:
 
     # ------------------------------------------------------------ sync
     def conflicts(self) -> list[Conflict]:
-        rows = self._db.execute(
+        rows = self._q(
             "SELECT v.*, o.slug FROM versions v JOIN objects o ON o.id = v.object_id"
             " WHERE o.workspace_id = ? ORDER BY v.created_at",
             (self.workspace_id or "",),
@@ -443,7 +473,7 @@ class Workspace:
 
     def _push(self, client: BackendClient, result: SyncResult) -> set[str]:
         pushed: set[str] = set()
-        for r in self._db.execute("SELECT * FROM objects WHERE pending = 1").fetchall():
+        for r in self._q("SELECT * FROM objects WHERE pending = 1").fetchall():
             try:
                 client.create_object(r["workspace_id"], r["id"], r["kind"], r["slug"])
             except BackendError as exc:
@@ -451,11 +481,11 @@ class Workspace:
                 continue
             with self._tx() as c:
                 c.execute("UPDATE objects SET pending = 0 WHERE id = ?", (r["id"],))
-        for (sha,) in self._db.execute("SELECT sha256 FROM pending_blobs").fetchall():
+        for (sha,) in self._q("SELECT sha256 FROM pending_blobs").fetchall():
             client.upload_blob(self.blob_path(sha), sha)
             with self._tx() as c:
                 c.execute("DELETE FROM pending_blobs WHERE sha256 = ?", (sha,))
-        rows = self._db.execute(
+        rows = self._q(
             "SELECT v.* FROM versions v JOIN objects o ON o.id = v.object_id"
             " WHERE v.pending = 1 AND o.pending = 0 ORDER BY v.created_at"
         ).fetchall()
@@ -498,7 +528,7 @@ class Workspace:
                 )
             known = {
                 r[0]
-                for r in self._db.execute(
+                for r in self._q(
                     "SELECT id FROM versions WHERE object_id = ?", (obj.id,)
                 ).fetchall()
             }
