@@ -15,3 +15,5 @@ Detail questions are asked just-in-time while writing each spec.
 | 0008 | Frontend shell v1 (engine API, Electron, parts, construct, simulate, replay) | 2–3 | implemented (PR) |
 | 0009 | Scan viewer v1 (TrackScout passes in the desktop app) | 4–5 | implemented (PR) |
 | 0010 | Teleop v1 (gamepad/keyboard/touch; sim + real car; demonstrations) | 4–5 | implemented (PR) |
+| 0011 | EV3RT 1.1 bridge (EV3 runs EV3RT; UART/USB/BT serial link; build + BT upload) | 4–5 | implemented (PR; AC4/AC5 open) |
+| 0012 | EV3RT standalone (C controllers on the EV3, also in the sim) | 5–6 | approved |

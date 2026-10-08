@@ -63,6 +63,18 @@ class RobotSpec(_Model):
         )
 
 
+class Ev3Gains(_Model):
+    """Motor loops of the EV3RT bridge (power in percent; see ev3rt/common/rf_bridge.h)."""
+
+    drive_ff: float = Field(default=100 / 1050, ge=0)  # percent per deg/s (large motor ~1050 deg/s)
+    drive_kp: float = Field(default=0.05, ge=0)
+    drive_ki: float = Field(default=0.2, ge=0)
+    steer_kp: float = Field(default=1.5, ge=0)
+    steer_min_power: int = Field(default=8, ge=0, le=100)
+    steer_max_power: int = Field(default=60, ge=1, le=100)
+    steer_deadband_deg: int = Field(default=1, ge=0, le=45)
+
+
 class Ev3Spec(_Model):
     """How the car is wired to the EV3 and how motor units map to SI."""
 
@@ -78,6 +90,32 @@ class Ev3Spec(_Model):
     link_timeout_ms: int = Field(default=100, ge=20, le=1000)
     # EV3 button that restarts the controller after a fault when held for 1 s.
     resume_button: Literal["up", "down", "left", "right", "enter", "backspace"] = "enter"
+    # Spec 0011: firmware on the brick and how the board reaches it. ev3dev = Python bridge over UDP
+    # (USB gadget); ev3rt = C bridge over a serial link (UART on sensor port 1, USB CDC, or
+    # Bluetooth SPP for testing only).
+    os: Literal["ev3dev", "ev3rt"] = "ev3dev"
+    link: Literal["udp", "uart", "usb_cdc", "bt_spp"] = "udp"
+    device: str | None = None  # serial device on the board (default per link)
+    baud: int = Field(default=115_200, ge=9_600, le=1_000_000)
+    gyro_port: SensorPort | None = None  # EV3RT needs the port; ev3dev finds the gyro itself
+    gains: Ev3Gains | None = None  # EV3RT motor loops (compiled into the EV3 app)
+
+    @model_validator(mode="after")
+    def _link_matches_os(self) -> "Ev3Spec":
+        if self.os == "ev3dev" and self.link != "udp":
+            raise ValueError('ev3dev talks UDP over the USB gadget: link must be "udp"')
+        if self.os == "ev3rt" and self.link == "udp":
+            raise ValueError("EV3RT has no network link: use uart, usb_cdc or bt_spp")
+        used = set(self.ultrasonic.values())
+        if self.estop_touch_port:
+            used.add(self.estop_touch_port)
+        if self.gyro_port:
+            used.add(self.gyro_port)
+        if self.os == "ev3rt" and self.link == "uart" and "1" in used:
+            raise ValueError("sensor port 1 carries the UART link: move that sensor to port 2-4")
+        if self.os == "ev3rt" and self.gyro and self.gyro_port is None:
+            raise ValueError("EV3RT needs gyro_port (ev3dev detects the gyro, EV3RT does not)")
+        return self
 
 
 class LidarSpec(_Model):
@@ -142,6 +180,12 @@ class BundleManifest(_Model):
     lidar: LidarSpec | None = None
     telemetry: TelemetrySpec | None = None
     runtime: RuntimeSpec = RuntimeSpec()
+
+    @model_validator(mode="after")
+    def _no_radio_link_in_race(self) -> "BundleManifest":
+        if self.runtime.mode == "race" and self.ev3.link == "bt_spp":
+            raise ValueError("race mode forbids radios: ev3.link bt_spp is for testing only")
+        return self
 
 
 def sha256_file(path: Path) -> str:

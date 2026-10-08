@@ -296,6 +296,42 @@ def _cmd_capture(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ev3rt(args: argparse.Namespace) -> int:
+    """`raceforge car ev3rt config|build|upload` (spec 0011)."""
+    import os
+
+    from raceforge.car import ev3rt
+    from raceforge.car.bundle import load_manifest
+
+    try:
+        if args.ev3rt_command == "upload":
+            ev3rt.upload(Path(args.file), ip=args.ip, name=args.name)
+            print(
+                f"uploaded {args.file} as {args.name!r} to {args.ip}: start it in the EV3RT loader"
+            )
+            return 0
+        ev3 = load_manifest(Path(args.bundle)).ev3
+        if args.ev3rt_command == "config":
+            print("# rf_config.h (compiled into the EV3 app)")
+            print(ev3rt.config_header(ev3))
+            print("# /ev3rt/etc/rc.conf.ini on the brick's SD card needs:")
+            print(ev3rt.rc_conf(ev3))
+            return 0
+        sdk = args.sdk or os.environ.get("RF_EV3RT_SDK")
+        if not sdk:
+            print("error: give --sdk or set RF_EV3RT_SDK to the EV3RT 1.1 'sdk' folder")
+            return 1
+        app = ev3rt.build(Path(sdk), ev3)
+        print(f"built {app}")
+        if args.upload:
+            ev3rt.upload(app, ip=args.ip)
+            print(f"uploaded to {args.ip}: start '{ev3rt.APP}' from the EV3RT loader")
+        return 0
+    except ev3rt.Ev3rtError as exc:
+        print(f"error: {exc}")
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="raceforge", description="RaceForge command-line interface"
@@ -352,6 +388,24 @@ def main(argv: list[str] | None = None) -> int:
     ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")
     ui.add_argument("--browser", action="store_true", help="open the UI in the default browser")
     ui.set_defaults(func=_cmd_ui)
+
+    car = sub.add_parser("car", help="the real car (EV3 bridge apps)")
+    car_sub = car.add_subparsers(dest="car_command", required=True)
+    rt = car_sub.add_parser("ev3rt", help="EV3RT 1.1 bridge app: config, build, upload (spec 0011)")
+    rt_sub = rt.add_subparsers(dest="ev3rt_command", required=True)
+    rt_cfg = rt_sub.add_parser("config", help="show rf_config.h and the rc.conf.ini settings")
+    rt_build = rt_sub.add_parser("build", help="build the bridge app with the EV3RT SDK")
+    rt_build.add_argument("--sdk", help="EV3RT 1.1 'sdk' folder (default: $RF_EV3RT_SDK)")
+    rt_build.add_argument("--upload", action="store_true", help="upload over Bluetooth PAN")
+    rt_build.add_argument("--ip", default="10.0.10.1")
+    for p in (rt_cfg, rt_build):
+        p.add_argument("--bundle", required=True, help="car bundle directory (bundle.json)")
+    rt_up = rt_sub.add_parser("upload", help="send an app file to the EV3RT loader (Bluetooth PAN)")
+    rt_up.add_argument("file")
+    rt_up.add_argument("--ip", default="10.0.10.1")
+    rt_up.add_argument("--name", default="raceforge_bridge", help="file name on the brick")
+    for p in (rt_cfg, rt_build, rt_up):
+        p.set_defaults(func=_cmd_ev3rt)
 
     cap = sub.add_parser("capture", help="TrackScout scans (.tscan, spec 0007)")
     csub = cap.add_subparsers(dest="capture_command", required=True)
