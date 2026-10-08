@@ -95,7 +95,7 @@ def test_not_a_tscan(tmp_path: Path) -> None:
 
 
 def test_capture_slug_matches_trackscout() -> None:
-    from raceforge.cli import _capture_slug  # pyright: ignore[reportPrivateUsage]
+    from raceforge.capture.inbox import capture_slug as _capture_slug
 
     # Same expectations as TrackScoutKit's captureSlug (RecorderTests.swift) + case folding.
     assert _capture_slug("Gang 2. Stock \u2013 Süd") == "scan-gang-2-stock-sud"

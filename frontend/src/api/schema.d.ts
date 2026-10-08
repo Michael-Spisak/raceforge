@@ -451,6 +451,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/trackscout/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Trackscout Inbox */
+        get: operations["ws_trackscout_inbox_api_v1_workspace_trackscout_inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/trackscout/inbox/{pass_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Trackscout Choose */
+        post: operations["ws_trackscout_choose_api_v1_workspace_trackscout_inbox__pass_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/trackscout/receive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Trackscout Receive */
+        post: operations["ws_trackscout_receive_api_v1_workspace_trackscout_receive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/versions/{version_id}": {
         parameters: {
             query?: never;
@@ -728,6 +779,72 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * InboxAction
+         * @description Team tab choice for a pass that waits on this laptop (spec 0007 scope 9).
+         */
+        InboxAction: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "upload_now" | "when_faster" | "keep_local";
+        };
+        /** InboxPass */
+        InboxPass: {
+            /** Created At */
+            created_at: string;
+            /** Eta S */
+            eta_s?: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Last Try
+             * @default 0
+             */
+            last_try: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Pass Type */
+            pass_type: string;
+            /**
+             * Policy
+             * @default auto
+             * @enum {string}
+             */
+            policy: "auto" | "now" | "keep";
+            /** Project */
+            project: string;
+            /** Rate Bps */
+            rate_bps?: number | null;
+            /**
+             * Received
+             * @default 0
+             */
+            received: number;
+            /** Sha256 */
+            sha256: string;
+            /** Size */
+            size: number;
+            /** Slug */
+            slug: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "usb" | "bluetooth";
+            /**
+             * State
+             * @default receiving
+             * @enum {string}
+             */
+            state: "receiving" | "waiting" | "uploading" | "uploaded" | "local_only";
+            /** Version */
+            version?: string | null;
+        };
         /** InviteInfo */
         InviteInfo: {
             /**
@@ -977,6 +1094,17 @@ export interface components {
             options: {
                 [key: string]: unknown[];
             };
+        };
+        /**
+         * ReceiveRequest
+         * @description Pull finished passes from a paired phone: by cable (USB) or Bluetooth LE.
+         */
+        ReceiveRequest: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "usb" | "bluetooth";
         };
         /** ReplayRequest */
         ReplayRequest: {
@@ -2176,6 +2304,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_trackscout_inbox_api_v1_workspace_trackscout_inbox_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxPass"][];
+                };
+            };
+        };
+    };
+    ws_trackscout_choose_api_v1_workspace_trackscout_inbox__pass_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pass_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboxAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxPass"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_trackscout_receive_api_v1_workspace_trackscout_receive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxPass"][];
                 };
             };
             /** @description Validation Error */

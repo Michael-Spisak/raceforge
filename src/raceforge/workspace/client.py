@@ -219,8 +219,14 @@ class BackendClient:
             raise BackendError(500, f"downloaded blob {sha} is corrupt")
         part.replace(dest)
 
-    def upload_blob(self, path: Path, sha: str) -> None:
-        """Chunked, resumable upload; parts the server already has are skipped."""
+    def upload_blob(
+        self, path: Path, sha: str, progress: Callable[[int, int, int], None] | None = None
+    ) -> None:
+        """Chunked, resumable upload; parts the server already has are skipped.
+
+        ``progress(done, total, sent)`` runs after every part (``sent``: bytes sent by this call);
+        it may raise to stop the upload — finished parts stay on the server for a later resume.
+        """
         size = path.stat().st_size
         info = UploadInfo.model_validate(
             self.request("POST", "/uploads", json={"sha256": sha, "size": size}).json()
@@ -229,6 +235,8 @@ class BackendClient:
             return
         assert info.id is not None
         done = set(info.received)
+        have = sum(min(info.part_size, size - n * info.part_size) for n in done)
+        sent = 0
         with path.open("rb") as f:
             for n in range(info.parts):
                 if n in done:
@@ -241,4 +249,7 @@ class BackendClient:
                     content=data,
                     headers={"X-Part-SHA256": hashlib.sha256(data).hexdigest()},
                 )
+                sent += len(data)
+                if progress:
+                    progress(have + sent, size, sent)
         self.request("POST", f"/uploads/{info.id}/complete")

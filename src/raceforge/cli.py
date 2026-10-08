@@ -124,6 +124,7 @@ def _cmd_ui(args: argparse.Namespace) -> int:
         webbrowser.open(url)
     app = create_app()
     app.state.workspace().ws.start_background(30.0)  # spec 0006: background sync
+    app.state.workspace().relay.start_background(60.0)  # spec 0007: TrackScout relay
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
     return 0
 
@@ -235,7 +236,9 @@ def _cmd_capture(args: argparse.Namespace) -> int:
     if ws.workspace_id is None:
         print("error: log in and pick a workspace on the Team tab first")
         return 1
-    slug = args.slug or _capture_slug(summary["project"])
+    from raceforge.capture.inbox import capture_slug
+
+    slug = args.slug or capture_slug(summary["project"])
     try:
         v = ws.save_files("capture", slug, [path], f"imported {path.name}", merge=True)
     except (BackendError, OfflineError) as exc:
@@ -246,19 +249,6 @@ def _cmd_capture(args: argparse.Namespace) -> int:
     )
     print(f"{path.name} → {slug}: {state}")
     return 0
-
-
-def _capture_slug(project: str) -> str:
-    """Same rule as TrackScout's `captureSlug`: scan-<ascii-lowercase-name>."""
-    import re
-    import unicodedata
-
-    # Swift's `folding([.diacriticInsensitive, .caseInsensitive])`: case-fold (ß → ss, ﬁ → fi)
-    # and drop accents; any other non-ASCII character becomes a separator.
-    folded = unicodedata.normalize("NFD", project.casefold())
-    folded = "".join(ch for ch in folded if unicodedata.category(ch) != "Mn")
-    core = re.sub(r"[^a-z0-9]+", "-", folded).strip("-") or "track"
-    return f"scan-{core}"[:63].rstrip("-")
 
 
 def _print_install(r: "InstallResult") -> None:

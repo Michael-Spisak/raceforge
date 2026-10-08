@@ -254,3 +254,15 @@ class TokenRequest(ApiModel):
     name: str = Field(min_length=1, max_length=128)
     scopes: list[Literal["read", "sim_train", "edit", "admin"]] = Field(min_length=1)
     client: str = "desktop"
+
+
+class InboxAction(ApiModel):
+    """Team tab choice for a pass that waits on this laptop (spec 0007 scope 9)."""
+
+    action: Literal["upload_now", "when_faster", "keep_local"]
+
+
+class ReceiveRequest(ApiModel):
+    """Pull finished passes from a paired phone: by cable (USB) or Bluetooth LE."""
+
+    source: Literal["usb", "bluetooth"]

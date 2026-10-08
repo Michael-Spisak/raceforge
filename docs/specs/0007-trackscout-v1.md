@@ -89,6 +89,43 @@ roomplan.json/.usdz  only in RoomPlan passes
 ```
 Units SI, times on one monotonic clock per pass (`ARFrame.timestamp`), plus the wall-clock start in the manifest.
 
+## Phone → laptop transfer v1 (contract, agent-approved 2026-10-08)
+Both paths only move finished `.tscan` files; the laptop verifies the file's SHA-256 before accepting it.
+`key` is the laptop pairing key from the QR code; `tag(id, sha) = hex(HMAC-SHA256(key, "rftx1|" + id + "|" + sha))`.
+
+**Cable (USB, app's shared Documents via Apple's file-sharing service):**
+```text
+TrackScoutTransfer/outbox.json  written by the phone when the user picks "send to laptop by cable":
+                                {"v": 1, "phone": <device name>, "passes": [{"id", "file" (path relative to
+                                Documents), "size", "sha256", "project", "pass_type", "created_at", "tag"}]}
+TrackScoutTransfer/status.json  written by the laptop while copying: {"v": 1, "laptop": <name>,
+                                "passes": {<id>: {"received": <bytes>, "size": <bytes>, "done": bool}}}
+```
+The laptop ignores entries whose `tag` does not verify with its own key (an unpaired laptop gets nothing), copies
+in 4 MiB reads into `<id>.part` (resuming from its size), checks the SHA-256 and then reports `done`. The phone
+shows progress from `status.json` and marks the pass "on laptop" when `done` is true.
+
+**Bluetooth LE (GATT; bleak has no L2CAP, so L2CAP is not used in v1):** the phone advertises service
+`7e0f0001-5a1d-4c55-9b7e-52464f524745` with characteristic `…0002…` (laptop → phone, write with response) and
+`…0003…` (phone → laptop, notify). Each GATT value is one **fragment**: `u8 flags` (bit 0 = last fragment of the
+message) + payload; fragments are concatenated into **messages**: `u8 type` + body.
+| type | direction | body |
+|------|-----------|------|
+| 1 CHALLENGE | phone → laptop | 16-byte random nonce (sent when the laptop subscribes) |
+| 2 AUTH | laptop → phone | JSON `{"laptop": name, "mac": hex(HMAC-SHA256(key, "rftx1-auth|" + nonce))}` |
+| 3 OFFER | phone → laptop | JSON `{"passes": [same entries as outbox.json, without "file"]}` — or `{"error": "unpaired"}` and disconnect |
+| 4 GET | laptop → phone | JSON `{"id", "offset"}` |
+| 5 CHUNK | phone → laptop | `u64 offset` (LE) + `u32 crc32` (LE) + data (≤ 64 KiB) — chunks follow until the end of the file |
+| 6 DONE | laptop → phone | JSON `{"id", "sha256"}` after verifying the whole file; the phone marks the pass "on laptop" |
+| 7 ERROR | both | JSON `{"error": text}` |
+A broken connection resumes with a new CHALLENGE/AUTH and `GET` from the size of the laptop's `.part` file.
+
+**Laptop relay:** a received pass is kept in the engine's TrackScout inbox. Policy `auto` (default) uploads it when
+the measured backend throughput is good enough (same thresholds as the phone: estimated time ≤ 10 min and
+≥ 1 MB/s, measured on the first parts of the real upload, which stay on the server); otherwise the pass waits
+("waiting for upload") and the background loop re-checks every 5 minutes. The Team tab offers **upload now**
+(ignores the speed), **upload when the connection is faster** (`auto`) and **keep only on this laptop**.
+
 ## Non-functional targets
 - Recording at High quality runs ≥ 20 min on an iPhone 15 Pro without dropped depth frames (< 1 %) or thermal stop.
 - Pause → Continue keeps alignment (pose jump between segments < 2 cm).

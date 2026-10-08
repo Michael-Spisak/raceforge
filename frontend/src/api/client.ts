@@ -29,6 +29,8 @@ export type WorkspaceRegister = Schemas["WorkspaceRegister"];
 export type TokenRequest = Schemas["TokenRequest"];
 export type TotpSetup = Schemas["TotpSetup"];
 export type TrackScoutPairing = Schemas["TrackScoutPairing"];
+export type InboxPass = Schemas["InboxPass"];
+export type InboxAction = Schemas["InboxAction"]["action"];
 export type ServerMessage = SceneMessage | FrameMessage | ResultMessage | ErrorMessage;
 
 /** Engine base URL: same origin when served by the engine; the dev server proxies /api and /ldraw. */
@@ -123,6 +125,10 @@ export const workspace = {
   revokeToken: (id: string) => request<null>(`${W}/tokens/${id}`, { method: "DELETE" }),
   /** New `trackscout` token (read + edit) and the QR code the phone scans (spec 0007). */
   pairTrackScout: () => request<TrackScoutPairing>(`${W}/pair-trackscout`, { method: "POST" }),
+  /** Passes received from a phone by cable/Bluetooth and their relay state (spec 0007). */
+  inbox: () => request<InboxPass[]>(`${W}/trackscout/inbox`),
+  receive: (source: "usb" | "bluetooth") => request<InboxPass[]>(`${W}/trackscout/receive`, post({ source })),
+  chooseInbox: (id: string, action: InboxAction) => request<InboxPass>(`${W}/trackscout/inbox/${id}`, post({ action })),
 };
 
 /** "1.0.2", or null while a version only exists locally (numbered by the backend on sync). */
