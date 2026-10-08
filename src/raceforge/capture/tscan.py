@@ -216,6 +216,10 @@ class TscanPass:
     def frame_count(self) -> int:
         return len(self._frames)
 
+    def frame_segments(self) -> NDArray[np.int64]:
+        """Segment index of every frame (including discarded ones)."""
+        return self._frames["segment"].astype(np.int64)
+
     def kept_mask(self) -> NDArray[np.bool_]:
         t, seg = self._frames["t"], self._frames["segment"]
         dropped = np.zeros(len(self._frames), dtype=bool)

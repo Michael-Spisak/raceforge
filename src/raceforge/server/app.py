@@ -28,6 +28,11 @@ from raceforge.api.models import (
     ReplaySummary,
     SaveFiles,
     SaveQuickstart,
+    ScanDetail,
+    ScanMesh,
+    ScanOpen,
+    ScanPassRef,
+    ScanTrack,
     SimControl,
     SimProtocol,
     SimStart,
@@ -38,6 +43,7 @@ from raceforge.api.models import (
     WorkspaceRegister,
     WorkspaceSelect,
 )
+from raceforge.api.scans import ScanApi, ScanNotFoundError
 from raceforge.api.service import Engine
 from raceforge.api.sim_session import SimSession
 from raceforge.api.workspace import WorkspaceApi
@@ -51,6 +57,7 @@ from raceforge.backend.models import (
 )
 from raceforge.capture.inbox import InboxPass
 from raceforge.capture.rftx import TransferError
+from raceforge.capture.tscan import TscanError
 from raceforge.construct.quickstart import QuickStartParams
 from raceforge.parts.ldraw import library_dir
 from raceforge.track.procedural import CorridorParams
@@ -82,6 +89,12 @@ def create_app(
         return holder[0]
 
     app.state.workspace = ws
+    scan_holder: list[ScanApi] = []
+
+    def scans() -> ScanApi:
+        if not scan_holder:
+            scan_holder.append(ScanApi(ws()))
+        return scan_holder[0]
 
     @app.exception_handler(BackendError)
     async def _backend_error(_r: object, exc: BackendError) -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
@@ -258,6 +271,38 @@ def create_app(
     @app.post(f"{w}/pair-trackscout")
     def ws_pair_trackscout() -> TrackScoutPairing:
         return ws().pair_trackscout()
+
+    # ------------------------------------------------------------ scans (spec 0009)
+    @app.get("/api/v1/scans")
+    def scan_tracks() -> list[ScanTrack]:
+        return scans().tracks()
+
+    @app.post("/api/v1/scans/open")
+    def scan_open(req: ScanOpen) -> ScanPassRef:
+        try:
+            return scans().open_file(req.path)
+        except (TscanError, ValueError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/scans/{sha256}")
+    def scan_detail(sha256: str) -> ScanDetail:
+        try:
+            return scans().detail(sha256)
+        except ScanNotFoundError as exc:
+            raise HTTPException(404, f"no scan {sha256}") from exc
+        except TscanError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/scans/{sha256}/mesh")
+    def scan_mesh(
+        sha256: str, max_faces: Annotated[int, Query(ge=1, le=5_000_000)] = 300_000
+    ) -> ScanMesh:
+        try:
+            return scans().mesh(sha256, max_faces)
+        except ScanNotFoundError as exc:
+            raise HTTPException(404, f"no scan {sha256}") from exc
+        except TscanError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get(f"{w}/trackscout/inbox")
     def ws_trackscout_inbox() -> list[InboxPass]:

@@ -267,3 +267,60 @@ class ReceiveRequest(ApiModel):
     """Pull finished passes from a paired phone: by cable (USB) or Bluetooth LE."""
 
     source: Literal["usb", "bluetooth"]
+
+
+# ------------------------------------------------------------------ scans (spec 0009)
+class ScanPassRef(ApiModel):
+    """One TrackScout pass the engine can open, identified by its SHA-256."""
+
+    sha256: str
+    name: str
+    size: int
+    source: Literal["workspace", "laptop", "file"]
+    pass_type: str = ""
+    created_at: str = ""
+    error: str | None = None
+
+
+class ScanTrack(ApiModel):
+    """Passes of one track (same coordinate frame): a workspace capture object or a project name."""
+
+    name: str
+    slug: str | None = None
+    version: str | None = None
+    passes: list[ScanPassRef]
+
+
+class ScanSegment(ApiModel):
+    index: int
+    start_s: float
+    end_s: float
+    frames: int
+    discarded: list[tuple[float, float]]
+
+
+class ScanDetail(ApiModel):
+    sha256: str
+    summary: dict[str, Any]
+    segments: list[ScanSegment]
+    trajectory: list[tuple[float, float, float]]  # camera positions, RaceForge frame (Z up, metres)
+    trajectory_kept: list[bool]
+    trajectory_segment: list[int]
+    bounds: tuple[tuple[float, float, float], tuple[float, float, float]]  # min, max
+
+
+class ScanMesh(ApiModel):
+    """All segment meshes of a pass, little-endian arrays as base64 (spec 0009)."""
+
+    sha256: str
+    vertices: int
+    faces: int
+    total_faces: int  # before subsampling
+    positions_b64: str  # float32[3·vertices]
+    indices_b64: str  # uint32[3·faces]
+    classes_b64: str  # uint8[faces], index into classes
+    classes: list[str]
+
+
+class ScanOpen(ApiModel):
+    path: str

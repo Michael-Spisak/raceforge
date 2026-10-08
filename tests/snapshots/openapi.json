@@ -1596,6 +1596,327 @@
         "title": "SaveQuickstart",
         "type": "object"
       },
+      "ScanDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "bounds": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              }
+            ],
+            "title": "Bounds",
+            "type": "array"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/ScanSegment"
+            },
+            "title": "Segments",
+            "type": "array"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          },
+          "trajectory": {
+            "items": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Trajectory",
+            "type": "array"
+          },
+          "trajectory_kept": {
+            "items": {
+              "type": "boolean"
+            },
+            "title": "Trajectory Kept",
+            "type": "array"
+          },
+          "trajectory_segment": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Trajectory Segment",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sha256",
+          "summary",
+          "segments",
+          "trajectory",
+          "trajectory_kept",
+          "trajectory_segment",
+          "bounds"
+        ],
+        "title": "ScanDetail",
+        "type": "object"
+      },
+      "ScanMesh": {
+        "additionalProperties": false,
+        "description": "All segment meshes of a pass, little-endian arrays as base64 (spec 0009).",
+        "properties": {
+          "classes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "classes_b64": {
+            "title": "Classes B64",
+            "type": "string"
+          },
+          "faces": {
+            "title": "Faces",
+            "type": "integer"
+          },
+          "indices_b64": {
+            "title": "Indices B64",
+            "type": "string"
+          },
+          "positions_b64": {
+            "title": "Positions B64",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "total_faces": {
+            "title": "Total Faces",
+            "type": "integer"
+          },
+          "vertices": {
+            "title": "Vertices",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "vertices",
+          "faces",
+          "total_faces",
+          "positions_b64",
+          "indices_b64",
+          "classes_b64",
+          "classes"
+        ],
+        "title": "ScanMesh",
+        "type": "object"
+      },
+      "ScanOpen": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "ScanOpen",
+        "type": "object"
+      },
+      "ScanPassRef": {
+        "additionalProperties": false,
+        "description": "One TrackScout pass the engine can open, identified by its SHA-256.",
+        "properties": {
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pass_type": {
+            "default": "",
+            "title": "Pass Type",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "workspace",
+              "laptop",
+              "file"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha256",
+          "name",
+          "size",
+          "source"
+        ],
+        "title": "ScanPassRef",
+        "type": "object"
+      },
+      "ScanSegment": {
+        "additionalProperties": false,
+        "properties": {
+          "discarded": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Discarded",
+            "type": "array"
+          },
+          "end_s": {
+            "title": "End S",
+            "type": "number"
+          },
+          "frames": {
+            "title": "Frames",
+            "type": "integer"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "start_s": {
+            "title": "Start S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "index",
+          "start_s",
+          "end_s",
+          "frames",
+          "discarded"
+        ],
+        "title": "ScanSegment",
+        "type": "object"
+      },
+      "ScanTrack": {
+        "additionalProperties": false,
+        "description": "Passes of one track (same coordinate frame): a workspace capture object or a project name.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "passes": {
+            "items": {
+              "$ref": "#/components/schemas/ScanPassRef"
+            },
+            "title": "Passes",
+            "type": "array"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "passes"
+        ],
+        "title": "ScanTrack",
+        "type": "object"
+      },
       "SceneBody": {
         "additionalProperties": false,
         "properties": {
@@ -2843,6 +3164,156 @@
           }
         },
         "summary": "Replay"
+      }
+    },
+    "/api/v1/scans": {
+      "get": {
+        "operationId": "scan_tracks_api_v1_scans_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScanTrack"
+                  },
+                  "title": "Response Scan Tracks Api V1 Scans Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Scan Tracks"
+      }
+    },
+    "/api/v1/scans/open": {
+      "post": {
+        "operationId": "scan_open_api_v1_scans_open_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanOpen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanPassRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scan Open"
+      }
+    },
+    "/api/v1/scans/{sha256}": {
+      "get": {
+        "operationId": "scan_detail_api_v1_scans__sha256__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sha256",
+            "required": true,
+            "schema": {
+              "title": "Sha256",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scan Detail"
+      }
+    },
+    "/api/v1/scans/{sha256}/mesh": {
+      "get": {
+        "operationId": "scan_mesh_api_v1_scans__sha256__mesh_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sha256",
+            "required": true,
+            "schema": {
+              "title": "Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_faces",
+            "required": false,
+            "schema": {
+              "default": 300000,
+              "maximum": 5000000,
+              "minimum": 1,
+              "title": "Max Faces",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanMesh"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scan Mesh"
       }
     },
     "/api/v1/sim/protocol": {

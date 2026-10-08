@@ -9,6 +9,7 @@ export function StartScreen({ health, onOpen }: { health: Health | null; onOpen:
     { tab: "construct", text: t("start.construct") },
     { tab: "simulate", text: t("start.simulate") },
     { tab: "replay", text: t("start.replay") },
+    { tab: "scans", text: t("start.scans") },
   ];
   return (
     <div style={{ overflow: "auto" }}>
