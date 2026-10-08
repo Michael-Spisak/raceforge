@@ -1,6 +1,91 @@
 {
   "components": {
     "schemas": {
+      "ApiTokenInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "title": "Client",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revoked": {
+            "title": "Revoked",
+            "type": "boolean"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "user": {
+            "title": "User",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scopes",
+          "client",
+          "created_at",
+          "expires_at",
+          "last_used_at",
+          "revoked",
+          "user"
+        ],
+        "title": "ApiTokenInfo",
+        "type": "object"
+      },
       "CarScene": {
         "additionalProperties": false,
         "properties": {
@@ -21,6 +106,44 @@
           "bodies"
         ],
         "title": "CarScene",
+        "type": "object"
+      },
+      "Conflict": {
+        "properties": {
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/LocalVersion"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "object_id",
+          "slug",
+          "parent",
+          "versions"
+        ],
+        "title": "Conflict",
         "type": "object"
       },
       "ControllerInfo": {
@@ -441,6 +564,99 @@
         "title": "Health",
         "type": "object"
       },
+      "InviteInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used At"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "email",
+          "created_at",
+          "expires_at",
+          "used_at"
+        ],
+        "title": "InviteInfo",
+        "type": "object"
+      },
+      "InviteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "default": "member",
+            "enum": [
+              "member",
+              "admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "title": "InviteRequest",
+        "type": "object"
+      },
       "Layout": {
         "enum": [
           "rwd",
@@ -449,6 +665,150 @@
         ],
         "title": "Layout",
         "type": "string"
+      },
+      "LocalObject": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocalVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "kind",
+          "slug",
+          "tags",
+          "pending",
+          "latest"
+        ],
+        "title": "LocalObject",
+        "type": "object"
+      },
+      "LocalVersion": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "branch": {
+            "title": "Branch",
+            "type": "boolean"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "parents": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Parents",
+            "type": "array"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "semver": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semver"
+          }
+        },
+        "required": [
+          "id",
+          "object_id",
+          "semver",
+          "name",
+          "message",
+          "author",
+          "created_at",
+          "content_hash",
+          "parents",
+          "branch",
+          "pending"
+        ],
+        "title": "LocalVersion",
+        "type": "object"
       },
       "PartSummary": {
         "additionalProperties": false,
@@ -991,6 +1351,90 @@
         "title": "ResultMessage",
         "type": "object"
       },
+      "Role": {
+        "enum": [
+          "admin",
+          "member"
+        ],
+        "title": "Role",
+        "type": "string"
+      },
+      "SaveFiles": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "default": "controller",
+            "enum": [
+              "controller",
+              "dataset",
+              "model",
+              "capture",
+              "bundle"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Paths",
+            "type": "array"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "paths"
+        ],
+        "title": "SaveFiles",
+        "type": "object"
+      },
+      "SaveQuickstart": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "params": {
+            "$ref": "#/components/schemas/QuickStartParams"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "params"
+        ],
+        "title": "SaveQuickstart",
+        "type": "object"
+      },
       "SceneBody": {
         "additionalProperties": false,
         "properties": {
@@ -1172,6 +1616,16 @@
         ],
         "title": "ScenePart",
         "type": "object"
+      },
+      "Scope": {
+        "enum": [
+          "read",
+          "sim_train",
+          "edit",
+          "admin"
+        ],
+        "title": "Scope",
+        "type": "string"
       },
       "SensorSpec": {
         "additionalProperties": false,
@@ -1407,6 +1861,74 @@
         "title": "SimStart",
         "type": "object"
       },
+      "SyncResult": {
+        "properties": {
+          "conflicts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Conflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "errors": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "pulled": {
+            "default": 0,
+            "title": "Pulled",
+            "type": "integer"
+          },
+          "pushed": {
+            "default": 0,
+            "title": "Pushed",
+            "type": "integer"
+          }
+        },
+        "title": "SyncResult",
+        "type": "object"
+      },
+      "TokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "default": "desktop",
+            "title": "Client",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "enum": [
+                "read",
+                "sim_train",
+                "edit",
+                "admin"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "scopes"
+        ],
+        "title": "TokenRequest",
+        "type": "object"
+      },
       "UltrasonicView": {
         "additionalProperties": false,
         "properties": {
@@ -1462,6 +1984,39 @@
           "direction"
         ],
         "title": "UltrasonicView",
+        "type": "object"
+      },
+      "UserInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "totp_enabled": {
+            "title": "Totp Enabled",
+            "type": "boolean"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "role",
+          "totp_enabled"
+        ],
+        "title": "UserInfo",
         "type": "object"
       },
       "ValidationError": {
@@ -1521,6 +2076,209 @@
           "message"
         ],
         "title": "Warning",
+        "type": "object"
+      },
+      "WorkspaceInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "WorkspaceInfo",
+        "type": "object"
+      },
+      "WorkspaceLogin": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "server_url": {
+            "minLength": 1,
+            "title": "Server Url",
+            "type": "string"
+          },
+          "totp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totp"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_url",
+          "username",
+          "password"
+        ],
+        "title": "WorkspaceLogin",
+        "type": "object"
+      },
+      "WorkspaceName": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WorkspaceName",
+        "type": "object"
+      },
+      "WorkspaceRegister": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "invite": {
+            "description": "invite link or token",
+            "minLength": 1,
+            "title": "Invite",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "server_url": {
+            "minLength": 1,
+            "title": "Server Url",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_url",
+          "invite",
+          "username",
+          "display_name",
+          "password"
+        ],
+        "title": "WorkspaceRegister",
+        "type": "object"
+      },
+      "WorkspaceSelect": {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "title": "WorkspaceSelect",
+        "type": "object"
+      },
+      "WorkspaceStatus": {
+        "properties": {
+          "conflicts": {
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "last_sync": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync"
+          },
+          "logged_in": {
+            "title": "Logged In",
+            "type": "boolean"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "server_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Url"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "logged_in",
+          "online",
+          "server_url",
+          "user",
+          "workspace",
+          "pending",
+          "conflicts",
+          "last_sync"
+        ],
+        "title": "WorkspaceStatus",
         "type": "object"
       }
     }
@@ -1854,6 +2612,634 @@
           }
         },
         "summary": "Sim Protocol"
+      }
+    },
+    "/api/v1/workspace/conflicts": {
+      "get": {
+        "operationId": "ws_conflicts_api_v1_workspace_conflicts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Conflict"
+                  },
+                  "title": "Response Ws Conflicts Api V1 Workspace Conflicts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Conflicts"
+      }
+    },
+    "/api/v1/workspace/invites": {
+      "get": {
+        "operationId": "ws_invites_api_v1_workspace_invites_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteInfo"
+                  },
+                  "title": "Response Ws Invites Api V1 Workspace Invites Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Invites"
+      },
+      "post": {
+        "operationId": "ws_invite_api_v1_workspace_invites_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Invite"
+      }
+    },
+    "/api/v1/workspace/login": {
+      "post": {
+        "operationId": "ws_login_api_v1_workspace_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Login"
+      }
+    },
+    "/api/v1/workspace/logout": {
+      "post": {
+        "operationId": "ws_logout_api_v1_workspace_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Logout"
+      }
+    },
+    "/api/v1/workspace/objects": {
+      "get": {
+        "operationId": "ws_objects_api_v1_workspace_objects_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocalObject"
+                  },
+                  "title": "Response Ws Objects Api V1 Workspace Objects Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Objects"
+      }
+    },
+    "/api/v1/workspace/objects/{object_id}/versions": {
+      "get": {
+        "operationId": "ws_history_api_v1_workspace_objects__object_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "title": "Object Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocalVersion"
+                  },
+                  "title": "Response Ws History Api V1 Workspace Objects  Object Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws History"
+      }
+    },
+    "/api/v1/workspace/register": {
+      "post": {
+        "operationId": "ws_register_api_v1_workspace_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Register"
+      }
+    },
+    "/api/v1/workspace/save/files": {
+      "post": {
+        "operationId": "ws_save_files_api_v1_workspace_save_files_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveFiles"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Save Files"
+      }
+    },
+    "/api/v1/workspace/save/quickstart": {
+      "post": {
+        "operationId": "ws_save_quickstart_api_v1_workspace_save_quickstart_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveQuickstart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Save Quickstart"
+      }
+    },
+    "/api/v1/workspace/select": {
+      "post": {
+        "operationId": "ws_select_api_v1_workspace_select_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceSelect"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Select"
+      }
+    },
+    "/api/v1/workspace/status": {
+      "get": {
+        "operationId": "ws_status_api_v1_workspace_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "probe",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Probe",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Status"
+      }
+    },
+    "/api/v1/workspace/sync": {
+      "post": {
+        "operationId": "ws_sync_api_v1_workspace_sync_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Sync"
+      }
+    },
+    "/api/v1/workspace/tokens": {
+      "get": {
+        "operationId": "ws_tokens_api_v1_workspace_tokens_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApiTokenInfo"
+                  },
+                  "title": "Response Ws Tokens Api V1 Workspace Tokens Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Tokens"
+      },
+      "post": {
+        "operationId": "ws_token_api_v1_workspace_tokens_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiTokenInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Token"
+      }
+    },
+    "/api/v1/workspace/tokens/{token_id}": {
+      "delete": {
+        "operationId": "ws_revoke_api_v1_workspace_tokens__token_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_id",
+            "required": true,
+            "schema": {
+              "title": "Token Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Revoke"
+      }
+    },
+    "/api/v1/workspace/versions/{version_id}": {
+      "get": {
+        "operationId": "ws_version_api_v1_workspace_versions__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Ws Version Api V1 Workspace Versions  Version Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Version"
+      }
+    },
+    "/api/v1/workspace/workspaces": {
+      "get": {
+        "operationId": "ws_list_api_v1_workspace_workspaces_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceInfo"
+                  },
+                  "title": "Response Ws List Api V1 Workspace Workspaces Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws List"
+      },
+      "post": {
+        "operationId": "ws_create_api_v1_workspace_workspaces_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Create"
       }
     }
   }

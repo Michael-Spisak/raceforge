@@ -1,1 +1,1 @@
-"""raceforge.backend — see docs/specs/ for the module spec."""
+"""raceforge.backend — team server: accounts, workspaces, versioned objects, blobs (spec 0006)."""

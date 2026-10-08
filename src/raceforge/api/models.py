@@ -196,3 +196,51 @@ class SimProtocol(ApiModel):
     server_frame: FrameMessage | None = None
     server_result: ResultMessage | None = None
     server_error: ErrorMessage | None = None
+
+
+# ---- Team workspace (spec 0006): the engine proxies the backend and keeps working offline.
+class WorkspaceLogin(ApiModel):
+    server_url: str = Field(min_length=1)
+    username: str
+    password: str
+    totp: str | None = None
+
+
+class WorkspaceRegister(ApiModel):
+    server_url: str = Field(min_length=1)
+    invite: str = Field(min_length=1, description="invite link or token")
+    username: str
+    display_name: str
+    password: str
+
+
+class WorkspaceName(ApiModel):
+    name: str = Field(min_length=1, max_length=128)
+
+
+class WorkspaceSelect(ApiModel):
+    workspace_id: str
+
+
+class SaveQuickstart(ApiModel):
+    slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,62}$")
+    params: QuickStartParams
+    message: str = ""
+    name: str | None = None
+
+
+class SaveFiles(ApiModel):
+    kind: Literal["controller", "dataset", "model", "capture", "bundle"] = "controller"
+    slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,62}$")
+    paths: list[str] = Field(min_length=1)
+    message: str = ""
+
+
+class InviteRequest(ApiModel):
+    role: Literal["member", "admin"] = "member"
+
+
+class TokenRequest(ApiModel):
+    name: str = Field(min_length=1, max_length=128)
+    scopes: list[Literal["read", "sim_train", "edit", "admin"]] = Field(min_length=1)
+    client: str = "desktop"

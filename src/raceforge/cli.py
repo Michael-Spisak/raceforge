@@ -5,6 +5,10 @@ import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from raceforge.backend.settings import Settings
 
 from raceforge import __version__
 
@@ -117,7 +121,87 @@ def _cmd_ui(args: argparse.Namespace) -> int:
         if not FRONTEND_DIST.is_dir():
             print("frontend not built yet: run `npm run build` in frontend/")
         webbrowser.open(url)
-    uvicorn.run(create_app(), host="127.0.0.1", port=port, log_level="warning")
+    app = create_app()
+    app.state.workspace().ws.start_background(30.0)  # spec 0006: background sync
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+    return 0
+
+
+def _backend_settings(args: argparse.Namespace) -> "Settings":
+    from raceforge.backend.settings import Settings
+
+    settings = Settings.from_env()
+    if getattr(args, "data", None):  # local dev server: SQLite + blob directory
+        data = Path(args.data).resolve()
+        data.mkdir(parents=True, exist_ok=True)
+        settings = settings.model_copy(
+            update={
+                "database_url": f"sqlite:///{data / 'backend.db'}",
+                "blob_backend": "fs",
+                "blob_dir": data / "blobs",
+                "data_path": data,
+                "secure_cookies": False,
+                "public_url": f"http://127.0.0.1:{args.port}",
+            }
+        )
+    return settings
+
+
+def _cmd_backend(args: argparse.Namespace) -> int:
+    import getpass
+    import os
+
+    from raceforge.backend.migrate import upgrade
+
+    settings = _backend_settings(args)
+    cmd = args.backend_command
+    if cmd in ("migrate", "dev"):
+        upgrade(settings.database_url)
+        if cmd == "migrate":
+            print("database is up to date")
+            return 0
+    from raceforge.backend.app import create_backend_app, make_backend
+    from raceforge.backend.service import ApiError
+
+    backend = make_backend(settings)
+    if cmd == "bootstrap-admin" or (cmd == "dev" and args.admin):
+        if cmd == "dev":
+            username, _, password = args.admin.partition(":")
+        else:
+            username = args.username
+            password = os.environ.get("RF_ADMIN_PASSWORD") or getpass.getpass("Password: ")
+        try:
+            backend.bootstrap_admin(username, password)
+            print(f"admin {username!r} created; log in and set up TOTP 2FA")
+        except ApiError as exc:
+            print(f"error: {exc.detail}")
+            if cmd == "bootstrap-admin":
+                return 1
+        if cmd == "dev" and args.admin_totp:
+            from sqlalchemy import select
+
+            from raceforge.backend import db
+
+            with backend.db.session() as s:
+                user = s.scalars(select(db.User).where(db.User.username == username)).one()
+                user.totp_secret, user.totp_enabled = args.admin_totp, True
+        if cmd == "bootstrap-admin":
+            return 0
+    if cmd == "purge-trash":
+        print(f"purged {backend.purge_trash()} objects")
+        return 0
+    import uvicorn
+
+    host = "127.0.0.1" if cmd == "dev" else args.host
+    print(f"RACEFORGE_BACKEND_URL=http://{host}:{args.port}/", flush=True)
+    uvicorn.run(
+        create_backend_app(backend),
+        host=host,
+        port=args.port,
+        log_level="info" if cmd == "serve" else "warning",
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+    )
     return 0
 
 
@@ -177,6 +261,23 @@ def main(argv: list[str] | None = None) -> int:
     ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")
     ui.add_argument("--browser", action="store_true", help="open the UI in the default browser")
     ui.set_defaults(func=_cmd_ui)
+
+    be = sub.add_parser("backend", help="team backend server (spec 0006)")
+    bsub = be.add_subparsers(dest="backend_command", required=True)
+    serve = bsub.add_parser("serve", help="run the backend API (config from RF_* env vars)")
+    serve.add_argument("--host", default="0.0.0.0")
+    serve.add_argument("--port", type=int, default=8000)
+    bsub.add_parser("migrate", help="apply database migrations")
+    boot = bsub.add_parser("bootstrap-admin", help="create the first admin account")
+    boot.add_argument("--username", required=True)
+    bsub.add_parser("purge-trash", help="delete objects older than 30 days in the trash")
+    dev = bsub.add_parser("dev", help="local backend with SQLite and a blob folder (testing)")
+    dev.add_argument("--port", type=int, default=8080)
+    dev.add_argument("--data", default=".raceforge-backend", help="data directory")
+    dev.add_argument("--admin", help="create admin USER:PASSWORD if missing")
+    dev.add_argument("--admin-totp", help="enable TOTP for that admin with this base32 secret")
+    for p in (serve, boot, dev, bsub.choices["migrate"], bsub.choices["purge-trash"]):
+        p.set_defaults(func=_cmd_backend)
 
     args = parser.parse_args(argv)
     if not hasattr(args, "func"):
