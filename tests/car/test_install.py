@@ -17,8 +17,10 @@ from raceforge.car.bundle import (
     bundle_digest,
 )
 
-if sys.platform == "win32":  # before the import below: the installer needs fcntl
-    pytest.skip("the installer runs on the Linux board (symlinks, flock)", allow_module_level=True)
+if sys.platform == "win32":  # before the import below: the installer is Linux-only
+    raise pytest.skip.Exception(
+        "the installer runs on the Linux board (symlinks, flock)", allow_module_level=True
+    )
 
 from raceforge.car import install
 

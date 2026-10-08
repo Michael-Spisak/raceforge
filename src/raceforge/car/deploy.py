@@ -13,6 +13,7 @@ import io
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -120,7 +121,7 @@ def deploy_usb(bundle_dir: Path, stick: Path) -> Path:
     shutil.rmtree(dest, ignore_errors=True)
     tmp.rename(dest)
     (root / "result.json").unlink(missing_ok=True)
-    if hasattr(os, "sync"):
+    if sys.platform != "win32":  # flush to the stick (Windows writes removable media through)
         os.sync()
     return dest
 

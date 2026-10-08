@@ -42,6 +42,9 @@ from raceforge.car.bundle import (
 )
 from raceforge.car.deploy import InstallResult, Service
 
+if sys.platform == "win32":  # the board is Linux; also tells type checkers the rest is POSIX-only
+    raise ImportError("raceforge.car.install runs on the Linux board only")
+
 __all__ = ["InstallResult", "Paths", "install", "load_manifest", "main"]
 
 UNIT = "rf-runtime.service"

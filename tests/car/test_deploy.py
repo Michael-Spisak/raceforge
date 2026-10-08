@@ -143,6 +143,7 @@ def test_usb_writes_a_verified_copy_and_clears_the_old_result(tmp_path: Path) ->
 
 @board_only
 def test_usb_copy_is_accepted_by_the_board_installer(tmp_path: Path) -> None:
+    assert sys.platform != "win32"  # board side (see board_only); also for type checkers
     from raceforge.car import install
 
     bundle = make_bundle(tmp_path)
