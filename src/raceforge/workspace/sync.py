@@ -425,7 +425,7 @@ class Workspace:
         lists every pass uploaded so far, like TrackScout does).
         """
         entries: list[FileEntry] = []
-        obj = next((o for o in self.objects() if o.slug == slug), None) if merge else None
+        obj = next((o for o in self.objects(kind) if o.slug == slug), None) if merge else None
         if obj is not None and obj.latest is not None:
             old = FileSetContent.model_validate(self.version_content(obj.latest.id))
             names = {p.name for p in files}

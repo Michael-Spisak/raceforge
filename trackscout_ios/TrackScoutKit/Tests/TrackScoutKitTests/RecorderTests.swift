@@ -146,6 +146,7 @@ final class FormatTests: XCTestCase {
     func testSlug() {
         XCTAssertEqual(captureSlug(projectName: "Gang 2. Stock – Süd"), "scan-gang-2-stock-sud")
         XCTAssertEqual(captureSlug(projectName: "!!!"), "scan-track")
+        XCTAssertEqual(captureSlug(projectName: "Straße"), "scan-strasse")
         XCTAssertLessThanOrEqual(captureSlug(projectName: String(repeating: "a", count: 100)).count, 63)
     }
 }
