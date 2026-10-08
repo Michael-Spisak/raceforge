@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -177,3 +178,75 @@ def test_usb_without_outbox_does_nothing(tmp_path: Path) -> None:
     (tmp_path / "phone").mkdir()
     inbox = Inbox(tmp_path / "inbox")
     assert asyncio.run(pull_usb(FolderFiles(tmp_path / "phone"), KEY, "l", inbox)) == []
+
+
+# ------------------------------------------- Python laptop ↔ Swift phone (AC9, cross-language)
+class PipeChannel:
+    """Fragments framed as u16 big-endian length + bytes over the stdin/stdout of `rftx-phone`."""
+
+    def __init__(self, proc: asyncio.subprocess.Process, max_payload: int) -> None:
+        self.proc = proc
+        self.max_payload = max_payload
+
+    async def send(self, fragment: bytes) -> None:
+        assert self.proc.stdin is not None
+        self.proc.stdin.write(len(fragment).to_bytes(2, "big") + fragment)
+        await self.proc.stdin.drain()
+
+    async def recv(self) -> bytes:
+        assert self.proc.stdout is not None
+        try:
+            head = await self.proc.stdout.readexactly(2)
+            return await self.proc.stdout.readexactly(int.from_bytes(head, "big"))
+        except asyncio.IncompleteReadError as exc:
+            raise ConnectionError("phone process ended") from exc
+
+
+SWIFT_PHONE = os.environ.get("RF_RFTX_PHONE")
+
+
+async def _swift_session(
+    phone_key: str, laptop_key: str, files: list[Path], inbox: Inbox
+) -> tuple[list[str], str]:
+    assert SWIFT_PHONE
+    proc = await asyncio.create_subprocess_exec(
+        SWIFT_PHONE,
+        phone_key,
+        "100",
+        *map(str, files),
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        done = await pull(PipeChannel(proc, 100), laptop_key, "pytest", inbox)
+    finally:
+        assert proc.stdin is not None
+        proc.stdin.close()
+        _, err = await proc.communicate()
+    return done, err.decode()
+
+
+@pytest.mark.skipif(
+    not SWIFT_PHONE, reason="set RF_RFTX_PHONE to the built rftx-phone binary (CI: trackscout job)"
+)
+def test_python_laptop_pulls_from_the_swift_phone(tmp_path: Path) -> None:
+    files = [tmp_path / "p1.tscan", tmp_path / "p2.tscan"]
+    files[0].write_bytes(_data(200_000))
+    files[1].write_bytes(_data(5, seed=3))
+    inbox = Inbox(tmp_path / "inbox")
+    done, log = asyncio.run(_swift_session(KEY, KEY, files, inbox))
+    assert done == ["p1", "p2"]
+    assert inbox.path("p1").read_bytes() == files[0].read_bytes()
+    assert "delivered p1" in log and "delivered p2" in log
+
+
+@pytest.mark.skipif(
+    not SWIFT_PHONE, reason="set RF_RFTX_PHONE to the built rftx-phone binary (CI: trackscout job)"
+)
+def test_swift_phone_rejects_an_unpaired_laptop(tmp_path: Path) -> None:
+    (tmp_path / "p1.tscan").write_bytes(_data(100))
+    inbox = Inbox(tmp_path / "inbox")
+    with pytest.raises(TransferError, match="unpaired"):
+        asyncio.run(_swift_session(KEY, "wrong-key", [tmp_path / "p1.tscan"], inbox))
+    assert inbox.list() == []

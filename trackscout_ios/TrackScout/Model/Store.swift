@@ -15,6 +15,12 @@ enum UploadState: Codable, Equatable {
     case uploading(progress: Double)
     case uploaded(version: String)
     case failed(message: String)
+    /// The backend was too slow; waits for the user's choice (backend / cable / Bluetooth).
+    case slow(rate: Double, eta: Double)
+    /// Offered to the paired laptop ("cable" or "bluetooth"); progress as reported by the laptop.
+    case toLaptop(via: String, progress: Double)
+    /// The laptop has it (verified); the laptop relays it to the backend.
+    case onLaptop(via: String)
 }
 
 struct PassRecord: Codable, Identifiable, Equatable {
@@ -38,6 +44,13 @@ final class Store: ObservableObject {
     @Published var quality: Quality = .high { didSet { save() } }
     @Published var autoUpload = true { didSet { save() } }
     @Published var workspaceID: String? { didSet { save() } }
+    /// "Too slow" thresholds for direct uploads (spec 0007 scope 8).
+    @Published var maxUploadMinutes: Double = 10 { didSet { save() } }
+    @Published var minUploadMBps: Double = 1 { didSet { save() } }
+
+    var thresholds: RoutingThresholds {
+        RoutingThresholds(maxETA: maxUploadMinutes * 60, minRate: minUploadMBps * 1_000_000)
+    }
 
     static let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     static let support: URL = {
@@ -52,6 +65,8 @@ final class Store: ObservableObject {
         var quality: Quality
         var autoUpload: Bool
         var workspaceID: String?
+        var maxUploadMinutes: Double?
+        var minUploadMBps: Double?
     }
 
     private var loading = false
@@ -70,6 +85,8 @@ final class Store: ObservableObject {
         quality = s.quality
         autoUpload = s.autoUpload
         workspaceID = s.workspaceID
+        maxUploadMinutes = s.maxUploadMinutes ?? 10
+        minUploadMBps = s.minUploadMBps ?? 1
         // An upload that was running when the app quit continues from the backend's received parts.
         for p in projects.indices {
             for i in projects[p].passes.indices {
@@ -80,7 +97,9 @@ final class Store: ObservableObject {
 
     func save() {
         guard !loading else { return }
-        let s = State(projects: projects, quality: quality, autoUpload: autoUpload, workspaceID: workspaceID)
+        let s = State(
+            projects: projects, quality: quality, autoUpload: autoUpload, workspaceID: workspaceID,
+            maxUploadMinutes: maxUploadMinutes, minUploadMBps: minUploadMBps)
         if let data = try? JSONEncoder().encode(s) { try? data.write(to: stateURL, options: .atomic) }
     }
 

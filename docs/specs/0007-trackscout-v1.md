@@ -172,6 +172,12 @@ the measured backend throughput is good enough (same thresholds as the phone: es
 - **Personal signing:** each owner sets team ID and bundle-id prefix in a git-ignored `Local.xcconfig`
   (template committed), so nobody's Apple ID is in the public repo.
 - Collaborative scanning (several phones at once) becomes its own spec right after this one.
+- **Transfer details (agent defaults, 2026-10-08):** Bluetooth uses GATT only (bleak has no L2CAP API); TrackScout
+  must stay open during a Bluetooth transfer (no background mode in v1); the pass detail screen also offers
+  "send to the laptop by cable/Bluetooth" without waiting for a slow upload; the ETA estimates assume 20 MB/s by
+  cable and 0.15 MB/s by Bluetooth, which is recommended only below 10 min; the slow-upload thresholds are
+  adjustable in TrackScout's settings. The Python laptop is tested against the real Swift phone session
+  (`rftx-phone` over pipes) in CI.
 - **Delivery in two PRs:** (A) app, `.tscan`, importer, backend upload, pairing; (B) routing decision, cable and
   Bluetooth transfer, laptop relay.
 

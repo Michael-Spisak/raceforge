@@ -121,7 +121,7 @@ public final class BackendClient: Sendable {
     @discardableResult
     public func uploadPass(
         file: URL, projectName: String, workspaceId: String,
-        progress: @Sendable (_ sent: Int64, _ total: Int64) -> Void = { _, _ in }
+        progress: @Sendable (_ sent: Int64, _ total: Int64) throws -> Void = { _, _ in }
     ) async throws -> VersionInfo {
         let (sha, size) = try Checksum.sha256(file: file)
         let slug = captureSlug(projectName: projectName)
@@ -166,29 +166,30 @@ public final class BackendClient: Sendable {
         return try JSONDecoder().decode(ObjectInfo.self, from: try await request("POST", path, json: body))
     }
 
-    /// Chunked, resumable upload (spec 0006): parts the server already has are skipped.
+    /// Chunked, resumable upload (spec 0006): parts the server already has are skipped. `progress` may throw
+    /// (e.g. `ThroughputGate` on a slow backend) to stop; finished parts stay on the server for the resume.
     public func uploadBlob(
-        file: URL, sha256: String, size: Int64, progress: @Sendable (Int64, Int64) -> Void = { _, _ in }
+        file: URL, sha256: String, size: Int64, progress: @Sendable (Int64, Int64) throws -> Void = { _, _ in }
     ) async throws {
         let created = try await request(
             "POST", "uploads", json: try JSONSerialization.data(withJSONObject: ["sha256": sha256, "size": size]))
         let info = try JSONDecoder().decode(UploadInfo.self, from: created)
         if info.status == "exists" {
-            progress(size, size)
+            try progress(size, size)
             return
         }
         guard let id = info.id else { throw UploadError.badResponse }
         let handle = try FileHandle(forReadingFrom: file)
         defer { try? handle.close() }
         var sent = Int64(info.received.count) * Int64(info.partSize)
-        progress(min(sent, size), size)
+        try progress(min(sent, size), size)
         for n in 0..<info.parts where !info.received.contains(n) {
             try handle.seek(toOffset: UInt64(n) * UInt64(info.partSize))
             let part = try handle.read(upToCount: info.partSize) ?? Data()
             _ = try await request(
                 "PUT", "uploads/\(id)/parts/\(n)", body: part, headers: ["X-Part-SHA256": Checksum.sha256(part)])
             sent += Int64(part.count)
-            progress(min(sent, size), size)
+            try progress(min(sent, size), size)
         }
         _ = try await request("POST", "uploads/\(id)/complete")
     }

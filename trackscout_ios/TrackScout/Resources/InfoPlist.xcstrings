@@ -1,56 +1,96 @@
 {
-  "sourceLanguage": "en",
-  "version": "1.0",
-  "strings": {
-    "CFBundleDisplayName": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TrackScout"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "TrackScout"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "TrackScout"
           }
         }
       }
     },
-    "CFBundleName": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TrackScout"
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "TrackScout"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "TrackScout"
           }
         }
       }
     },
-    "NSBluetoothAlwaysUsageDescription": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TrackScout kann Aufnahmen per Bluetooth an deinen Laptop senden."
+    "NSBluetoothAlwaysUsageDescription" : {
+      "comment" : "Privacy - Bluetooth Always Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "TrackScout kann Aufnahmen per Bluetooth an deinen Laptop senden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "TrackScout can send recordings to your laptop over Bluetooth."
           }
         }
       }
     },
-    "NSCameraUsageDescription": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TrackScout nimmt den Gang mit Kamera und LiDAR auf."
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "TrackScout nimmt den Gang mit Kamera und LiDAR auf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "TrackScout records the corridor with the camera and LiDAR."
           }
         }
       }
     },
-    "NSMotionUsageDescription": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TrackScout zeichnet Schwerkraft und Bewegung auf, um den Scan auszurichten."
+    "NSMotionUsageDescription" : {
+      "comment" : "Privacy - Motion Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "TrackScout zeichnet Schwerkraft und Bewegung auf, um den Scan auszurichten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "TrackScout records gravity and motion to align the scan."
           }
         }
       }
     }
-  }
+  },
+  "version" : "1.0"
 }
