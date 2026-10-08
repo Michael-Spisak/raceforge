@@ -9,14 +9,16 @@
 //! - `/events`: faults, notes and runtime events
 //! - `/lidar_raw`: each new LiDAR revolution once (not every tick), reduced to at most
 //!   [`LIDAR_MAX_POINTS`] points
-//!
-//! `/ev3_raw` (raw EV3 frames) follows with the EV3 link statistics in telemetry.
+//! - `/ev3_raw`: every frame on the EV3 link in wire units (sent commands, received sensor
+//!   frames, undecodable datagrams), fed by [`Logger::ev3_raw`]; link latency (`ack_seq`) and
+//!   loss (`seq` gaps) can be measured from it
 
 pub mod frame;
 pub mod mcap;
 
 use mcap::McapWriter;
 use rf_core::runtime::{Event, TickRecord, TickSink};
+use rf_proto::ev3::RawFrame;
 use std::fs::File;
 use std::io::{self, BufWriter};
 use std::path::{Path, PathBuf};
@@ -29,6 +31,7 @@ use std::time::{Duration, Instant};
 pub const TELEMETRY_TOPIC: &str = "/telemetry";
 pub const EVENTS_TOPIC: &str = "/events";
 pub const LIDAR_TOPIC: &str = "/lidar_raw";
+pub const EV3_TOPIC: &str = "/ev3_raw";
 pub const LIDAR_MAX_POINTS: usize = 360;
 /// JSON Schema of `TelemetryFrame` v1, exported from `raceforge.core` (drift-checked by
 /// `tests/car/test_log_schema.py`).
@@ -36,11 +39,14 @@ pub const TELEMETRY_SCHEMA: &str = include_str!("../schemas/telemetry.v1.schema.
 
 const LIDAR_SCHEMA: &str = r#"{"type":"object","properties":{"t":{"type":"object","properties":{"mono_ns":{"type":"integer"}}},"angles_rad":{"type":"array","items":{"type":["number","null"]}},"ranges_m":{"type":"array","items":{"type":["number","null"]}}}}"#;
 
+const EV3_SCHEMA: &str = r#"{"type":"object","properties":{"t":{"type":"object","properties":{"mono_ns":{"type":"integer"}}},"dir":{"enum":["tx","rx","rx_bad"]},"seq":{"type":"integer"},"t_ms":{"type":"integer"},"ack_seq":{"type":"integer"},"steer_target_cdeg":{"type":"integer"},"drive_speed_cps":{"type":"integer"},"flags":{"type":"integer"},"led":{"type":"integer"},"lcd":{"type":"integer"},"motors":{"type":"array","items":{"type":"object","properties":{"tacho":{"type":"integer"},"speed_cps":{"type":"integer"}}}},"ultrasonic_mm":{"type":"array","items":{"type":"integer"}},"gyro_rate_dps":{"type":"integer"},"gyro_angle_deg":{"type":"integer"},"touch":{"type":"integer"},"buttons":{"type":"integer"},"battery_mv":{"type":"integer"},"len":{"type":"integer"},"error":{"type":"string"}},"required":["t","dir"]}"#;
+
 const EVENT_SCHEMA: &str = r#"{"type":"object","properties":{"t":{"type":"object","properties":{"mono_ns":{"type":"integer"}}},"kind":{"type":"string"},"detail":{"type":"string"}}}"#;
 
 enum Msg {
     Tick(Box<TickRecord>),
     Event(u64, Event),
+    Ev3(u64, RawFrame),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -72,9 +78,16 @@ impl Logger {
         let lidar_schema =
             w.schema("raceforge.LidarScan", "jsonschema", LIDAR_SCHEMA.as_bytes())?;
         let lidar = w.channel(lidar_schema, LIDAR_TOPIC, "json")?;
+        let ev3_schema = w.schema("raceforge.Ev3Frame", "jsonschema", EV3_SCHEMA.as_bytes())?;
+        let ev3 = w.channel(ev3_schema, EV3_TOPIC, "json")?;
         w.flush()?;
         let (tx, rx) = mpsc::sync_channel(queue);
-        let ch = Channels { tel, ev, lidar };
+        let ch = Channels {
+            tel,
+            ev,
+            lidar,
+            ev3,
+        };
         let thread = std::thread::spawn(move || write_loop(w, rx, ch, flush_every));
         Ok(Self {
             tx: Mutex::new(Some(tx)),
@@ -94,6 +107,11 @@ impl Logger {
                 self.dropped.fetch_add(1, Ordering::Relaxed);
             }
         }
+    }
+
+    /// Log one EV3 link frame (`/ev3_raw`); `mono_ns` on the runtime's clock. Never blocks.
+    pub fn ev3_raw(&self, mono_ns: u64, f: &RawFrame) {
+        self.send(Msg::Ev3(mono_ns, f.clone()));
     }
 
     /// Stop accepting records, write everything queued and close the file properly.
@@ -140,6 +158,7 @@ struct Channels {
     tel: u16,
     ev: u16,
     lidar: u16,
+    ev3: u16,
 }
 
 fn write_loop(
@@ -151,6 +170,7 @@ fn write_loop(
     let mut last_flush = Instant::now();
     let mut ev_seq = 0u32;
     let mut lidar_seq = 0u32;
+    let mut ev3_seq = 0u32;
     let mut last_scan_t: Option<f64> = None;
     loop {
         let msg = match rx.recv_timeout(flush_every) {
@@ -186,6 +206,11 @@ fn write_loop(
                 .map_err(io::Error::other)?;
                 w.message(ch.ev, ev_seq, ns, &data)?;
                 ev_seq = ev_seq.wrapping_add(1);
+            }
+            Some(Msg::Ev3(ns, f)) => {
+                let data = serde_json::to_vec(&frame::ev3_raw(&f, ns)).map_err(io::Error::other)?;
+                w.message(ch.ev3, ev3_seq, ns, &data)?;
+                ev3_seq = ev3_seq.wrapping_add(1);
             }
             None => {}
         }

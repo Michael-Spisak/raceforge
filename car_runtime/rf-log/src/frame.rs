@@ -145,6 +145,31 @@ pub fn lidar_raw(scan: &rf_proto::ipc::LidarScan, mono_ns: u64, max_points: usiz
     json!({ "t": { "mono_ns": mono_ns }, "angles_rad": angles, "ranges_m": ranges })
 }
 
+/// One EV3 link frame for `/ev3_raw`, in wire units (no conversion, `NO_ECHO` kept).
+pub fn ev3_raw(f: &rf_proto::ev3::RawFrame, mono_ns: u64) -> Value {
+    use rf_proto::ev3::RawFrame;
+    let t = json!({ "mono_ns": mono_ns });
+    match f {
+        RawFrame::Tx(c) => json!({
+            "t": t, "dir": "tx", "seq": c.seq, "t_ms": c.t_ms,
+            "steer_target_cdeg": c.steer_target_cdeg, "drive_speed_cps": c.drive_speed_cps,
+            "flags": c.flags, "led": c.led, "lcd": c.lcd,
+        }),
+        RawFrame::Rx(s) => json!({
+            "t": t, "dir": "rx", "seq": s.seq, "t_ms": s.t_ms, "ack_seq": s.ack_seq,
+            "motors": s.motors.iter()
+                .map(|m| json!({ "tacho": m.tacho, "speed_cps": m.speed_cps }))
+                .collect::<Vec<_>>(),
+            "ultrasonic_mm": s.ultrasonic_mm,
+            "gyro_rate_dps": s.gyro_rate_dps, "gyro_angle_deg": s.gyro_angle_deg,
+            "touch": s.touch, "buttons": s.buttons, "battery_mv": s.battery_mv, "flags": s.flags,
+        }),
+        RawFrame::RxBad { len, error } => json!({
+            "t": t, "dir": "rx_bad", "len": len, "error": error.to_string(),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

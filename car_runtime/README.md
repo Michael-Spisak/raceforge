@@ -46,6 +46,10 @@ The EV3 side lives in [`../ev3_side`](../ev3_side/README.md).
    ```
    The runtime checks every bundle file's SHA-256, waits for the EV3 link, starts the controller host
    and logs to `logs/run-<time>-<name>.mcap`. `--ticks N` stops after N control steps.
+   The log has `/telemetry` (one `TelemetryFrame` per tick, same as the simulator), `/events`,
+   `/lidar_raw` (one record per revolution, at most 360 points) and `/ev3_raw` (every frame on the
+   EV3 link in wire units, `dir` = `tx` / `rx` / `rx_bad`, about 250 records/s, roughly 4 MB per
+   minute). Link latency comes from `ack_seq` and frame loss from gaps in `seq`.
 
 After a driving fault the car stays stopped and the runtime keeps running. Holding the EV3 centre
 button for 1 s (`Ev3Spec(resume_button=...)`, default `"enter"`) restarts the controller host from the

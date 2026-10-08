@@ -4,8 +4,9 @@
 
 use rf_core::hw::{Actuators, DriveOutput, Sensors};
 use rf_ev3::{Ev3Config, Ev3Link, UdpTransport};
-use rf_proto::ev3::{cmd_flags, CommandFrame, SensorFrame, SENSOR_LEN};
+use rf_proto::ev3::{cmd_flags, CommandFrame, FrameError, RawFrame, SensorFrame, SENSOR_LEN};
 use std::net::UdpSocket;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// Timing-sensitive tests in this file run one at a time: parallel control loops on a small CI
@@ -173,6 +174,65 @@ fn sensor_frames_become_snapshots_and_staleness_is_link_lost() {
     // No frames for longer than the link timeout -> link lost.
     std::thread::sleep(Duration::from_millis(120));
     assert!(link.snapshot().link_lost.is_some());
+}
+
+#[test]
+fn raw_tap_sees_every_frame_on_the_wire() {
+    let _serial = serial();
+    let (link, ev3) = setup(cfg());
+    let seen: Arc<Mutex<Vec<(Instant, RawFrame)>>> = Arc::default();
+    let rec = seen.clone();
+    assert!(link.set_raw_tap(Box::new(move |at, f| {
+        rec.lock().expect("lock").push((at, f.clone()));
+    })));
+    assert!(
+        !link.set_raw_tap(Box::new(|_, _| {})),
+        "the tap is set once"
+    );
+    ev3.recv_cmds(Duration::from_millis(10)); // frames sent before the tap was set
+    let cmds = ev3.recv_cmds(Duration::from_millis(50));
+    let f = SensorFrame {
+        seq: 1,
+        ack_seq: cmds.last().expect("cmd").1.seq,
+        ..Default::default()
+    };
+    ev3.send(&f);
+    ev3.send(&f); // duplicate: ignored by the link, still on the wire
+    let mut bad = SensorFrame::default().encode();
+    bad[SENSOR_LEN - 1] ^= 0xFF;
+    ev3.sock.send(&bad).expect("send");
+    std::thread::sleep(Duration::from_millis(20));
+    drop(link);
+
+    let seen = seen.lock().expect("lock").clone();
+    let tx: Vec<u32> = seen
+        .iter()
+        .filter_map(|(_, f)| match f {
+            RawFrame::Tx(c) => Some(c.seq),
+            _ => None,
+        })
+        .collect();
+    assert!(tx.windows(2).all(|w| w[1] > w[0]), "in send order");
+    assert!(
+        cmds.iter().all(|(_, c)| tx.contains(&c.seq)),
+        "every sent frame"
+    );
+    let rx: Vec<_> = seen
+        .iter()
+        .filter_map(|(_, f)| match f {
+            RawFrame::Rx(s) => Some(*s),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(rx, vec![f, f]);
+    assert!(seen.iter().any(|(_, f)| *f
+        == RawFrame::RxBad {
+            len: SENSOR_LEN,
+            error: FrameError::Crc
+        }));
+    assert!(seen.windows(2).all(|w| w[1].0 >= w[0].0), "timestamps");
+    // The final stop frame sent on drop is tapped too.
+    assert!(matches!(seen.last(), Some((_, RawFrame::Tx(c))) if c.flags & cmd_flags::STOP != 0));
 }
 
 #[test]

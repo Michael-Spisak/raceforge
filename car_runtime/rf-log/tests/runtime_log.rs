@@ -327,3 +327,105 @@ fn each_lidar_revolution_is_logged_once() {
     }
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn ev3_frames_go_to_ev3_raw() {
+    use rf_proto::ev3::{CommandFrame, FrameError, Motor, RawFrame, SensorFrame, NO_ECHO};
+    let path = tmp("ev3raw");
+    let logger = Logger::start(&path, 64, Duration::from_millis(50)).expect("logger");
+    logger.ev3_raw(
+        5_000,
+        &RawFrame::Tx(CommandFrame {
+            seq: 3,
+            t_ms: 1,
+            steer_target_cdeg: -1200,
+            drive_speed_cps: 250,
+            flags: 0,
+            led: 1,
+            lcd: 0,
+        }),
+    );
+    let mut motors = [Motor::default(); 4];
+    motors[1] = Motor {
+        tacho: -40_000,
+        speed_cps: 248,
+    };
+    logger.ev3_raw(
+        9_000,
+        &RawFrame::Rx(SensorFrame {
+            seq: 9,
+            t_ms: 2,
+            ack_seq: 3,
+            motors,
+            ultrasonic_mm: [1500, NO_ECHO, 800, NO_ECHO],
+            gyro_rate_dps: -3,
+            gyro_angle_deg: 370,
+            touch: 0,
+            buttons: 1 << 4,
+            battery_mv: 7900,
+            flags: 1,
+        }),
+    );
+    logger.ev3_raw(
+        9_500,
+        &RawFrame::RxBad {
+            len: 7,
+            error: FrameError::TooShort(7),
+        },
+    );
+    logger.close().expect("close");
+    let (msgs, closed) = messages(&path);
+    assert!(closed);
+    let raw: Vec<_> = msgs
+        .iter()
+        .filter(|(ch, _)| *ch == 3)
+        .map(|(_, v)| v)
+        .collect();
+    assert_eq!(raw.len(), 3);
+    // Wire values, unconverted: what the board sent and what the EV3 reported.
+    assert_eq!(raw[0]["t"]["mono_ns"], 5_000);
+    assert_eq!(
+        (
+            &raw[0]["dir"],
+            &raw[0]["seq"],
+            &raw[0]["steer_target_cdeg"],
+            &raw[0]["drive_speed_cps"]
+        ),
+        (&"tx".into(), &3.into(), &(-1200).into(), &250.into())
+    );
+    assert_eq!(
+        (
+            &raw[1]["dir"],
+            &raw[1]["ack_seq"],
+            &raw[1]["buttons"],
+            &raw[1]["battery_mv"]
+        ),
+        (&"rx".into(), &3.into(), &16.into(), &7900.into())
+    );
+    assert_eq!(raw[1]["motors"][1]["tacho"], -40_000);
+    assert_eq!(raw[1]["ultrasonic_mm"][1], u64::from(NO_ECHO));
+    assert_eq!(
+        (&raw[2]["dir"], &raw[2]["len"], &raw[2]["error"]),
+        (
+            &"rx_bad".into(),
+            &7.into(),
+            &"frame too short: 7 bytes".into()
+        )
+    );
+    if let Ok(py) = std::env::var("RF_PYTHON") {
+        let out = std::process::Command::new(py)
+            .args(["-c", "import sys, json; from mcap.reader import make_reader; \
+                          f = open(sys.argv[1], 'rb'); \
+                          print([json.loads(m.data)['dir'] for _, _, m in make_reader(f).iter_messages(topics=['/ev3_raw'])])"])
+            .arg(&path)
+            .output()
+            .expect("python");
+        assert_eq!(
+            String::from_utf8_lossy(&out.stdout).trim(),
+            "['tx', 'rx', 'rx_bad']",
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    let _ = std::fs::remove_file(&path);
+}

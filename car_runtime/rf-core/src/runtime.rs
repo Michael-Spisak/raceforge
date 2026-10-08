@@ -261,6 +261,11 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         })
     }
 
+    /// Origin of `mono_ns` in tick records and events (to timestamp other log sources).
+    pub fn clock_start(&self) -> Instant {
+        self.start
+    }
+
     /// Allow the resume button to restart the controller after a fault (spec 0005: the
     /// controller is restarted only by the resume button or a new deploy).
     pub fn set_restart(&mut self, factory: ControllerFactory) {

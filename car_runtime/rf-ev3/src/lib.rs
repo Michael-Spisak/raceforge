@@ -10,12 +10,12 @@
 //! `lcd` is one of the [`lcd`] codes.
 
 use rf_core::hw::{Actuators, DriveOutput, SensorSnapshot, Sensors};
-use rf_proto::ev3::{cmd_flags, status_flags, CommandFrame, SensorFrame};
+use rf_proto::ev3::{cmd_flags, status_flags, CommandFrame, RawFrame, SensorFrame};
 use std::collections::{BTreeMap, VecDeque};
 use std::io::{self, ErrorKind};
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -221,9 +221,14 @@ struct State {
     stats: LinkStats,
 }
 
+/// Called with every frame sent or received and when it happened, on the link's threads (and
+/// on the control thread for new outputs), so it must never block.
+pub type RawTap = Box<dyn Fn(Instant, &RawFrame) + Send + Sync>;
+
 struct Shared {
     cfg: Ev3Config,
     transport: Box<dyn Transport>,
+    tap: OnceLock<RawTap>,
     state: Mutex<State>,
     start: Instant,
     stop: AtomicBool,
@@ -252,7 +257,12 @@ impl Shared {
         }
         // Send while holding the lock so frames leave in sequence order.
         match self.transport.send(&f.encode()) {
-            Ok(()) => st.stats.tx_frames += 1,
+            Ok(()) => {
+                st.stats.tx_frames += 1;
+                if let Some(tap) = self.tap.get() {
+                    tap(now, &RawFrame::Tx(f));
+                }
+            }
             Err(_) => st.stats.tx_errors += 1,
         }
     }
@@ -260,10 +270,20 @@ impl Shared {
     fn received(&self, data: &[u8]) {
         let now = Instant::now();
         let mut st = self.state();
-        let Ok(f) = SensorFrame::decode(data) else {
-            st.stats.rx_bad += 1;
-            return;
+        let f = match SensorFrame::decode(data) {
+            Ok(f) => f,
+            Err(error) => {
+                st.stats.rx_bad += 1;
+                if let Some(tap) = self.tap.get() {
+                    let len = data.len();
+                    tap(now, &RawFrame::RxBad { len, error });
+                }
+                return;
+            }
         };
+        if let Some(tap) = self.tap.get() {
+            tap(now, &RawFrame::Rx(f));
+        }
         if let Some((_, prev)) = st.latest {
             let gap = f.seq.wrapping_sub(prev.seq);
             if gap == 0 || gap > u32::MAX / 2 {
@@ -290,6 +310,7 @@ impl Ev3Link {
         let shared = Arc::new(Shared {
             cfg,
             transport,
+            tap: OnceLock::new(),
             state: Mutex::new(State {
                 seq: 0,
                 out: DriveOutput::STOP,
@@ -339,7 +360,13 @@ impl Ev3Link {
         self.shared.state().stats
     }
 
-    /// Latest raw sensor frame and its age (for the `/ev3_raw` log channel).
+    /// Report every frame from now on to `tap` (the `/ev3_raw` log). Set once: returns false
+    /// (and drops `tap`) if a tap is already set.
+    pub fn set_raw_tap(&self, tap: RawTap) -> bool {
+        self.shared.tap.set(tap).is_ok()
+    }
+
+    /// Latest raw sensor frame and its age.
     pub fn latest_raw(&self) -> Option<(Duration, SensorFrame)> {
         self.shared.state().latest.map(|(t, f)| (t.elapsed(), f))
     }

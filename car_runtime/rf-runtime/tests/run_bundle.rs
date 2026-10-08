@@ -188,6 +188,28 @@ fn runs_python_built_bundle_end_to_end() {
         String::from_utf8_lossy(&check.stderr)
     );
     assert_eq!(String::from_utf8_lossy(&check.stdout).trim(), "50");
+
+    // /ev3_raw: every frame on the EV3 link, both directions, on the telemetry clock.
+    let bytes = std::fs::read(&out.log).expect("log");
+    let (recs, _) = rf_log::mcap::parse(&bytes).expect("mcap");
+    let ev3_channel = recs
+        .iter()
+        .find(|r| r.opcode == 0x04 && r.body.windows(8).any(|w| w == b"/ev3_raw"))
+        .map(|r| u16::from_le_bytes([r.body[0], r.body[1]]))
+        .expect("/ev3_raw channel");
+    let raw: Vec<serde_json::Value> = recs
+        .iter()
+        .filter_map(rf_log::mcap::message_parts)
+        .filter(|(ch, ..)| *ch == ev3_channel)
+        .map(|(.., data)| serde_json::from_slice(data).expect("json"))
+        .collect();
+    let count = |dir: &str| raw.iter().filter(|m| m["dir"] == dir).count();
+    // 50 ticks = 1 s: ~100 keep-alives + the new outputs out, ~100 sensor frames in.
+    assert!(count("tx") >= 100, "{} tx", count("tx"));
+    assert!(count("rx") >= 50, "{} rx", count("rx"));
+    assert!(raw
+        .iter()
+        .any(|m| m["dir"] == "rx" && m["battery_mv"] == 7900));
 }
 
 #[test]

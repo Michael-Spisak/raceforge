@@ -35,7 +35,7 @@ pub mod status_flags {
     pub const FAILSAFE: u8 = 1 << 2;
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum FrameError {
     #[error("frame too short: {0} bytes")]
     TooShort(usize),
@@ -83,6 +83,17 @@ pub struct SensorFrame {
     pub buttons: u8,
     pub battery_mv: u16,
     pub flags: u8,
+}
+
+/// One frame on the EV3 link as the board saw it (for the `/ev3_raw` log channel).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RawFrame {
+    /// Sent to the EV3.
+    Tx(CommandFrame),
+    /// Valid frame from the EV3, including duplicates and late frames the link ignores.
+    Rx(SensorFrame),
+    /// Datagram from the EV3 that failed to decode.
+    RxBad { len: usize, error: FrameError },
 }
 
 struct Writer(Vec<u8>);

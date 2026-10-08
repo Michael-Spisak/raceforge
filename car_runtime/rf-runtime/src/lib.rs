@@ -186,6 +186,12 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
     let mut rt = Runtime::new(cfg, sensors, ev3.clone(), link, opts.setup_timeout)?;
     rt.set_restart(Box::new(spawn_host));
     rt.add_sink(logger.clone());
+    // Every EV3 frame from here on goes to /ev3_raw, on the tick records' clock.
+    let (start, raw_log) = (rt.clock_start(), logger.clone());
+    ev3.set_raw_tap(Box::new(move |at, f| {
+        let ns = at.saturating_duration_since(start).as_nanos();
+        raw_log.ev3_raw(u64::try_from(ns).unwrap_or(u64::MAX), f);
+    }));
     // Live telemetry + teleop: test mode only. In race mode nothing listens (spec 0005 AC5).
     if let (Mode::Test, Some(t)) = (mode, &manifest.telemetry) {
         let bind = t
