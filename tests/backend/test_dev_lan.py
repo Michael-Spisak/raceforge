@@ -49,3 +49,23 @@ def test_parser_accepts_lan(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "_cmd_backend", lambda a: seen.append(a) or 0)
     assert cli.main(["backend", "dev", "--lan", "--port", "8090"]) == 0
     assert seen[0].lan and seen[0].port == 8090
+
+
+def test_dev_admin_resets_an_existing_account(tmp_path: Path) -> None:
+    """Re-running `backend dev --admin USER:PW` makes the test account usable again."""
+    from raceforge.backend.app import make_backend
+    from raceforge.backend.migrate import upgrade
+
+    settings = cli._backend_settings(_args(tmp_path))
+    upgrade(settings.database_url)
+    backend = make_backend(settings)
+    backend.bootstrap_admin("admin", "old-password-123")
+    cli._dev_reset_admin(backend, "admin", "admin")
+    from sqlalchemy import select
+
+    from raceforge.backend import db
+
+    with backend.db.session() as s:
+        user = s.scalars(select(db.User).where(db.User.username == "admin")).one()
+        assert backend.passwords.verify(user.password_hash, "admin")
+        assert not user.totp_enabled and user.role == "admin"

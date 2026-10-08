@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from raceforge.backend.service import Backend
     from raceforge.backend.settings import Settings
 
 from raceforge import __version__
@@ -170,6 +171,20 @@ def _backend_settings(args: argparse.Namespace) -> "Settings":
     return settings
 
 
+def _dev_reset_admin(backend: "Backend", username: str, password: str) -> None:
+    """`backend dev --admin USER:PW` on an existing test database: make the account usable again."""
+    from sqlalchemy import select
+
+    from raceforge.backend import db
+    from raceforge.backend.models import Role
+
+    with backend.db.session() as s:
+        user = s.scalars(select(db.User).where(db.User.username == username)).one()
+        user.password_hash = backend.passwords.hash(password)
+        user.role, user.disabled = Role.ADMIN.value, False
+        user.totp_enabled, user.totp_secret = False, None
+
+
 def _cmd_backend(args: argparse.Namespace) -> int:
     import getpass
     import os
@@ -197,9 +212,11 @@ def _cmd_backend(args: argparse.Namespace) -> int:
             backend.bootstrap_admin(username, password)
             print(f"admin {username!r} created; log in and set up TOTP 2FA")
         except ApiError as exc:
-            print(f"error: {exc.detail}")
             if cmd == "bootstrap-admin":
+                print(f"error: {exc.detail}")
                 return 1
+            _dev_reset_admin(backend, username, password)  # test server: --admin always wins
+            print(f"admin {username!r} exists: password reset, 2FA off (dev server only)")
         if cmd == "dev" and args.admin_totp:
             from sqlalchemy import select
 
