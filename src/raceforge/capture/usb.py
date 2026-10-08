@@ -97,7 +97,10 @@ async def pull_usb(
             inbox.append(entry.id, data)
             offset += len(data)
             await report(entry.id, offset, entry.size, False)
-        inbox.complete(entry.id)
+        try:
+            inbox.complete(entry.id)
+        except ValueError:
+            continue  # damaged: discarded, the next pull copies it again
         await report(entry.id, entry.size, entry.size, True)
         done.append(entry.id)
     return done

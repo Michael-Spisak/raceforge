@@ -34,6 +34,7 @@ class ScanApi:
     # ------------------------------------------------------------------ listing
     def tracks(self) -> list[ScanTrack]:
         tracks: list[ScanTrack] = []
+        by_slug: dict[str, ScanTrack] = {}
         ws = self.wsapi.ws
         if ws.workspace_id is not None:
             for obj in ws.objects("capture"):
@@ -46,14 +47,19 @@ class ScanApi:
                     )
                     for f in files
                 ]
-                tracks.append(
-                    ScanTrack(name=obj.slug, slug=obj.slug, version=obj.latest.semver, passes=refs)
+                track = ScanTrack(
+                    name=obj.slug, slug=obj.slug, version=obj.latest.semver, passes=refs
                 )
-        laptop: dict[str, list[ScanPassRef]] = {}
+                tracks.append(track)
+                by_slug[obj.slug] = track
         for p in self.wsapi.inbox.list():
             if p.state in ("receiving", "uploaded"):  # uploaded passes are in the workspace list
                 continue
-            laptop.setdefault(p.project, []).append(
+            # Same capture slug as the workspace object → same track (one coordinate frame).
+            if p.slug not in by_slug:
+                by_slug[p.slug] = ScanTrack(name=p.project, slug=p.slug, passes=[])
+                tracks.append(by_slug[p.slug])
+            by_slug[p.slug].passes.append(
                 ScanPassRef(
                     sha256=p.sha256,
                     name=f"{p.id}.tscan",
@@ -63,7 +69,6 @@ class ScanApi:
                     created_at=p.created_at,
                 )
             )
-        tracks += [ScanTrack(name=name, passes=refs) for name, refs in laptop.items()]
         if self.opened:
             refs = [
                 ScanPassRef(sha256=sha, name=path.name, size=path.stat().st_size, source="file")
@@ -130,8 +135,8 @@ class ScanApi:
             step = max(1, int(np.ceil(len(t) / MAX_TRAJECTORY)))
             pos = poses[::step, :3, 3]
             points: list[NDArray[Any]] = [pos]
-            for s in m.segments:
-                mesh = tp.mesh(s.index)
+            for i in range(len(m.segments)):
+                mesh = tp.mesh(i)  # by list position, like TscanPass.mesh
                 if mesh is not None and len(mesh.vertices):
                     points.append(mesh.vertices)
             allp = np.concatenate(points) if any(len(p) for p in points) else np.zeros((1, 3))
@@ -168,8 +173,8 @@ class ScanApi:
         classes: list[NDArray[Any]] = []
         offset = 0
         with TscanPass(self._path(sha)) as tp:
-            for s in tp.manifest.segments:
-                mesh = tp.mesh(s.index)
+            for i in range(len(tp.manifest.segments)):
+                mesh = tp.mesh(i)
                 if mesh is None:
                     continue
                 verts.append(mesh.vertices.astype("<f4"))
@@ -183,6 +188,9 @@ class ScanApi:
         if total > max_faces > 0:
             keep = np.linspace(0, total - 1, max_faces).astype(np.int64)
             f, c = f[keep], c[keep]
+            # Only ship the vertices the kept faces use.
+            used, inverse = np.unique(f, return_inverse=True)
+            v, f = v[used], inverse.reshape(f.shape).astype("<u4")
         result = ScanMesh(
             sha256=sha,
             vertices=len(v),
