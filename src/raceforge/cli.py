@@ -98,6 +98,29 @@ def _cmd_sim(args: argparse.Namespace) -> int:
         return 0
 
 
+def _cmd_ui(args: argparse.Namespace) -> int:
+    import socket
+    import webbrowser
+
+    import uvicorn
+
+    from raceforge.server.app import FRONTEND_DIST, create_app
+
+    port = args.port
+    if port == 0:
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+    url = f"http://127.0.0.1:{port}/"
+    print(f"RACEFORGE_ENGINE_URL={url}", flush=True)  # read by the Electron shell
+    if args.browser:
+        if not FRONTEND_DIST.is_dir():
+            print("frontend not built yet: run `npm run build` in frontend/")
+        webbrowser.open(url)
+    uvicorn.run(create_app(), host="127.0.0.1", port=port, log_level="warning")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="raceforge", description="RaceForge command-line interface"
@@ -149,6 +172,11 @@ def main(argv: list[str] | None = None) -> int:
         "--watch", action="store_true", help="re-run whenever the controller file changes"
     )
     simp.set_defaults(func=_cmd_sim)
+
+    ui = sub.add_parser("ui", help="start the local engine and the user interface")
+    ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")
+    ui.add_argument("--browser", action="store_true", help="open the UI in the default browser")
+    ui.set_defaults(func=_cmd_ui)
 
     args = parser.parse_args(argv)
     if not hasattr(args, "func"):

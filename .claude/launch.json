@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "raceforge-ui",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PYTHONPATH=src uv run raceforge ui --port 8765"
+      ],
+      "port": 8765
+    }
+  ]
+}

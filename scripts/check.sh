@@ -11,3 +11,9 @@ git ls-files -z '*.sh' | xargs -0 uv run shellcheck -S style
 uv run pyright
 uv run lint-imports
 uv run pytest "$@"
+# Frontend (spec 0008): lint, types, unit tests, build. E2E/Electron run in CI (see ci.yml).
+if command -v npm >/dev/null 2>&1 && [ -d frontend/node_modules ]; then
+  (cd frontend && npm run --silent check)
+else
+  echo "skipping frontend checks (run 'npm ci' in frontend/)"
+fi
