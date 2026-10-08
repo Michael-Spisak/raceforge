@@ -6,6 +6,7 @@ Two versions with the same parent are *both* kept as branches and reported as a 
 
 import hashlib
 import json
+import secrets
 import shutil
 import sqlite3
 import threading
@@ -219,6 +220,14 @@ class Workspace:
         for key in ("access", "refresh"):
             self._set(key, None)
 
+    def laptop_key(self) -> str:
+        """Secret that identifies this laptop to paired phones (cable/Bluetooth, spec 0007)."""
+        key = self._get("laptop_key")
+        if key is None:
+            key = secrets.token_urlsafe(24)
+            self._set("laptop_key", key)
+        return key
+
     def totp_verify(self, code: str) -> UserInfo:
         user = self.client().totp_verify(code)
         self._set("user", user.model_dump_json())
@@ -402,10 +411,25 @@ class Workspace:
         return next(v for v in version if v.id == vid)
 
     def save_files(
-        self, kind: str, slug: str, files: list[Path], message: str = "", entry: str | None = None
+        self,
+        kind: str,
+        slug: str,
+        files: list[Path],
+        message: str = "",
+        entry: str | None = None,
+        merge: bool = False,
     ) -> LocalVersion:
-        """Save files (e.g. a controller + its params YAML) as a fileset version (bytes → blobs)."""
+        """Save files (e.g. a controller + its params YAML) as a fileset version (bytes → blobs).
+
+        ``merge``: keep the files of the latest version and add/replace these (a capture object
+        lists every pass uploaded so far, like TrackScout does).
+        """
         entries: list[FileEntry] = []
+        obj = next((o for o in self.objects() if o.slug == slug), None) if merge else None
+        if obj is not None and obj.latest is not None:
+            old = FileSetContent.model_validate(self.version_content(obj.latest.id))
+            names = {p.name for p in files}
+            entries = [f for f in old.files if f.path not in names]
         for path in files:
             sha = file_sha256(path)
             dest = self.blob_path(sha)
@@ -415,7 +439,7 @@ class Workspace:
             with self._tx() as c:
                 c.execute("INSERT OR IGNORE INTO pending_blobs VALUES (?)", (sha,))
             entries.append(FileEntry(path=path.name, sha256=sha, size=path.stat().st_size))
-        content = FileSetContent(files=entries, entry=entry or files[0].name)
+        content = FileSetContent(files=entries, entry=entry or (None if merge else files[0].name))
         return self.save(kind, slug, content.model_dump(mode="json", by_alias=True), message)
 
     def version_content(self, version_id: str) -> dict[str, Any]:

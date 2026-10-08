@@ -240,6 +240,16 @@ class InviteRequest(ApiModel):
     role: Literal["member", "admin"] = "member"
 
 
+class TrackScoutPairing(ApiModel):
+    """TrackScout pairing QR (spec 0007): server, new `trackscout` API token + laptop key."""
+
+    url: str
+    qr_svg: str
+    token_id: str
+    laptop_name: str
+    workspace_id: str | None
+
+
 class TokenRequest(ApiModel):
     name: str = Field(min_length=1, max_length=128)
     scopes: list[Literal["read", "sim_train", "edit", "admin"]] = Field(min_length=1)

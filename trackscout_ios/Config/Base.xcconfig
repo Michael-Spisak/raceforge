@@ -1,0 +1,4 @@
+// Shared settings. Personal signing lives in Local.xcconfig (git-ignored), see Local.xcconfig.template.
+RF_BUNDLE_PREFIX = org.raceforge.example
+RF_DEVELOPMENT_TEAM =
+#include? "Local.xcconfig"

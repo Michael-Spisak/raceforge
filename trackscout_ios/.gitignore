@@ -1,0 +1,5 @@
+Config/Local.xcconfig
+TrackScout.xcodeproj/
+*.xcworkspace/
+.build/
+build/

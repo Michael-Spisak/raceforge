@@ -18,6 +18,7 @@ dependencies = [
     "pydantic>=2.11",
     "pyotp>=2.9",
     "pyyaml>=6",
+    "segno>=1.6",
     "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.30",
 ]
