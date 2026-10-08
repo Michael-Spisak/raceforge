@@ -53,6 +53,8 @@ Race mode is refused until the radio check (AC5) exists. Stopping the process (C
 the EV3 brakes after 150 ms without frames and the log stays readable up to the last record.
 
 ## Develop
+The Rust version is pinned in `rust-toolchain.toml` (rustup installs it automatically).
+
 ```sh
 cargo fmt --all --check && cargo clippy --all-targets -- -D warnings
 RF_PYTHON=../.venv/bin/python cargo test   # without RF_PYTHON the Python end-to-end tests are skipped

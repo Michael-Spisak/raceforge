@@ -1,0 +1,6 @@
+# Pinned so local builds and CI use the same compiler and lints (a newer clippy once turned CI
+# red without a code change). Bump deliberately, together with any new lint fixes.
+[toolchain]
+channel = "1.98.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"
