@@ -172,18 +172,23 @@ def _backend_settings(args: argparse.Namespace) -> "Settings":
     return settings
 
 
-def _dev_reset_admin(backend: "Backend", username: str, password: str) -> None:
-    """`backend dev --admin USER:PW` on an existing test database: make the account usable again."""
+def _dev_reset_admin(backend: "Backend", username: str, password: str) -> bool:
+    """`backend dev --admin USER:PW` on an existing test database: make the account usable again.
+
+    Returns False when there is no such user (the bootstrap error was something else)."""
     from sqlalchemy import select
 
     from raceforge.backend import db
     from raceforge.backend.models import Role
 
     with backend.db.session() as s:
-        user = s.scalars(select(db.User).where(db.User.username == username)).one()
+        user = s.scalars(select(db.User).where(db.User.username == username)).one_or_none()
+        if user is None:
+            return False
         user.password_hash = backend.passwords.hash(password)
         user.role, user.disabled = Role.ADMIN.value, False
         user.totp_enabled, user.totp_secret = False, None
+        return True
 
 
 def _cmd_backend(args: argparse.Namespace) -> int:
@@ -213,10 +218,10 @@ def _cmd_backend(args: argparse.Namespace) -> int:
             backend.bootstrap_admin(username, password)
             print(f"admin {username!r} created; log in and set up TOTP 2FA")
         except ApiError as exc:
-            if cmd == "bootstrap-admin":
+            if cmd == "bootstrap-admin" or not _dev_reset_admin(backend, username, password):
                 print(f"error: {exc.detail}")
                 return 1
-            _dev_reset_admin(backend, username, password)  # test server: --admin always wins
+            # test server: --admin always wins for an existing account
             print(f"admin {username!r} exists: password reset, 2FA off (dev server only)")
         if cmd == "dev" and args.admin_totp:
             from sqlalchemy import select
@@ -242,7 +247,7 @@ def _cmd_backend(args: argparse.Namespace) -> int:
     host = _dev_host(args) if cmd == "dev" else args.host
     public = _dev_public_host(args) if cmd == "dev" else host
     print(f"RACEFORGE_BACKEND_URL=http://{public}:{args.port}/", flush=True)
-    if cmd == "dev" and host != "127.0.0.1":
+    if cmd == "dev" and host in ("0.0.0.0", "::"):
         print(
             f"Reachable in the local network (e.g. TrackScout): log in on the Team tab with "
             f"http://{public}:{args.port} — test data only, plain HTTP, no TLS.",
@@ -253,8 +258,9 @@ def _cmd_backend(args: argparse.Namespace) -> int:
         host=host,
         port=args.port,
         log_level="info" if cmd == "serve" else "warning",
-        proxy_headers=True,
-        forwarded_allow_ips="*",
+        # Only `serve` sits behind a reverse proxy; a LAN dev server must not trust client headers.
+        proxy_headers=cmd == "serve",
+        forwarded_allow_ips="*" if cmd == "serve" else None,
     )
     return 0
 
