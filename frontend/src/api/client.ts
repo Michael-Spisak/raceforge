@@ -15,6 +15,10 @@ export type ResultMessage = Schemas["ResultMessage"];
 export type ErrorMessage = Schemas["ErrorMessage"];
 export type SimStart = Schemas["SimStart"];
 export type ReplaySummary = Schemas["ReplaySummary"];
+export type ScanTrack = Schemas["ScanTrack"];
+export type ScanPassRef = Schemas["ScanPassRef"];
+export type ScanDetail = Schemas["ScanDetail"];
+export type ScanMesh = Schemas["ScanMesh"];
 export type WorkspaceStatus = Schemas["WorkspaceStatus"];
 export type WorkspaceInfo = Schemas["WorkspaceInfo"];
 export type LocalObject = Schemas["LocalObject"];
@@ -94,6 +98,11 @@ export const api = {
     request<string>(`/api/v1/quickstart/export/${kind}`, { method: "POST", body: JSON.stringify(params) }),
   controllers: () => request<ControllerInfo[]>("/api/v1/controllers"),
   replay: (path: string) => request<ReplaySummary>("/api/v1/replays", { method: "POST", body: JSON.stringify({ path }) }),
+  /** TrackScout passes the engine can show (spec 0009). */
+  scans: () => request<ScanTrack[]>("/api/v1/scans"),
+  openScan: (path: string) => request<ScanPassRef>("/api/v1/scans/open", { method: "POST", body: JSON.stringify({ path }) }),
+  scan: (sha: string) => request<ScanDetail>(`/api/v1/scans/${sha}`),
+  scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
 };
 
 const W = "/api/v1/workspace";

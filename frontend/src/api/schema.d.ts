@@ -140,6 +140,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scan Tracks */
+        get: operations["scan_tracks_api_v1_scans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Scan Open */
+        post: operations["scan_open_api_v1_scans_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans/{sha256}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scan Detail */
+        get: operations["scan_detail_api_v1_scans__sha256__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans/{sha256}/mesh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scan Mesh */
+        get: operations["scan_mesh_api_v1_scans__sha256__mesh_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sim/protocol": {
         parameters: {
             query?: never;
@@ -1196,6 +1264,126 @@ export interface components {
             /** Slug */
             slug: string;
         };
+        /** ScanDetail */
+        ScanDetail: {
+            /** Bounds */
+            bounds: [
+                [
+                    number,
+                    number,
+                    number
+                ],
+                [
+                    number,
+                    number,
+                    number
+                ]
+            ];
+            /** Segments */
+            segments: components["schemas"]["ScanSegment"][];
+            /** Sha256 */
+            sha256: string;
+            /** Summary */
+            summary: {
+                [key: string]: unknown;
+            };
+            /** Trajectory */
+            trajectory: [
+                number,
+                number,
+                number
+            ][];
+            /** Trajectory Kept */
+            trajectory_kept: boolean[];
+            /** Trajectory Segment */
+            trajectory_segment: number[];
+        };
+        /**
+         * ScanMesh
+         * @description All segment meshes of a pass, little-endian arrays as base64 (spec 0009).
+         */
+        ScanMesh: {
+            /** Classes */
+            classes: string[];
+            /** Classes B64 */
+            classes_b64: string;
+            /** Faces */
+            faces: number;
+            /** Indices B64 */
+            indices_b64: string;
+            /** Positions B64 */
+            positions_b64: string;
+            /** Sha256 */
+            sha256: string;
+            /** Total Faces */
+            total_faces: number;
+            /** Vertices */
+            vertices: number;
+        };
+        /** ScanOpen */
+        ScanOpen: {
+            /** Path */
+            path: string;
+        };
+        /**
+         * ScanPassRef
+         * @description One TrackScout pass the engine can open, identified by its SHA-256.
+         */
+        ScanPassRef: {
+            /**
+             * Created At
+             * @default
+             */
+            created_at: string;
+            /** Error */
+            error?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Pass Type
+             * @default
+             */
+            pass_type: string;
+            /** Sha256 */
+            sha256: string;
+            /** Size */
+            size: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "workspace" | "laptop" | "file";
+        };
+        /** ScanSegment */
+        ScanSegment: {
+            /** Discarded */
+            discarded: [
+                number,
+                number
+            ][];
+            /** End S */
+            end_s: number;
+            /** Frames */
+            frames: number;
+            /** Index */
+            index: number;
+            /** Start S */
+            start_s: number;
+        };
+        /**
+         * ScanTrack
+         * @description Passes of one track (same coordinate frame): a workspace capture object or a project name.
+         */
+        ScanTrack: {
+            /** Name */
+            name: string;
+            /** Passes */
+            passes: components["schemas"]["ScanPassRef"][];
+            /** Slug */
+            slug?: string | null;
+            /** Version */
+            version?: string | null;
+        };
         /** SceneBody */
         SceneBody: {
             /** Name */
@@ -1760,6 +1948,123 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReplaySummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_tracks_api_v1_scans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanTrack"][];
+                };
+            };
+        };
+    };
+    scan_open_api_v1_scans_open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanOpen"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanPassRef"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_detail_api_v1_scans__sha256__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_mesh_api_v1_scans__sha256__mesh_get: {
+        parameters: {
+            query?: {
+                max_faces?: number;
+            };
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanMesh"];
                 };
             };
             /** @description Validation Error */
