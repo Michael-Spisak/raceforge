@@ -19,6 +19,9 @@ public final class PassRecorder {
     public private(set) var state: RecorderState = .idle
     public private(set) var manifest: Manifest
     public private(set) var framesWritten = 0
+    /// Depth frames stored, and frames whose depth was dropped because its resolution changed mid-pass.
+    public private(set) var depthFramesWritten = 0
+    public private(set) var depthFramesSkipped = 0
     private var frames: FileHandle?
     private var imu: FileHandle?
     private var depth: FileHandle?
@@ -122,10 +125,14 @@ public final class PassRecorder {
     // MARK: - data
 
     /// Appends a camera frame; depth is kept for every n-th frame (quality preset). Returns whether depth was stored.
+    ///
+    /// `depthSize` is the real resolution of `depthValues`. ARKit's depth map size depends on the video format
+    /// (e.g. 4K on "Maximum"), so the first stored depth frame defines the pass's resolution in the manifest;
+    /// a later frame with another size loses its depth (counted in `depthFramesSkipped`) instead of crashing.
     @discardableResult
     public func append(
         t: Double, pose: [Float], intrinsics: [Float], exposureS: Float, tracking: TrackingState,
-        depth depthValues: [UInt16]?, confidence: [UInt8]?
+        depth depthValues: [UInt16]?, confidence: [UInt8]?, depthSize: (width: Int, height: Int)? = nil
     ) throws -> Bool {
         guard case .recording(let segment) = state else {
             throw RecorderError.invalidTransition(from: state, action: "append")
@@ -134,9 +141,18 @@ public final class PassRecorder {
         if let d = depthValues, let c = confidence {
             storeDepth = sinceDepth % manifest.depth.everyNthFrame == 0
             sinceDepth += 1
+            if storeDepth, depthFramesWritten == 0, let size = depthSize, size.width * size.height == d.count {
+                manifest.depth.width = size.width
+                manifest.depth.height = size.height
+            }
+            let expected = manifest.depth.width * manifest.depth.height
+            if storeDepth && (d.count != expected || c.count != expected) {
+                storeDepth = false
+                depthFramesSkipped += 1
+            }
             if storeDepth {
-                precondition(d.count == manifest.depth.width * manifest.depth.height)
                 try depth?.write(contentsOf: DepthCodec.encode(depth: d, confidence: c))
+                depthFramesWritten += 1
             }
         }
         var w = LEWriter()

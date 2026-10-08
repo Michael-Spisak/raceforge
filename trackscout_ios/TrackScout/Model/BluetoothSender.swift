@@ -90,12 +90,12 @@ final class BluetoothSender: NSObject, CBPeripheralManagerDelegate, @unchecked S
             events: { [weak self] event in DispatchQueue.main.async { self?.onEvent(event) } })
         self.session = session
         // One consumer keeps the laptop's writes in order.
-        Task {
+        Task { [weak self] in
             do {
                 try await session.start()
                 for await value in stream { try await session.receive(value) }
             } catch {
-                DispatchQueue.main.async { [weak self] in self?.onState(error.localizedDescription) }
+                DispatchQueue.main.async { self?.onState(error.localizedDescription) }
             }
         }
     }
