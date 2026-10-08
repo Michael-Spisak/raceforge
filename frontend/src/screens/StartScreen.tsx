@@ -8,6 +8,7 @@ export function StartScreen({ health, onOpen }: { health: Health | null; onOpen:
     { tab: "parts", text: t("start.parts") },
     { tab: "construct", text: t("start.construct") },
     { tab: "simulate", text: t("start.simulate") },
+    { tab: "live", text: t("start.live") },
     { tab: "replay", text: t("start.replay") },
     { tab: "scans", text: t("start.scans") },
   ];

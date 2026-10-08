@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type Health } from "./api/client";
 import { ConstructScreen } from "./screens/ConstructScreen";
+import { LiveScreen } from "./screens/LiveScreen";
 import { PartsScreen } from "./screens/PartsScreen";
 import { ReplayScreen } from "./screens/ReplayScreen";
 import { ScansScreen } from "./screens/ScansScreen";
@@ -11,8 +12,8 @@ import { TeamScreen } from "./screens/TeamScreen";
 import { type NavPreset, type Units, useSettings } from "./store/settings";
 import { badgeOf, useWorkspace } from "./store/workspace";
 
-export type Tab = "start" | "parts" | "construct" | "simulate" | "replay" | "scans" | "team";
-const TABS: Tab[] = ["start", "parts", "construct", "simulate", "replay", "scans", "team"];
+export type Tab = "start" | "parts" | "construct" | "simulate" | "live" | "replay" | "scans" | "team";
+const TABS: Tab[] = ["start", "parts", "construct", "simulate", "live", "replay", "scans", "team"];
 
 export function App() {
   const { t } = useTranslation();
@@ -69,6 +70,7 @@ export function App() {
       {tab === "parts" && <PartsScreen />}
       {tab === "construct" && <ConstructScreen />}
       {tab === "simulate" && <SimulateScreen />}
+      {tab === "live" && <LiveScreen />}
       {tab === "replay" && <ReplayScreen />}
       {tab === "scans" && <ScansScreen />}
       {tab === "team" && <TeamScreen />}

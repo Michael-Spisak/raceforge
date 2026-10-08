@@ -155,6 +155,12 @@ export function simSocketUrl(): string {
   return `${base.replace(/^http/, "ws")}/api/v1/sim`;
 }
 
+/** Engine relay to a real car's telemetry/teleop WebSocket (spec 0010). */
+export function carSocketUrl(): string {
+  const base = engineBase() || `${window.location.protocol}//${window.location.host}`;
+  return `${base.replace(/^http/, "ws")}/api/v1/car/live`;
+}
+
 export function ldrawBase(): string {
   return `${engineBase()}/ldraw/`;
 }

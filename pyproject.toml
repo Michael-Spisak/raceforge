@@ -21,6 +21,7 @@ dependencies = [
     "segno>=1.6",
     "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.30",
+    "websockets>=13",
 ]
 
 [project.optional-dependencies]

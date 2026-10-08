@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const repoRoot = fileURLToPath(new URL("..", import.meta.url)); // package is ESM: no __dirname
 
 const port = 8799;
+export const fakeCarPort = 8792;
+export const FAKE_CAR_TOKEN = "e2e-fake-car-token-123";
 const backendPort = 8798;
 // Spec 0006 AC10: a backend for the Team tab. RF_E2E_BACKEND_URL points at a running stack (CI: the
 // Compose stack); otherwise a local SQLite dev backend is started. Its admin has TOTP preset.
@@ -28,6 +30,15 @@ export default defineConfig({
       cwd: repoRoot,
       env: { PYTHONPATH: pythonPath, RACEFORGE_WORKSPACE_DIR: join(scratch, "workspace") },
       url: `http://127.0.0.1:${port}/api/v1/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      // Spec 0010: a stand-in for the car runtime's telemetry/teleop WebSocket (Live tab e2e).
+      command: `uv run python tests/fake_car_server.py --port ${fakeCarPort} --token ${FAKE_CAR_TOKEN}`,
+      cwd: repoRoot,
+      env: { PYTHONPATH: pythonPath },
+      port: fakeCarPort,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },

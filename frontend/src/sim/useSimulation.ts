@@ -86,5 +86,5 @@ export function useSimulation() {
   const setSpeed = useCallback((speed: number) => send({ type: "speed", speed }), [send]);
 
   useEffect(() => close, [close]);
-  return { status, scene, frame, result, error, events, trail, history, start, pause, resume, stop, setSpeed };
+  return { status, scene, frame, result, error, events, trail, history, start, pause, resume, stop, setSpeed, send };
 }

@@ -10,6 +10,7 @@ import { useSimulation } from "../sim/useSimulation";
 import { CarModel, type Pose } from "../three/CarModel";
 import { TrackModel } from "../three/TrackModel";
 import { Viewport } from "../three/Viewport";
+import { TeleopPanel } from "../teleop/TeleopPanel";
 
 function Cars({ cars, history }: { cars: NonNullable<ReturnType<typeof useSimulation>["scene"]>["cars"]; history: RefObject<TimedPoses[]> }) {
   const [poses, setPoses] = useState<Record<string, Record<string, Pose>>>({});
@@ -64,6 +65,10 @@ function Sensors({ frame }: { frame: FrameMessage | null }) {
   );
 }
 
+/** Quick-start car (spec 0002 defaults): 30° steering lock; teleop speed limit range in the sim. */
+const MAX_STEER_RAD = (30 * Math.PI) / 180;
+const SIM_MAX_SPEED = 1.5;
+
 export function SimulateScreen() {
   const { t } = useTranslation();
   const sim = useSimulation();
@@ -105,6 +110,7 @@ export function SimulateScreen() {
           <label htmlFor="ctrl">{t("simulate.controller")}</label>
           <select id="ctrl" data-testid="sim-controller" value={form.controller} onChange={(e) => setForm({ ...form, controller: e.target.value })}>
             {controllers.map((c) => <option key={c.path} value={c.path}>{c.name}{c.template ? "" : " (file)"}</option>)}
+            <option value="none">{t("simulate.no_controller")}</option>
           </select>
         </div>
         <div className="field">
@@ -140,6 +146,16 @@ export function SimulateScreen() {
         <div className="field"><label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("simulate.follow")}</label></div>
         <div className="field"><label><input type="checkbox" checked={cut} onChange={(e) => setCut(e.target.checked)} /> {t("simulate.cutaway")}</label></div>
         <div className="field"><label><input type="checkbox" checked={showSensors} onChange={(e) => setShowSensors(e.target.checked)} /> {t("simulate.sensors")}</label></div>
+        {running && (
+          <TeleopPanel
+            send={(msg) => sim.send(msg)}
+            onStop={() => sim.send({ type: "stop_car" })}
+            maxSteer={MAX_STEER_RAD}
+            maxSpeed={SIM_MAX_SPEED}
+            disabled={sim.status !== "running"}
+            state={f?.ego.state}
+          />
+        )}
         {sim.error && <p className="error">{sim.error}</p>}
         {sim.result && (
           <div className="panel" data-testid="sim-result">

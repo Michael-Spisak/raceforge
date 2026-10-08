@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from raceforge import __version__
+from raceforge.api.car_link import relay as car_relay
 from raceforge.api.models import (
     ControllerInfo,
     CorridorResponse,
@@ -157,6 +158,11 @@ def create_app(
         """Message types of the /api/v1/sim WebSocket (documentation only)."""
         return SimProtocol()
 
+    @app.websocket("/api/v1/car/live")
+    async def car_live(ws: WebSocket) -> None:
+        """Relay to a real car's telemetry/teleop WebSocket (spec 0010; protocol in car_link)."""
+        await car_relay(ws)
+
     @app.websocket("/api/v1/sim")
     async def sim_socket(ws: WebSocket) -> None:
         await ws.accept()
@@ -181,6 +187,13 @@ def create_app(
                     paused = {"pause": True, "resume": False}.get(msg.type, paused)
                     if msg.type == "speed" and msg.speed:
                         speed = msg.speed
+                    elif msg.type == "teleop":
+                        session.teleop.drive(msg.steer or 0.0, msg.speed or 0.0)
+                        speed, paused = 1.0, False  # a human drives in real time
+                    elif msg.type == "teleop_release":
+                        session.teleop.release()
+                    elif msg.type == "stop_car":
+                        session.teleop.stop()
                 tick = time.perf_counter()
                 if not paused:
                     if speed >= 100:  # as fast as possible: compute for most of a frame

@@ -1476,15 +1476,20 @@ export interface components {
              */
             preset: "front" | "left" | "right" | "rear" | "center" | "top";
         };
-        /** SimControl */
+        /**
+         * SimControl
+         * @description ``speed``: time factor for "speed", m/s for "teleop" (spec 0010, same JSON as the car).
+         */
         SimControl: {
             /** Speed */
             speed?: number | null;
+            /** Steer */
+            steer?: number | null;
             /**
              * Type
              * @enum {string}
              */
-            type: "pause" | "resume" | "stop" | "speed";
+            type: "pause" | "resume" | "stop" | "speed" | "teleop" | "teleop_release" | "stop_car";
         };
         /**
          * SimProtocol

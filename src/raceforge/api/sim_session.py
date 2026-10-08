@@ -1,6 +1,8 @@
 """A simulation the UI can watch: scene once, then frames (spec 0008)."""
 
 import math
+import time
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -17,7 +19,9 @@ from raceforge.api.models import (
 )
 from raceforge.api.service import Engine, track_primitives
 from raceforge.construct.quickstart import QuickStartParams, generate, vehicle_spec
-from raceforge.control.controller import load_controller
+from raceforge.control.controller import Controller, load_controller
+from raceforge.control.params import ControllerParams
+from raceforge.control.types import Command, Observation
 from raceforge.sim.engine import Simulation
 from raceforge.sim.runner import SIM_SENSORS
 from raceforge.sim.simio import RaceSession
@@ -27,6 +31,57 @@ from raceforge.track.procedural import generate_corridor
 
 def _r(x: float, nd: int = 4) -> float:
     return round(float(x), nd)
+
+
+DEADMAN_S = 0.3  # same as the car runtime (spec 0005)
+
+
+class StandStill(Controller[ControllerParams]):
+    """Controller choice "none": the car waits for teleop (spec 0010)."""
+
+    def step(self, obs: Observation) -> Command:
+        return Command()
+
+
+class Teleop:
+    """Operator input for the simulated car, with the car runtime's dead-man semantics (spec 0010).
+
+    While engaged, each step uses the last teleop command; if none arrived for ``DEADMAN_S``
+    (wall clock), the car stops (``deadman_stop``) until the next message. ``release`` hands back to
+    the controller; ``stop`` latches a stop like the operator stop on the real car.
+    """
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self.clock = clock
+        self.cmd: Command | None = None
+        self.last = 0.0
+        self.stopped = False
+
+    @property
+    def engaged(self) -> bool:
+        return self.cmd is not None
+
+    def drive(self, steer: float, speed: float) -> None:
+        if not (math.isfinite(steer) and math.isfinite(speed)):
+            steer, speed = 0.0, 0.0
+        self.cmd = Command(steering_rad=steer, speed_m_s=speed)
+        self.last = self.clock()
+
+    def release(self) -> None:
+        self.cmd = None
+
+    def stop(self) -> None:
+        self.stopped = True
+        self.cmd = None
+
+    def override(self) -> tuple[Command, str] | None:
+        if self.stopped:
+            return Command(), "stop"
+        if self.cmd is None:
+            return None
+        if self.clock() - self.last > DEADMAN_S:
+            return Command(), "deadman_stop"
+        return self.cmd, "teleop"
 
 
 class SimSession:
@@ -50,8 +105,12 @@ class SimSession:
         ]
         self.world = build_world(track, entries, cat, seed=start.seed)
         self.sim = Simulation(self.world, seed=start.seed)
-        controller = load_controller(
-            Path(start.controller), Path(start.params_path) if start.params_path else None
+        controller: Controller[ControllerParams] = (
+            StandStill()
+            if start.controller == "none"
+            else load_controller(
+                Path(start.controller), Path(start.params_path) if start.params_path else None
+            )
         )
         record = Path(start.record_path) if start.record_path else None
         if record is not None:
@@ -60,6 +119,8 @@ class SimSession:
         self.race = RaceSession(
             self.sim, controller, max_time_s=start.laps * length / 0.12 + 120, record=record
         )
+        self.teleop = Teleop()
+        self.race.override = self.teleop.override
         self.assemblies = {e.name: e.assembly for e in entries}
         self._events_sent = 0
 
@@ -154,7 +215,7 @@ class SimSession:
                 lidar_points=lidar_points,
                 steering_cmd=_r(cmd.steering_rad),
                 speed_cmd=_r(cmd.speed_m_s),
-                state=self.race.controller.state,
+                state=self.race.last_state,
                 channels=channels,
                 distance_m=_r(pr.distance_m, 3),
                 laps=pr.laps,
