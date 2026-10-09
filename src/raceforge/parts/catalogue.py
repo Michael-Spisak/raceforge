@@ -42,6 +42,7 @@ class Category(StrEnum):
     SENSOR = "sensor"
     BOARD = "board"
     BATTERY = "battery"
+    PRINTED = "printed"  # team 3D-printed part (spec 0019)
 
 
 class _Model(BaseModel):
@@ -61,6 +62,15 @@ class WheelSpec(_Model):
     width_mm: PositiveFloat
 
 
+class PrintedSpec(_Model):
+    """3D-printed part (spec 0019): mesh file next to the local catalogue, print settings."""
+
+    mesh: str  # file name in the printed-parts folder (binary STL, metres, core frame)
+    material: Literal["PLA", "PETG", "TPU"] = "PLA"
+    infill_pct: float = Field(default=20.0, ge=0, le=100)
+    volume_cm3: float = Field(ge=0)
+
+
 class CatalogueEntry(_Model):
     key: str
     ldraw_id: str | None = None
@@ -77,9 +87,9 @@ class CatalogueEntry(_Model):
     device: Device | None = None
     sense_axis_ld: tuple[float, float, float] | None = None
     bbox_mm: tuple[tuple[float, float, float], tuple[float, float, float]] | None = None
-    origin: Literal["curated", "local"] = (
-        "curated"  # local: added by the team from LDraw (spec 0018)
-    )
+    # local: added by the team (LDraw part, spec 0018, or 3D-printed part, spec 0019)
+    origin: Literal["curated", "local"] = "curated"
+    printed: PrintedSpec | None = None
 
     def all_connectors(self) -> list[ConnectorSpec]:
         out: list[ConnectorSpec] = []
@@ -161,6 +171,11 @@ def core_bbox_mm(lo_ldu: Vec, hi_ldu: Vec) -> tuple[Vec, Vec]:
     return lo, hi
 
 
+def printed_dir() -> Path:
+    """Meshes of the team's 3D-printed parts, next to the local catalogue file."""
+    return local_catalogue_path().parent / "printed-parts"
+
+
 def load_local_entries(path: Path) -> list[CatalogueEntry]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or []
     return [
@@ -203,6 +218,10 @@ class Catalogue:
                 if entry.key not in cat.entries:
                     cat.entries[entry.key] = entry
         return cat
+
+    def key_for_entry(self, entry: CatalogueEntry) -> str | None:
+        """Key of an existing entry whose part has the same content (identical re-import)."""
+        return self._by_hash.get(content_hash(self._build_part(entry)))
 
     def extend(self, entry: CatalogueEntry) -> None:
         """Add or replace an entry at runtime (spec 0018); cached parts/refs are rebuilt."""
@@ -292,7 +311,9 @@ class Catalogue:
             )
             for c in e.all_connectors()
         ]
-        if e.device is not None:
+        if e.printed is not None:
+            source = PartSource.PRINTED
+        elif e.device is not None:
             source = PartSource.DEVICE
         elif e.ldraw_id is not None:
             source = PartSource.LEGO_LDRAW

@@ -115,6 +115,10 @@ export const api = {
     request<Schemas["LDrawPart"][]>(`/api/v1/parts/ldraw?query=${encodeURIComponent(query)}&limit=${limit}`),
   addLocalPart: (req: Schemas["LocalPartRequest"]) =>
     request<PartSummary>("/api/v1/parts/local", { method: "POST", body: JSON.stringify(req) }),
+  printedPreview: (req: Schemas["PrintedImportRequest"]) =>
+    request<Schemas["PrintedPreview"]>("/api/v1/parts/printed/preview", { method: "POST", body: JSON.stringify(req) }),
+  importPrinted: (req: Schemas["PrintedImportRequest"]) =>
+    request<PartSummary>("/api/v1/parts/printed", { method: "POST", body: JSON.stringify(req) }),
   controllers: () => request<ControllerInfo[]>("/api/v1/controllers"),
   replay: (path: string) => request<ReplaySummary>("/api/v1/replays", { method: "POST", body: JSON.stringify({ path }) }),
   /** TrackScout passes the engine can show (spec 0009). */

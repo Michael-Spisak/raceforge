@@ -21,3 +21,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0015 | Construct editor v1 part A: edit the assembly (move, turn, add, delete, snap, undo) | 4–5 | approved |
 | 0016 | Rule checker, budget and overlaps in the Construct editor | 4–5 | approved |
 | 0018 | More parts: LDraw library search, team catalogue additions | 4–5 | approved |
+| 0019 | Import 3D-printed parts (STL/3MF/OBJ/PLY, mass, cost, mesh) | 6–7 | approved |

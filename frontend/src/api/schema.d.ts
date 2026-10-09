@@ -253,6 +253,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parts/printed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parts Printed Import
+         * @description Import a 3D-printed part into the team's local catalogue (spec 0019).
+         */
+        post: operations["parts_printed_import_api_v1_parts_printed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parts/printed/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parts Printed Preview
+         * @description Volume, size, mass and cost of a mesh before it is imported (spec 0019).
+         */
+        post: operations["parts_printed_preview_api_v1_parts_printed_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parts/printed/{key}/mesh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Parts Printed Mesh */
+        get: operations["parts_printed_mesh_api_v1_parts_printed__key__mesh_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quickstart": {
         parameters: {
             query?: never;
@@ -1184,6 +1241,11 @@ export interface components {
              * @default 200
              */
             budget_eur: number;
+            /**
+             * Filament Eur Per Kg
+             * @default 25
+             */
+            filament_eur_per_kg: number;
             /** @default {} */
             limits: components["schemas"]["ConstructLimits"];
             /**
@@ -1421,6 +1483,8 @@ export interface components {
             ldraw_id: string | null;
             /** Linked */
             linked: boolean;
+            /** Mesh Url */
+            mesh_url?: string | null;
             /** Mirrored */
             mirrored: boolean;
             /** Name */
@@ -1774,6 +1838,8 @@ export interface components {
             ldraw_id: string | null;
             /** Mass G */
             mass_g: number;
+            /** Mesh Url */
+            mesh_url?: string | null;
             /** Name */
             name: string;
             /**
@@ -1838,6 +1904,60 @@ export interface components {
              * @default
              */
             surface: string;
+        };
+        /**
+         * PrintedImportRequest
+         * @description Import a 3D-printed part (spec 0019) from a mesh file on this computer.
+         */
+        PrintedImportRequest: {
+            /**
+             * Infill Pct
+             * @default 20
+             */
+            infill_pct: number;
+            /**
+             * Material
+             * @default PLA
+             * @enum {string}
+             */
+            material: "PLA" | "PETG" | "TPU";
+            /** Measured Mass G */
+            measured_mass_g?: number | null;
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /**
+             * Units
+             * @default mm
+             * @enum {string}
+             */
+            units: "mm" | "cm" | "m" | "in";
+            /**
+             * Up
+             * @default z
+             * @enum {string}
+             */
+            up: "z" | "y";
+        };
+        /** PrintedPreview */
+        PrintedPreview: {
+            /** Cost Eur */
+            cost_eur: number;
+            /** Faces */
+            faces: number;
+            /** Mass Estimate G */
+            mass_estimate_g: number;
+            /** Size Mm */
+            size_mm: [
+                number,
+                number,
+                number
+            ];
+            /** Volume Cm3 */
+            volume_cm3: number;
+            /** Watertight */
+            watertight: boolean;
         };
         /** QuickObstacle */
         QuickObstacle: {
@@ -2393,6 +2513,8 @@ export interface components {
             key: string;
             /** Ldraw Id */
             ldraw_id: string | null;
+            /** Mesh Url */
+            mesh_url?: string | null;
             /** Pos */
             pos: [
                 number,
@@ -3292,6 +3414,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PartSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parts_printed_import_api_v1_parts_printed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintedImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parts_printed_preview_api_v1_parts_printed_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintedImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintedPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parts_printed_mesh_api_v1_parts_printed__key__mesh_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
