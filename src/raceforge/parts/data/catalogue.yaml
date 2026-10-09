@@ -3,6 +3,8 @@
 # bboxes.yaml by `raceforge parts build-catalogue`. Masses are approximate BrickLink-style values entered
 # by hand (verified: false) until the BrickLink importer replaces them.
 # Connector positions/axes are in the part's LDraw frame (LDU, -Y up).
+# Hand-placed mount holes (steering arm stub, motor `mount` cross hole one stud behind the output, sensor
+# `back` hole) are placed so the quick-start template can build real coaxial joints; verify against the parts.
 # Auto connectors: beams `holes` -> pin_hole h1..hN along Z (20 LDU pitch, axis X);
 #                  axles/pins `length_studs` -> e1/e2 at the ends along X.
 
@@ -34,6 +36,13 @@
 - {key: "6538a", ldraw_id: "6538a", name: "Technic Axle Joiner", category: axle_joiner, mass_g: 0.45,
    connectors: [{id: a, type: axle_hole, pos_ldu: [-10, 0, 0], axis_ld: [1, 0, 0], gender: female},
                 {id: b, type: axle_hole, pos_ldu: [10, 0, 0], axis_ld: [1, 0, 0], gender: female}]}
+# Connector geometry and bbox hand-entered (LDraw library not available when added): axle hole at the
+# origin, pin hole one stud away along -X with a perpendicular axis. Verify in LDView; drop bbox_mm
+# once `raceforge parts build-catalogue` has written its LDraw bbox.
+- {key: "6536", ldraw_id: "6536", name: "Technic Axle and Pin Connector Perpendicular", category: axle_joiner, mass_g: 0.40,
+   bbox_mm: [[-12, -4, -4], [4, 4, 4]],
+   connectors: [{id: axle, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
+                {id: pin, type: pin_hole, pos_ldu: [-20, 0, 0], axis_ld: [0, 1, 0], gender: female}]}
 
 # --- Gears and differential ------------------------------------------------------------------------
 - {key: "32270", ldraw_id: "32270", name: "Technic Gear 12 Tooth Double Bevel", category: gear, teeth: 12, mass_g: 0.60,
@@ -49,7 +58,7 @@
 # --- Steering --------------------------------------------------------------------------------------
 - {key: "32069", ldraw_id: "32069", name: "Technic Steering Arm with Connectors", category: steering_arm, mass_g: 2.00,
    connectors: [{id: pivot, type: pin_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 1, 0], gender: female},
-                {id: stub, type: pin_hole, pos_ldu: [0, -10, 0], axis_ld: [0, 0, 1], gender: female},
+                {id: stub, type: pin_hole, pos_ldu: [0, -20, 20], axis_ld: [0, 0, 1], gender: female},
                 {id: link, type: fixed_mount, pos_ldu: [0, -30, -15], axis_ld: [0, 1, 0], gender: neutral}]}
 - {key: "32293", ldraw_id: "32293", name: "Technic Steering Link 9L", category: steering_link, mass_g: 1.80,
    connectors: [{id: a, type: fixed_mount, pos_ldu: [0, 0, -80], axis_ld: [0, 1, 0], gender: neutral},
@@ -84,20 +93,23 @@
 - {key: "95658", ldraw_id: "95658", name: "EV3 Large Motor", category: motor, mass_g: 76,
    device: {type: ev3_large_motor, model: "45502"},
    connectors: [{id: out, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
-                {id: mount, type: pin_hole, pos_ldu: [0, -80, -200], axis_ld: [1, 0, 0], gender: female}]}
+                {id: mount, type: pin_hole, pos_ldu: [0, 0, -20], axis_ld: [1, 0, 0], gender: female}]}
 - {key: "99455", ldraw_id: "99455", name: "EV3 Medium Motor", category: motor, mass_g: 36,
    device: {type: ev3_medium_motor, model: "45503"},
    connectors: [{id: out, type: axle_hole, pos_ldu: [0, 0, 0], axis_ld: [0, 0, 1], gender: female},
-                {id: mount, type: pin_hole, pos_ldu: [0, 20, 150], axis_ld: [1, 0, 0], gender: female}]}
+                {id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female}]}
 - {key: "95652", ldraw_id: "95652", name: "EV3 Ultrasonic Sensor", category: sensor, mass_g: 26, sense_axis_ld: [0, 0, -1],
    device: {type: ev3_ultrasonic, model: "45504"},
-   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female}]}
+   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female},
+                {id: back, type: pin_hole, pos_ldu: [0, -20, 20], axis_ld: [0, 0, 1], gender: female}]}
 - {key: "99380", ldraw_id: "99380", name: "EV3 Gyro Sensor", category: sensor, mass_g: 16,
    device: {type: ev3_gyro, model: "45505"},
-   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female}]}
+   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female},
+                {id: back, type: pin_hole, pos_ldu: [0, -20, 20], axis_ld: [0, 0, 1], gender: female}]}
 - {key: "95648", ldraw_id: "95648", name: "EV3 Touch Sensor", category: sensor, mass_g: 15,
    device: {type: ev3_touch, model: "45507"},
-   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female}]}
+   connectors: [{id: mount, type: pin_hole, pos_ldu: [0, 0, 20], axis_ld: [1, 0, 0], gender: female},
+                {id: back, type: pin_hole, pos_ldu: [0, -20, 20], axis_ld: [0, 0, 1], gender: female}]}
 
 # --- Non-LEGO placeholders (simple boxes; sizes in mm, centred on the part origin) ----------------
 - {key: "rpi5", name: "Raspberry Pi 5 in case", category: board, mass_g: 80, bbox_mm: [[-44, -30, -12], [44, 30, 12]],

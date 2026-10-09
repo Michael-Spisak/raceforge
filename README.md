@@ -30,6 +30,8 @@ or, without Electron: `PYTHONPATH=src uv run raceforge ui --browser` (opens http
 For real LEGO geometry download the LDraw library once: `PYTHONPATH=src uv run raceforge parts fetch`.
 UI development with hot reload: run `PYTHONPATH=src uv run raceforge ui` and, in `frontend/`, `npm run dev`
 (http://localhost:5173 proxies the engine).
+Or start everything at once with `scripts/dev.sh` (engine + UI with hot reload on http://localhost:5173;
+`scripts/dev.sh --backend` also runs the local team backend with login `admin` / `admin`). Ctrl+C stops all.
 
 ### Team backend
 The shared backend (accounts, versions, files, sync) runs with Docker Compose on a server:
