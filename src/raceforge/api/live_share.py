@@ -17,7 +17,7 @@ import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import websockets
 
@@ -87,7 +87,9 @@ class LiveShare:
             self.sock = await self.connect(url, headers)
             await self.sock.send(json.dumps({"type": "start", "car": car}))
             reply = json.loads(await self.sock.recv())
-            self.session = str(reply.get("id")) if isinstance(reply, dict) else None
+            self.session = (
+                str(cast(dict[str, Any], reply).get("id")) if isinstance(reply, dict) else None
+            )
             self.state = "sharing"
         except (
             OSError,

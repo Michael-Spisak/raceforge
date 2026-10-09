@@ -15,7 +15,7 @@ export class Rolling {
     this.samples.push({ at, frame });
     const cut = at - this.spanMs;
     let drop = 0;
-    while (drop < this.samples.length && this.samples[drop].at < cut) drop++;
+    while (drop < this.samples.length && (this.samples[drop]?.at ?? Infinity) < cut) drop++;
     if (drop) this.samples.splice(0, drop);
   }
 

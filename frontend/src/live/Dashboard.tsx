@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type QuickTrack, type QuickTrackInfo } from "../api/client";
-import { type Alarm, Rolling, type Thresholds, alarms, beep, loadThresholds, saveThresholds } from "./dashboard";
+import { type Alarm, Rolling, type Thresholds, alarms, beep, loadThresholds, saveThresholds } from "./alarms";
 import type { CarEvent, CarFrame } from "./useCarLink";
 
 const PLOT_SPAN_MS = 30_000;
@@ -152,7 +152,7 @@ function Plot({ title, unit, lines, now }: { title: string; unit: string; lines:
   const span = hi - lo || 1;
   const x = (at: number) => ((at - (now - PLOT_SPAN_MS)) / PLOT_SPAN_MS) * W;
   const y = (v: number) => H - 4 - ((v - lo) / span) * (H - 8);
-  const last = lines[lines.length - 1][0].at(-1)?.[1];
+  const last = lines[lines.length - 1]?.[0].at(-1)?.[1];
   return (
     <div className="panel" style={{ margin: 0 }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -192,7 +192,7 @@ function StateTimeline({ spans, now }: { spans: [string, number, number][]; now:
       <strong>{t("dash.states")}</strong>
       <svg viewBox={`0 0 ${W} 22`} width="100%" height={22} role="img" aria-label={t("dash.states")}>
         {spans.map(([state, from, to], i) => {
-          const end = i + 1 < spans.length ? spans[i + 1][1] : now;
+          const end = i + 1 < spans.length ? (spans[i + 1]?.[1] ?? now) : now;
           return (
             <g key={`${state}-${from}`}>
               <title>{state}</title>
@@ -256,7 +256,7 @@ function TrackMap({ track, trail, pose, confidence }: { track: QuickTrack | null
   const scale = S / Math.max(maxX - minX, maxY - minY, 1);
   const px = (x: number) => (x - minX) * scale;
   const py = (y: number) => S - (y - minY) * scale;
-  const centre = track ? [...track.points, ...(track.loop ? [track.points[0]] : [])] : [];
+  const centre = track ? [...track.points, ...(track.loop && track.points[0] ? [track.points[0]] : [])] : [];
   const path = (p: [number, number][]) => p.map(([x, y]) => `${px(x).toFixed(1)},${py(y).toFixed(1)}`).join(" ");
   return (
     <svg viewBox={`0 0 ${S} ${S}`} width={S} height={S} role="img" aria-label={t("dash.map")} style={{ background: "var(--panel-2, #0001)", borderRadius: 4 }}>

@@ -2,18 +2,17 @@
 conflict is shown; blobs are fetched lazily and cached."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from raceforge.backend.security import totp_now
 from raceforge.construct.quickstart import QuickStartParams, generate
 from raceforge.core import io
 from raceforge.parts.catalogue import Catalogue
-from raceforge.workspace.client import OfflineError
+from raceforge.workspace.client import ClientFactory, OfflineError
 from raceforge.workspace.sync import Workspace
 from tests.backend.conftest import ADMIN_PW, MEMBER_PW, Env, Team
 
@@ -24,15 +23,16 @@ class Net:
         self.requests = 0
 
 
-def factory(app: FastAPI, net: Net):
+def factory(app: Any, net: Net) -> ClientFactory:
     class Gated(TestClient):
         def send(self, *args: Any, **kwargs: Any) -> httpx.Response:  # type: ignore[override]
             if not net.online:
                 raise httpx.ConnectError("offline")
             net.requests += 1
-            return super().send(*args, **kwargs)
+            return cast(httpx.Response, super().send(*args, **kwargs))
 
-    return lambda _url: Gated(app)
+    # TestClient is built on httpx2 when it is installed (mcp): same API as httpx.Client.
+    return lambda _url: cast(httpx.Client, Gated(app))
 
 
 def _car(cat: Catalogue, wheelbase: int) -> dict[str, Any]:
