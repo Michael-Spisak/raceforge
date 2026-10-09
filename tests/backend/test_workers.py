@@ -174,3 +174,58 @@ def test_engine_queues_a_team_job_and_saves_tuned_params(
     out = tmp_path / "centering.tuned.yaml"
     saved = engine.post(f"{w}/jobs/{done['id']}/save-params", json={"path": str(out)})
     assert saved.status_code == 200 and "speed_m_s" in out.read_text(encoding="utf-8")
+
+
+def test_paused_benchmark_is_finished_by_another_worker_with_the_same_runs(
+    env: Env, team: Team
+) -> None:
+    """Spec 0020 part C AC8: pause after the first race, resume elsewhere, identical result."""
+    from dataclasses import asdict
+
+    from raceforge.api.models import WorkerPolicy
+    from raceforge.api.service import TEMPLATES_DIR
+    from raceforge.api.worker_runner import run_worker
+    from raceforge.backend.models import JobCreate
+    from raceforge.train.benchmark import BenchConfig, benchmark
+    from raceforge.workspace.client import BackendClient
+
+    def client(token: str) -> BackendClient:
+        return BackendClient("http://test", access=token, factory=lambda _: env.client)
+
+    member = client(team.member["Authorization"][7:])
+    race = {"tracks": 2, "length_m": 20, "max_time_s": 120}
+    job = member.create_job(
+        team.ws,
+        JobCreate(
+            kind="benchmark",
+            request={"race": race},
+            controller_name="centering.py",
+            controller_source=(TEMPLATES_DIR / "centering.py").read_text(encoding="utf-8"),
+            raceforge_version="0.0.1",
+        ),
+    )
+    calls = 0
+
+    def laptop_policy() -> WorkerPolicy:  # free for the claim, then its owner comes back
+        nonlocal calls
+        calls += 1
+        return WorkerPolicy(mode="always" if calls <= 2 else "paused", processes=1)
+
+    laptop = client(member.register_worker(team.ws, "laptop").token)
+    assert run_worker(laptop, once=True, policy=laptop_policy, out=lambda _: None) == 0
+    paused = member.job(job.id)
+    assert paused.status == "queued" and paused.attempt == 1
+    assert paused.progress["done"] == 1 and "paused" in paused.log_tail[-1]
+
+    pc = client(member.register_worker(team.ws, "pc").token)
+    assert run_worker(pc, once=True, policy=WorkerPolicy(mode="always"), out=lambda _: None) == 1
+    done = member.job(job.id)
+    assert done.status == "done" and done.worker_name == "pc", done.error
+    local = benchmark(
+        TEMPLATES_DIR / "centering.py", None, BenchConfig(tracks=2, length_m=20, max_time_s=120)
+    )
+    assert done.result is not None
+    # ``error`` may carry wall-clock deadline warnings; the races themselves are deterministic
+    assert [{**r, "error": ""} for r in done.result["runs"]] == [
+        {**asdict(r), "error": ""} for r in local.runs
+    ]
