@@ -57,6 +57,9 @@ pub struct Ev3Config {
     pub drive_motor: usize,
     /// Steering motor degrees per radian of wheel steering angle (gear ratio, sign included).
     pub steer_motor_deg_per_rad: f64,
+    /// Steering zero point (rad, + = left) added to every command and removed from the measured
+    /// angle, so a car that drifts with straight wheels drives straight (calibration, spec 0033).
+    pub steer_trim_rad: f64,
     /// Drive motor tacho counts (degrees) per metre travelled (wheel + gears, sign included).
     pub drive_counts_per_m: f64,
     /// Ultrasonic sensors: name used by controllers (`front`, `left`, ...) -> sensor port index.
@@ -84,6 +87,7 @@ impl Default for Ev3Config {
             steer_motor: 0,
             drive_motor: 1,
             steer_motor_deg_per_rad: 3.0 * 180.0 / std::f64::consts::PI,
+            steer_trim_rad: 0.0,
             drive_counts_per_m: 360.0 / (std::f64::consts::PI * 0.056),
             ultrasonic: BTreeMap::new(),
             gyro: true,
@@ -118,7 +122,9 @@ impl Ev3Config {
             (out.steering_rad, out.speed_m_s)
         };
         CommandFrame {
-            steer_target_cdeg: clamp_i16(steer * self.steer_motor_deg_per_rad * 100.0),
+            steer_target_cdeg: clamp_i16(
+                (steer + self.steer_trim_rad) * self.steer_motor_deg_per_rad * 100.0,
+            ),
             drive_speed_cps: clamp_i16(speed * self.drive_counts_per_m),
             flags,
             lcd: if out.fault {
@@ -148,7 +154,8 @@ impl Ev3Config {
             heading_rad: self.gyro.then(|| -f64::from(f.gyro_angle_deg).to_radians()),
             speed_m_s: Some(f64::from(motor(self.drive_motor).speed_cps) / self.drive_counts_per_m),
             steering_rad: Some(
-                f64::from(motor(self.steer_motor).tacho) / self.steer_motor_deg_per_rad,
+                f64::from(motor(self.steer_motor).tacho) / self.steer_motor_deg_per_rad
+                    - self.steer_trim_rad,
             ),
             bumper: BTreeMap::new(),
             battery_v: Some(f64::from(f.battery_mv) / 1000.0),
@@ -467,6 +474,24 @@ mod tests {
         });
         assert_eq!(f.steer_target_cdeg, i16::MAX);
         assert_eq!(f.drive_speed_cps, 0);
+    }
+
+    #[test]
+    fn steering_trim_shifts_commands_and_measurements() {
+        let c = Ev3Config {
+            steer_motor_deg_per_rad: 100.0,
+            steer_trim_rad: 0.05,
+            ..Ev3Config::default()
+        };
+        let out = DriveOutput {
+            steering_rad: 0.0,
+            ..DriveOutput::default()
+        };
+        assert_eq!(c.command(&out).steer_target_cdeg, 500); // (0 + 0.05) * 100 * 100
+        let mut f = SensorFrame::default();
+        f.motors[c.steer_motor].tacho = 5; // the trimmed zero position
+        let s = c.snapshot(&f).steering_rad.unwrap_or(f64::NAN);
+        assert!(s.abs() < 1e-9, "{s}");
     }
 
     #[test]

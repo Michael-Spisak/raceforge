@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, api, type CarPairingCode, type Schemas, workspace } from "../api/client";
 import { Dashboard } from "../live/Dashboard";
+import { CalibrationPanel } from "../live/CalibrationPanel";
 import { type Deployed, DeployPanel } from "../live/DeployPanel";
 import { RaceChecklist } from "../live/RaceChecklist";
 import { LATENCY_WARN_MS, useCarLink } from "../live/useCarLink";
@@ -162,6 +163,7 @@ export function LiveScreen() {
         {(link.state === "connected" || f) && (
           <Dashboard frame={f} lastFrameAt={link.lastFrameAt} rtt={watching ? null : link.rtt} onEvent={link.pushEvent} />
         )}
+        {!watching && <CalibrationPanel frame={f} lastFrameAt={link.lastFrameAt} connected={connected} />}
         {!watching && (
           <RaceChecklist connected={connected} frame={f} radio={link.radio} deployed={deployed}
                          runRadioCheck={() => link.send({ type: "radio_check" })}

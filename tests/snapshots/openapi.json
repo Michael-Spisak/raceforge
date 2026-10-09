@@ -459,6 +459,87 @@
         "title": "BundleRequest",
         "type": "object"
       },
+      "CalibrationResult": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Changes",
+            "type": "object"
+          },
+          "details": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Details",
+            "type": "object"
+          },
+          "kind": {
+            "enum": [
+              "straight",
+              "circle"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "changes",
+          "details"
+        ],
+        "title": "CalibrationResult",
+        "type": "object"
+      },
+      "CalibrationSample": {
+        "additionalProperties": false,
+        "properties": {
+          "frame": {
+            "additionalProperties": true,
+            "title": "Frame",
+            "type": "object"
+          },
+          "t_ms": {
+            "title": "T Ms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "t_ms",
+          "frame"
+        ],
+        "title": "CalibrationSample",
+        "type": "object"
+      },
+      "CarChanges": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Changes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "changes"
+        ],
+        "title": "CarChanges",
+        "type": "object"
+      },
       "CarPairingCode": {
         "additionalProperties": false,
         "properties": {
@@ -577,6 +658,39 @@
           "error_m"
         ],
         "title": "CheckResult",
+        "type": "object"
+      },
+      "CircleCalibration": {
+        "additionalProperties": false,
+        "properties": {
+          "car": {
+            "minLength": 1,
+            "title": "Car",
+            "type": "string"
+          },
+          "left": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationSample"
+            },
+            "maxItems": 20000,
+            "title": "Left",
+            "type": "array"
+          },
+          "right": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationSample"
+            },
+            "maxItems": 20000,
+            "title": "Right",
+            "type": "array"
+          }
+        },
+        "required": [
+          "car",
+          "left",
+          "right"
+        ],
+        "title": "CircleCalibration",
         "type": "object"
       },
       "Conflict": {
@@ -1754,6 +1868,41 @@
           "other"
         ],
         "title": "EventView",
+        "type": "object"
+      },
+      "FleetCar": {
+        "additionalProperties": false,
+        "properties": {
+          "car_name": {
+            "title": "Car Name",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "car_name"
+        ],
+        "title": "FleetCar",
         "type": "object"
       },
       "FloorplanResponse": {
@@ -5553,6 +5702,37 @@
         "title": "SnapInfo",
         "type": "object"
       },
+      "StraightCalibration": {
+        "additionalProperties": false,
+        "properties": {
+          "car": {
+            "minLength": 1,
+            "title": "Car",
+            "type": "string"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationSample"
+            },
+            "maxItems": 20000,
+            "title": "Samples",
+            "type": "array"
+          },
+          "true_distance_m": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 50.0,
+            "title": "True Distance M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "car",
+          "samples",
+          "true_distance_m"
+        ],
+        "title": "StraightCalibration",
+        "type": "object"
+      },
       "SyncResult": {
         "properties": {
           "conflicts": {
@@ -6910,6 +7090,82 @@
         "summary": "Assembly Export"
       }
     },
+    "/api/v1/calibration/circle": {
+      "post": {
+        "operationId": "calibrate_circle_api_v1_calibration_circle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CircleCalibration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Calibrate Circle"
+      }
+    },
+    "/api/v1/calibration/straight": {
+      "post": {
+        "operationId": "calibrate_straight_api_v1_calibration_straight_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StraightCalibration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Calibrate Straight"
+      }
+    },
     "/api/v1/car/bundle": {
       "post": {
         "description": "Build a test-mode deploy bundle (spec 0012).",
@@ -7073,6 +7329,117 @@
           }
         },
         "summary": "Car Pairing Code"
+      }
+    },
+    "/api/v1/cars": {
+      "get": {
+        "operationId": "fleet_list_api_v1_cars_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FleetCar"
+                  },
+                  "title": "Response Fleet List Api V1 Cars Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Fleet List"
+      }
+    },
+    "/api/v1/cars/{name}": {
+      "post": {
+        "operationId": "fleet_create_api_v1_cars__name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetCar"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fleet Create"
+      }
+    },
+    "/api/v1/cars/{name}/apply": {
+      "post": {
+        "description": "Write calibration results into the car's config (previous version kept as .bak).",
+        "operationId": "fleet_apply_api_v1_cars__name__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CarChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FleetCar"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fleet Apply"
       }
     },
     "/api/v1/construct/settings": {
