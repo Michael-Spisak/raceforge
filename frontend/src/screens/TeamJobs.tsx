@@ -40,7 +40,7 @@ export function TeamJobs({ refresh, controllerPath }: { refresh: number; control
         <ul className="list">
           {workers.map((w) => (
             <li key={w.id}>
-              {w.online ? "🟢" : "⚪"} {w.name} <span className="muted">· {w.online ? (w.busy ? t("train.worker_busy") : t("train.worker_idle")) : t("train.worker_offline")} · {w.created_by}</span>
+              {w.online ? "🟢" : "⚪"} {w.name} <span className="muted">· {w.online ? (w.busy ? t("train.worker_busy") : w.info.available === false ? t(`worker.reason_${String(w.info.reason || "paused")}`) : t("train.worker_idle")) : t("train.worker_offline")} · {w.created_by}</span>
             </li>
           ))}
         </ul>
@@ -58,7 +58,9 @@ export function TeamJobs({ refresh, controllerPath }: { refresh: number; control
                 <td>{t(`train.mode_${j.kind}`)} · {j.controller_name}<div className="muted">{j.created_by}{j.worker_name ? ` → ${j.worker_name}` : ""}</div></td>
                 <td>
                   {t(`train.team_state_${j.status}`)}
-                  {j.status === "running" && total > 0 && ` ${done}/${total}`}
+                  {(j.status === "running" || j.status === "queued") && total > 0 && ` ${done}/${total}`}
+                  {j.attempt > 1 && <span className="muted"> · {t("train.attempt", { n: j.attempt })}</span>}
+                  {j.priority !== "normal" && <span className="muted"> · {t(`train.priority_${j.priority}`)}</span>}
                   {j.status === "error" && <div className="error">{j.error}</div>}
                 </td>
                 <td>{score != null ? t("train.score", { score: fmt(score) }) : ""}</td>

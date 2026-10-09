@@ -1091,6 +1091,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/worker/local": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ws Local Worker
+         * @description This computer as a team worker (spec 0020 part C).
+         */
+        get: operations["ws_local_worker_api_v1_workspace_worker_local_get"];
+        /**
+         * Ws Set Local Worker
+         * @description Switch this computer's worker on/off (registers it once) and set its policy.
+         */
+        put: operations["ws_set_local_worker_api_v1_workspace_worker_local_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/workers": {
         parameters: {
             query?: never;
@@ -2036,6 +2060,36 @@ export interface components {
             /** Semver */
             semver: string | null;
         };
+        /** LocalWorkerStatus */
+        LocalWorkerStatus: {
+            /** Available */
+            available: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Log */
+            log?: string[];
+            /** Name */
+            name?: string | null;
+            policy: components["schemas"]["WorkerPolicy"];
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Registered */
+            registered: boolean;
+            /** Worker Id */
+            worker_id?: string | null;
+        };
+        /**
+         * LocalWorkerUpdate
+         * @description Switch this computer's team worker on/off and set when it takes jobs (spec 0020 C).
+         */
+        LocalWorkerUpdate: {
+            /** Enabled */
+            enabled: boolean;
+            policy?: components["schemas"]["WorkerPolicy"];
+        };
         /** PartSummary */
         PartSummary: {
             /** Category */
@@ -2749,6 +2803,18 @@ export interface components {
             real_color: number;
         };
         /**
+         * ScheduleWindow
+         * @description A weekly time window; ``end`` before ``start`` crosses midnight (days = start days).
+         */
+        ScheduleWindow: {
+            /** Days */
+            days: ("mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun")[];
+            /** End */
+            end: string;
+            /** Start */
+            start: string;
+        };
+        /**
          * Scope
          * @enum {string}
          */
@@ -2889,7 +2955,15 @@ export interface components {
          */
         TeamJobRequest: {
             bench?: components["schemas"]["TrainBenchRequest"] | null;
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "normal" | "high" | "critical";
             rl?: components["schemas"]["TrainRLRequest"] | null;
+            /** Target Worker Id */
+            target_worker_id?: string | null;
             tune?: components["schemas"]["TrainTuneRequest"] | null;
         };
         /** TokenRequest */
@@ -3194,6 +3268,30 @@ export interface components {
             online: boolean;
             /** Workspace Id */
             workspace_id: string;
+        };
+        /**
+         * WorkerPolicy
+         * @description When this computer takes team jobs (spec 0020 part C).
+         */
+        WorkerPolicy: {
+            /**
+             * Idle Minutes
+             * @default 10
+             */
+            idle_minutes: number;
+            /**
+             * Mode
+             * @default idle
+             * @enum {string}
+             */
+            mode: "always" | "idle" | "schedule" | "paused";
+            /**
+             * Processes
+             * @default 0
+             */
+            processes: number;
+            /** Schedule */
+            schedule?: components["schemas"]["ScheduleWindow"][];
         };
         /** WorkspaceInfo */
         WorkspaceInfo: {
@@ -5240,6 +5338,59 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_local_worker_api_v1_workspace_worker_local_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalWorkerStatus"];
+                };
+            };
+        };
+    };
+    ws_set_local_worker_api_v1_workspace_worker_local_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalWorkerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalWorkerStatus"];
                 };
             };
             /** @description Validation Error */

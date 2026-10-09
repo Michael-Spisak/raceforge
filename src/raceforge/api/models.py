@@ -501,6 +501,26 @@ class TeamJobRequest(ApiModel):
     bench: "TrainBenchRequest | None" = None
     tune: "TrainTuneRequest | None" = None
     rl: "TrainRLRequest | None" = None
+    target_worker_id: str | None = None  # part C: only this worker; None = any team worker
+    priority: Literal["normal", "high", "critical"] = "normal"  # critical: admins only
+
+
+class LocalWorkerUpdate(ApiModel):
+    """Switch this computer's team worker on/off and set when it takes jobs (spec 0020 C)."""
+
+    enabled: bool
+    policy: WorkerPolicy = Field(default_factory=lambda: WorkerPolicy())
+
+
+class LocalWorkerStatus(ApiModel):
+    enabled: bool  # the worker loop runs in this engine
+    registered: bool  # in the current workspace
+    name: str | None = None
+    worker_id: str | None = None
+    policy: WorkerPolicy
+    available: bool  # the policy allows jobs right now
+    reason: str = ""  # paused | outside_schedule | on_battery | user_active | idle_unknown
+    log: list[str] = Field(default_factory=list[str])
 
 
 class TrainRun(ApiModel):

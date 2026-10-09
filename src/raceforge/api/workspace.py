@@ -15,6 +15,8 @@ from urllib.parse import urlsplit
 
 import segno  # pyright: ignore[reportMissingTypeStubs]
 
+from raceforge import __version__
+from raceforge.api.local_worker import LocalWorker
 from raceforge.api.models import (
     InboxAction,
     ReceiveRequest,
@@ -99,6 +101,7 @@ class WorkspaceApi:
         self.relay = Relay(self.ws, self.inbox)
         self.open_usb = open_usb
         self.open_ble = open_ble
+        self.local_worker = LocalWorker(self.ws, factory)
 
     def status(self, probe: bool) -> WorkspaceStatus:
         return self.ws.status(probe)
@@ -270,6 +273,9 @@ class WorkspaceApi:
             controller_name=controller.name,
             controller_source=controller.read_text(encoding="utf-8"),
             params_yaml=params_yaml,
+            priority=req.priority,
+            target_worker_id=req.target_worker_id,
+            raceforge_version=__version__,  # only workers running the same code take it
         )
         return self.ws.client().create_job(self._ws_id(), job)
 

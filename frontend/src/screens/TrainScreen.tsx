@@ -23,8 +23,13 @@ export function TrainScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState("");
   const loggedIn = !!useWorkspace((st) => st.status?.logged_in && st.status.workspace);
-  const [runOn, setRunOn] = useState<"local" | "team">("local");
+  const [runOn, setRunOn] = useState("local"); // local | team | a worker id
+  const [priority, setPriority] = useState<"normal" | "high" | "critical">("normal");
+  const [workers, setWorkers] = useState<{ id: string; name: string }[]>([]);
   const [teamRefresh, setTeamRefresh] = useState(0);
+  useEffect(() => {
+    if (loggedIn) void workspace.teamWorkers().then(setWorkers).catch(() => undefined);
+  }, [loggedIn, teamRefresh]);
 
   const load = useCallback(() => api.trainJobs().then(setJobs).catch(() => undefined), []);
   useEffect(() => {
@@ -45,12 +50,13 @@ export function TrainScreen() {
   const start = (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (runOn === "team") {
-      const job = mode === "benchmark"
+    if (runOn !== "local") {
+      const target = { target_worker_id: runOn === "team" ? null : runOn, priority };
+      const spec = mode === "benchmark"
         ? { bench: { controller, params: params || null, race } }
         : mode === "rl" ? { rl: { steps, train_tracks: trainTracks, out: null, race } }
           : { tune: { controller, trials, train_tracks: trainTracks, timeout_s: null, out: null, race } };
-      workspace.submitTeamJob(job).then(() => setTeamRefresh((n) => n + 1)).catch((err: unknown) => setError(message(err)));
+      workspace.submitTeamJob({ ...spec, ...target }).then(() => setTeamRefresh((n) => n + 1)).catch((err: unknown) => setError(message(err)));
       return;
     }
     const req = mode === "benchmark"
@@ -134,9 +140,18 @@ export function TrainScreen() {
           {loggedIn && (
             <div className="field">
               <label htmlFor="train-run-on">{t("train.run_on")}</label>
-              <select id="train-run-on" data-testid="train-run-on" value={runOn} onChange={(e) => setRunOn(e.target.value as "local" | "team")}>
+              <select id="train-run-on" data-testid="train-run-on" value={runOn} onChange={(e) => setRunOn(e.target.value)}>
                 <option value="local">{t("train.run_local")}</option>
                 <option value="team">{t("train.run_team")}</option>
+                {workers.map((w) => <option key={w.id} value={w.id}>{t("train.run_worker", { name: w.name })}</option>)}
+              </select>
+            </div>
+          )}
+          {loggedIn && runOn !== "local" && (
+            <div className="field">
+              <label htmlFor="train-priority">{t("train.priority")}</label>
+              <select id="train-priority" value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
+                {(["normal", "high", "critical"] as const).map((p) => <option key={p} value={p}>{t(`train.priority_${p}`)}</option>)}
               </select>
             </div>
           )}
@@ -159,7 +174,7 @@ export function TrainScreen() {
         </div>
       </aside>
       <section className="main" style={{ display: "block", overflow: "auto", padding: 12 }}>
-        {loggedIn && runOn === "team" && <TeamJobs refresh={teamRefresh} controllerPath={controller} />}
+        {loggedIn && runOn !== "local" && <TeamJobs refresh={teamRefresh} controllerPath={controller} />}
         {job && <JobView job={job} />}
       </section>
     </div>

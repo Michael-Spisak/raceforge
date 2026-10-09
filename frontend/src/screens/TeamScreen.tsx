@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LocalWorkerPanel } from "./LocalWorkerPanel";
 import {
   ApiError,
   type ApiTokenInfo,
@@ -443,6 +444,7 @@ export function TeamScreen() {
         {status.user && !status.user.totp_enabled && <TotpPanel onDone={() => void refresh()} />}
         {status.user?.role === "admin" && status.user.totp_enabled && <AdminPanel />}
         {status.workspace && <TrackScoutPanel onPaired={() => setTokensRev((n) => n + 1)} />}
+        {status.workspace && <LocalWorkerPanel />}
         <TokensPanel key={tokensRev} />
       </section>
     </div>
