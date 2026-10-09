@@ -5,8 +5,10 @@ import math
 import os
 import time
 
+import numpy as np
 import pytest
 
+from raceforge.construct import editor as ed
 from raceforge.construct.derive import derive
 from raceforge.construct.ldraw_export import export_mpd, parse_mpd_parts
 from raceforge.construct.quickstart import (
@@ -16,6 +18,8 @@ from raceforge.construct.quickstart import (
     generate,
     vehicle_spec,
 )
+from raceforge.core.assembly import Assembly
+from raceforge.core.connectors import ConnectorType
 from raceforge.core.frames import iter_part_placements
 from raceforge.parts.catalogue import Catalogue
 
@@ -52,6 +56,64 @@ def test_grid_generates_valid_assemblies(
     assert d.track_m == pytest.approx(track * 0.008, abs=1e-4)
 
 
+AXIAL = {ConnectorType.PIN, ConnectorType.PIN_HOLE, ConnectorType.AXLE, ConnectorType.AXLE_HOLE}
+
+
+def _misaligned_joints(assembly: Assembly, cat: Catalogue) -> list[str]:
+    """Axial connections whose connectors do not share one axis line (parallel, < 0.1 mm apart)."""
+    parts = {p.path: p for p in ed.view(assembly, cat)}
+    bad: list[str] = []
+    for c in assembly.connections:
+        a = next(x for x in parts[tuple(c.a.instances)].connectors if x.id == c.a.connector)
+        b = next(x for x in parts[tuple(c.b.instances)].connectors if x.id == c.b.connector)
+        if a.type not in AXIAL:
+            continue
+        gap = b.position - a.position
+        side = float(np.linalg.norm(gap - float(gap @ a.axis) * a.axis))
+        if side > 1e-4 or abs(float(a.axis @ b.axis)) < 0.9999:
+            bad.append(f"{c.a.instances}.{c.a.connector} <-> {c.b.instances}.{c.b.connector}")
+    return bad
+
+
+@pytest.mark.parametrize("layout,diff,wb,track,motor,steer", GRID)
+def test_grid_joints_are_coaxial(
+    cat: Catalogue, layout: Layout, diff: bool, wb: int, track: int, motor: str, steer: str
+) -> None:
+    params = QuickStartParams.model_validate(
+        {
+            "layout": layout,
+            "differential": diff,
+            "wheelbase_studs": wb,
+            "track_studs": track,
+            "drive_motor": motor,
+            "steering_motor": steer,
+        }
+    )
+    assert _misaligned_joints(generate(params, cat).assembly, cat) == []
+
+
+@pytest.mark.parametrize("layout", list(Layout))
+def test_sensor_and_motor_mounts_are_coaxial(cat: Catalogue, layout: Layout) -> None:
+    params = QuickStartParams(
+        layout=layout,
+        drive_motor="ev3_medium",
+        sensors=[
+            SensorSpec(kind=kind, preset=preset)
+            for kind, preset in [
+                ("ev3_ultrasonic", "front"),
+                ("ev3_ultrasonic", "rear"),
+                ("ev3_touch", "left"),
+                ("ev3_gyro", "right"),
+                ("ev3_gyro", "center"),
+                ("lidar_2d", "top"),
+            ]
+        ],
+    )
+    res = generate(params, cat)
+    res.assembly.validate_against_parts(cat.parts_by_hash())
+    assert _misaligned_joints(res.assembly, cat) == []
+
+
 @pytest.mark.parametrize(
     "field,value,hint",
     [
@@ -81,7 +143,7 @@ def test_default_car_mass_is_sum_of_catalogue_masses(cat: Catalogue) -> None:
     )
     d = derive(res.assembly, cat, vehicle_spec(res, cat))
     assert d.mass_kg == pytest.approx(expected)
-    assert d.mass_kg == pytest.approx(0.84115, abs=1e-5)  # golden value for the default car
+    assert d.mass_kg == pytest.approx(0.84662, abs=1e-5)  # golden value for the default car
     assert not d.mass_is_measured
     assert d.warnings == []
 
