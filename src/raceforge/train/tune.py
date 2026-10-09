@@ -70,6 +70,8 @@ def tune(
     default_score = score({})
     trials: list[Trial] = [Trial(-1, {}, default_score)]
     best = trials[0]
+    if progress:
+        progress(best, best)
 
     def objective(t: optuna.Trial) -> float:
         nonlocal best

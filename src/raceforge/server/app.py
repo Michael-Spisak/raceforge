@@ -47,6 +47,9 @@ from raceforge.api.models import (
     SimStart,
     TokenRequest,
     TrackScoutPairing,
+    TrainBenchRequest,
+    TrainJob,
+    TrainTuneRequest,
     WorkspaceLogin,
     WorkspaceName,
     WorkspaceRegister,
@@ -55,6 +58,7 @@ from raceforge.api.models import (
 from raceforge.api.scans import ScanApi, ScanNotFoundError
 from raceforge.api.service import Engine
 from raceforge.api.sim_session import SimSession
+from raceforge.api.train_jobs import TrainJobs
 from raceforge.api.workspace import WorkspaceApi
 from raceforge.backend.models import (
     ApiTokenInfo,
@@ -98,6 +102,7 @@ def create_app(
         return holder[0]
 
     app.state.workspace = ws
+    train_jobs = TrainJobs()
     scan_holder: list[ScanApi] = []
 
     def scans() -> ScanApi:
@@ -328,6 +333,45 @@ def create_app(
         return ws().pair_trackscout()
 
     # ------------------------------------------------------------ scans (spec 0009)
+    # ------------------------------------------------------------ training (spec 0013)
+    @app.post("/api/v1/train/benchmark")
+    def train_benchmark(req: TrainBenchRequest) -> TrainJob:
+        """Start a benchmark job: the controller on held-out corridors."""
+        try:
+            return train_jobs.start_benchmark(req)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except (ImportError, OSError, ValueError, SyntaxError) as exc:
+            raise HTTPException(422, f"{type(exc).__name__}: {exc}") from exc
+
+    @app.post("/api/v1/train/tune")
+    def train_tune(req: TrainTuneRequest) -> TrainJob:
+        """Start an Optuna tuning job over the controller's Tunable params."""
+        try:
+            return train_jobs.start_tune(req)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except (ImportError, OSError, ValueError, SyntaxError) as exc:
+            raise HTTPException(422, f"{type(exc).__name__}: {exc}") from exc
+
+    @app.get("/api/v1/train/jobs")
+    def train_job_list() -> list[TrainJob]:
+        return train_jobs.list()
+
+    @app.get("/api/v1/train/jobs/{job_id}")
+    def train_job(job_id: str) -> TrainJob:
+        try:
+            return train_jobs.get(job_id)
+        except KeyError as exc:
+            raise HTTPException(404, f"no job {job_id}") from exc
+
+    @app.post("/api/v1/train/jobs/{job_id}/cancel")
+    def train_job_cancel(job_id: str) -> TrainJob:
+        try:
+            return train_jobs.cancel(job_id)
+        except KeyError as exc:
+            raise HTTPException(404, f"no job {job_id}") from exc
+
     @app.get("/api/v1/scans")
     def scan_tracks() -> list[ScanTrack]:
         return scans().tracks()

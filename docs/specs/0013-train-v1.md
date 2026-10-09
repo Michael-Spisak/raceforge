@@ -38,6 +38,13 @@ the car), and the **Gymnasium environment** that the RL/imitation specs build on
 - CLI: `raceforge train benchmark CONTROLLER [--params P] [--tracks N] [--laps N] [--length M] [--opponents N]`,
   `raceforge train tune CONTROLLER [--trials N] [--timeout S] [--tracks N] [--out FILE]`.
 
+## Train tab (engine jobs)
+- `POST /api/v1/train/benchmark` (`TrainBenchRequest`) and `POST /api/v1/train/tune` (`TrainTuneRequest`) start a
+  job and return `TrainJob`; **one job at a time** (409 otherwise); a controller that does not load → 422.
+- `GET /api/v1/train/jobs`, `GET /api/v1/train/jobs/{id}`, `POST /api/v1/train/jobs/{id}/cancel` (takes effect
+  after the current race/trial). The UI polls every second while a job runs; the last 20 jobs are kept in memory.
+- Tune results show the held-out score of the tuned params next to the defaults and warn on overfitting.
+
 ## Behaviour
 - Deterministic for given seeds (sim is deterministic per seed); Optuna sampler seeded.
 - Parallel runs use a process pool (`workers`, default CPU count − 1); a controller that raises counts as DNF.

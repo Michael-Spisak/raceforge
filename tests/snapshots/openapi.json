@@ -2821,6 +2821,353 @@
         "title": "TrackScoutPairing",
         "type": "object"
       },
+      "TrainBenchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "controller": {
+            "minLength": 1,
+            "title": "Controller",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          },
+          "race": {
+            "$ref": "#/components/schemas/TrainRace",
+            "default": {
+              "laps": 1,
+              "length_m": 25.0,
+              "max_time_s": 240.0,
+              "opponents": 0,
+              "tracks": 5
+            }
+          }
+        },
+        "required": [
+          "controller"
+        ],
+        "title": "TrainBenchRequest",
+        "type": "object"
+      },
+      "TrainJob": {
+        "additionalProperties": false,
+        "properties": {
+          "best_params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Params"
+          },
+          "controller": {
+            "title": "Controller",
+            "type": "string"
+          },
+          "default_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Score"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "finished_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished Rate"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "benchmark",
+              "tune"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Out"
+          },
+          "runs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TrainRun"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "number"
+          },
+          "state": {
+            "enum": [
+              "running",
+              "done",
+              "error",
+              "cancelled"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "trials": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TrainTrial"
+            },
+            "title": "Trials",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "controller",
+          "state",
+          "started_at",
+          "total"
+        ],
+        "title": "TrainJob",
+        "type": "object"
+      },
+      "TrainRace": {
+        "additionalProperties": false,
+        "description": "Race settings shared by benchmark and tuning (held-out corridors from seed 1000).",
+        "properties": {
+          "laps": {
+            "default": 1,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Laps",
+            "type": "integer"
+          },
+          "length_m": {
+            "default": 25.0,
+            "maximum": 120.0,
+            "minimum": 20.0,
+            "title": "Length M",
+            "type": "number"
+          },
+          "max_time_s": {
+            "default": 240.0,
+            "maximum": 3600.0,
+            "minimum": 10.0,
+            "title": "Max Time S",
+            "type": "number"
+          },
+          "opponents": {
+            "default": 0,
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Opponents",
+            "type": "integer"
+          },
+          "tracks": {
+            "default": 5,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Tracks",
+            "type": "integer"
+          }
+        },
+        "title": "TrainRace",
+        "type": "object"
+      },
+      "TrainRun": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "finished": {
+            "title": "Finished",
+            "type": "boolean"
+          },
+          "fraction": {
+            "title": "Fraction",
+            "type": "number"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "time_s": {
+            "title": "Time S",
+            "type": "number"
+          },
+          "wall_contacts": {
+            "title": "Wall Contacts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seed",
+          "finished",
+          "time_s",
+          "fraction",
+          "wall_contacts"
+        ],
+        "title": "TrainRun",
+        "type": "object"
+      },
+      "TrainTrial": {
+        "additionalProperties": false,
+        "properties": {
+          "best": {
+            "title": "Best",
+            "type": "number"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "number",
+          "score",
+          "best",
+          "params"
+        ],
+        "title": "TrainTrial",
+        "type": "object"
+      },
+      "TrainTuneRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "controller": {
+            "minLength": 1,
+            "title": "Controller",
+            "type": "string"
+          },
+          "out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Out"
+          },
+          "race": {
+            "$ref": "#/components/schemas/TrainRace",
+            "default": {
+              "laps": 1,
+              "length_m": 25.0,
+              "max_time_s": 240.0,
+              "opponents": 0,
+              "tracks": 5
+            }
+          },
+          "timeout_s": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout S"
+          },
+          "train_tracks": {
+            "default": 3,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Train Tracks",
+            "type": "integer"
+          },
+          "trials": {
+            "default": 30,
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Trials",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "controller"
+        ],
+        "title": "TrainTuneRequest",
+        "type": "object"
+      },
       "UltrasonicView": {
         "additionalProperties": false,
         "properties": {
@@ -3819,6 +4166,184 @@
           }
         },
         "summary": "Sim Protocol"
+      }
+    },
+    "/api/v1/train/benchmark": {
+      "post": {
+        "description": "Start a benchmark job: the controller on held-out corridors.",
+        "operationId": "train_benchmark_api_v1_train_benchmark_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainBenchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Train Benchmark"
+      }
+    },
+    "/api/v1/train/jobs": {
+      "get": {
+        "operationId": "train_job_list_api_v1_train_jobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrainJob"
+                  },
+                  "title": "Response Train Job List Api V1 Train Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Train Job List"
+      }
+    },
+    "/api/v1/train/jobs/{job_id}": {
+      "get": {
+        "operationId": "train_job_api_v1_train_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Train Job"
+      }
+    },
+    "/api/v1/train/jobs/{job_id}/cancel": {
+      "post": {
+        "operationId": "train_job_cancel_api_v1_train_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Train Job Cancel"
+      }
+    },
+    "/api/v1/train/tune": {
+      "post": {
+        "description": "Start an Optuna tuning job over the controller's Tunable params.",
+        "operationId": "train_tune_api_v1_train_tune_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainTuneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Train Tune"
       }
     },
     "/api/v1/workspace/conflicts": {
