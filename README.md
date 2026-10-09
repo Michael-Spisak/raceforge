@@ -37,6 +37,20 @@ see [deploy/README.md](deploy/README.md). For a quick local test:
 `PYTHONPATH=src uv run raceforge backend dev --admin admin:some-password`, then log in on the **Team** tab
 with server address `http://127.0.0.1:8080`.
 
+### AI assistants (MCP)
+`raceforge mcp` lets Claude Desktop/Code, Cursor and other MCP clients look up parts, build and check a car,
+simulate, train and analyse test drives (spec 0028). Add `--read-only` for tools that change nothing; every call
+is logged to `~/.cache/raceforge/mcp/calls.jsonl`.
+
+Claude Code: `claude mcp add raceforge -- uv run --directory /path/to/raceforge raceforge mcp`
+
+Claude Desktop / Cursor (`claude_desktop_config.json` / `.cursor/mcp.json`):
+```json
+{ "mcpServers": { "raceforge": {
+  "command": "uv", "args": ["run", "--directory", "/path/to/raceforge", "raceforge", "mcp"] } } }
+```
+Clients that speak HTTP: `raceforge mcp --http` → `http://127.0.0.1:8766/mcp`.
+
 Rules for contributors and AI agents: [AGENTS.md](AGENTS.md).
 
 ## License
