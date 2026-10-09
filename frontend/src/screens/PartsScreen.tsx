@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, type PartSummary, type Schemas } from "../api/client";
 import { CarModel } from "../three/CarModel";
 import { Viewport } from "../three/Viewport";
+import { PrintedConnectors } from "./PrintedConnectors";
 
 type LDrawPart = Schemas["LDrawPart"];
 type PrintedRequest = Schemas["PrintedImportRequest"];
@@ -51,6 +52,7 @@ export function PartsScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [editConnectors, setEditConnectors] = useState(false);
   const [printed, setPrinted] = useState<PrintedRequest>({ path: "", name: "", units: "mm", up: "z", material: "PLA", infill_pct: 20, measured_mass_g: null });
   const [printedPreview, setPrintedPreview] = useState<PrintedPreview | null>(null);
   const [printedOpen, setPrintedOpen] = useState(false);
@@ -168,7 +170,7 @@ export function PartsScreen() {
         )}
         <ul className="list" role="listbox" data-testid="parts-list">
           {!library && parts.map((p) => (
-            <li key={p.key} role="option" aria-selected={selected?.key === p.key} onClick={() => { setSelected(p); setCandidate(null); }}>
+            <li key={p.key} role="option" aria-selected={selected?.key === p.key} onClick={() => { setSelected(p); setCandidate(null); setEditConnectors(false); }}>
               <div>{p.name}{p.origin === "local" && <span className="badge" style={{ marginLeft: 6 }}>{t("parts.team")}</span>}</div>
               <div className="muted">{p.ldraw_id ?? p.key} · {t(`category.${p.category}`)}</div>
             </li>
@@ -182,18 +184,23 @@ export function PartsScreen() {
         </ul>
       </aside>
       <section className="main">
-        {preview ? (
+        {editConnectors && selected?.mesh_url ? (
+          <PrintedConnectors part={selected} onClose={() => { setEditConnectors(false); setReload((n) => n + 1); }} />
+        ) : preview ? (
           <Viewport camera={[0.12, -0.12, 0.1]} target={[0, 0, 0]}>
             <CarModel car={preview} />
           </Viewport>
         ) : <div />}
-        {selected && (
+        {selected && !editConnectors && (
           <div className="statusbar">
             <strong>{selected.name}</strong>
             <span>{t("parts.mass")}: {selected.mass_g} g</span>
             <span>{t("parts.connectors")}: {selected.connectors}</span>
             {selected.device && <span>{t("parts.device")}: {selected.device}</span>}
             {selected.origin === "local" && <span className="muted">{t("parts.unverified")}</span>}
+            {selected.mesh_url && !editConnectors && (
+              <button type="button" onClick={() => setEditConnectors(true)} data-testid="printed-edit-connectors">{t("parts.edit_connectors")}</button>
+            )}
           </div>
         )}
         {candidate && (

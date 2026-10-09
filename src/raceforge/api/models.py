@@ -662,3 +662,15 @@ class BudgetView(ApiModel):
 
 
 AssemblyEditResponse.model_rebuild()
+
+
+# ------------------------------------------------------------------ part connectors (spec 0021)
+class ConnectorDef(ApiModel):
+    """A connector in the part's own frame (core frame, metres)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,32}$")
+    type: Literal[
+        "pin_hole", "axle_hole", "pin", "axle", "stud", "anti_stud", "screw_hole", "fixed_mount"
+    ]
+    pos: V3
+    axis: V3 = (0.0, 0.0, 1.0)

@@ -310,6 +310,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parts/{key}/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Part Connectors
+         * @description Connectors of a part in its own frame (spec 0021).
+         */
+        get: operations["part_connectors_api_v1_parts__key__connectors_get"];
+        /**
+         * Part Set Connectors
+         * @description Replace the connectors of a 3D-printed part (clicked on its mesh, spec 0021).
+         */
+        put: operations["part_set_connectors_api_v1_parts__key__connectors_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quickstart": {
         parameters: {
             query?: never;
@@ -1294,6 +1318,38 @@ export interface components {
             slug: string;
             /** Versions */
             versions: components["schemas"]["LocalVersion"][];
+        };
+        /**
+         * ConnectorDef
+         * @description A connector in the part's own frame (core frame, metres).
+         */
+        ConnectorDef: {
+            /**
+             * Axis
+             * @default [
+             *       0,
+             *       0,
+             *       1
+             *     ]
+             */
+            axis: [
+                number,
+                number,
+                number
+            ];
+            /** Id */
+            id: string;
+            /** Pos */
+            pos: [
+                number,
+                number,
+                number
+            ];
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "pin_hole" | "axle_hole" | "pin" | "axle" | "stud" | "anti_stud" | "screw_hole" | "fixed_mount";
         };
         /**
          * ConstructLimits
@@ -3668,6 +3724,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    part_connectors_api_v1_parts__key__connectors_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorDef"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    part_set_connectors_api_v1_parts__key__connectors_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectorDef"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorDef"][];
                 };
             };
             /** @description Validation Error */

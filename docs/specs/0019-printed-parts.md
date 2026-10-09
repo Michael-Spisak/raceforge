@@ -16,9 +16,8 @@ modeling tools, weigh and cost the right amount, show their real shape in the ed
   catalogue entry (category `printed`, `PrintedSpec {mesh, material, infill_pct, volume_cm3}`, colour orange);
   mass estimate, print cost in the budget (`filament_eur_per_kg`, default 25 €/kg), mesh rendering in Parts,
   editor and Simulate; import panel in the Parts tab with a check (size, volume, mass, cost, watertightness).
-- Out of scope (next steps): clicking connectors on the mesh (until then printed parts are placed freely and are
-  rigid with the chassis in the sim), watch folder re-import, versioned parts in the team workspace, STEP,
-  strength hints, convex decomposition (collision uses the bounding box).
+- Out of scope (next steps): watch folder re-import, versioned parts in the team workspace, STEP,
+  strength hints, convex decomposition (collision uses the bounding box). Connectors: spec 0021.
 
 ## Interfaces (additive)
 - `POST /api/v1/parts/printed/preview` and `POST /api/v1/parts/printed` with `PrintedImportRequest {path, name,

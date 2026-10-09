@@ -559,6 +559,77 @@
         "title": "Conflict",
         "type": "object"
       },
+      "ConnectorDef": {
+        "additionalProperties": false,
+        "description": "A connector in the part's own frame (core frame, metres).",
+        "properties": {
+          "axis": {
+            "default": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Axis",
+            "type": "array"
+          },
+          "id": {
+            "pattern": "^[A-Za-z0-9_-]{1,32}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "pos": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Pos",
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "pin_hole",
+              "axle_hole",
+              "pin",
+              "axle",
+              "stud",
+              "anti_stud",
+              "screw_hole",
+              "fixed_mount"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "pos"
+        ],
+        "title": "ConnectorDef",
+        "type": "object"
+      },
       "ConstructLimits": {
         "additionalProperties": false,
         "description": "Size/weight limits from the race rules; empty until the teacher defines them.",
@@ -5935,6 +6006,106 @@
           }
         },
         "summary": "Parts Printed Mesh"
+      }
+    },
+    "/api/v1/parts/{key}/connectors": {
+      "get": {
+        "description": "Connectors of a part in its own frame (spec 0021).",
+        "operationId": "part_connectors_api_v1_parts__key__connectors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectorDef"
+                  },
+                  "title": "Response Part Connectors Api V1 Parts  Key  Connectors Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Part Connectors"
+      },
+      "put": {
+        "description": "Replace the connectors of a 3D-printed part (clicked on its mesh, spec 0021).",
+        "operationId": "part_set_connectors_api_v1_parts__key__connectors_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorDef"
+                },
+                "title": "Defs",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectorDef"
+                  },
+                  "title": "Response Part Set Connectors Api V1 Parts  Key  Connectors Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Part Set Connectors"
       }
     },
     "/api/v1/quickstart": {

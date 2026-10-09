@@ -119,6 +119,9 @@ export const api = {
     request<Schemas["PrintedPreview"]>("/api/v1/parts/printed/preview", { method: "POST", body: JSON.stringify(req) }),
   importPrinted: (req: Schemas["PrintedImportRequest"]) =>
     request<PartSummary>("/api/v1/parts/printed", { method: "POST", body: JSON.stringify(req) }),
+  partConnectors: (key: string) => request<Schemas["ConnectorDef"][]>(`/api/v1/parts/${encodeURIComponent(key)}/connectors`),
+  setPartConnectors: (key: string, defs: Schemas["ConnectorDef"][]) =>
+    request<Schemas["ConnectorDef"][]>(`/api/v1/parts/${encodeURIComponent(key)}/connectors`, { method: "PUT", body: JSON.stringify(defs) }),
   controllers: () => request<ControllerInfo[]>("/api/v1/controllers"),
   replay: (path: string) => request<ReplaySummary>("/api/v1/replays", { method: "POST", body: JSON.stringify({ path }) }),
   /** TrackScout passes the engine can show (spec 0009). */
