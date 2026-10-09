@@ -72,6 +72,7 @@ class CatalogueEntry(_Model):
     teeth: PositiveInt | None = None
     wheel: WheelSpec | None = None
     connectors: list[ConnectorSpec] = Field(default_factory=list[ConnectorSpec])
+    color: int | None = None  # usual LDraw colour of this part in the kit (approximate)
     device: Device | None = None
     sense_axis_ld: tuple[float, float, float] | None = None
     bbox_mm: tuple[tuple[float, float, float], tuple[float, float, float]] | None = None

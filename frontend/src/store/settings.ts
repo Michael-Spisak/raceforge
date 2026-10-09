@@ -3,10 +3,13 @@ import i18n, { type Language, systemLanguage } from "../i18n";
 
 export type NavPreset = "blender" | "studio" | "fusion";
 export type Units = "mm" | "studs";
+export type ColourMode = "function" | "real";
 
 interface SettingsState {
   navPreset: NavPreset;
   units: Units;
+  colourMode: ColourMode;
+  setColourMode: (m: ColourMode) => void;
   language: Language;
   setNavPreset: (p: NavPreset) => void;
   setUnits: (u: Units) => void;
@@ -33,6 +36,11 @@ function save(key: string, value: string): void {
 export const useSettings = create<SettingsState>((set) => ({
   navPreset: load<NavPreset>("navPreset", "blender", ["blender", "studio", "fusion"]),
   units: load<Units>("units", "mm", ["mm", "studs"]),
+  colourMode: load<ColourMode>("colourMode", "function", ["function", "real"]),
+  setColourMode: (colourMode) => {
+    save("colourMode", colourMode);
+    set({ colourMode });
+  },
   language: load<Language>("language", systemLanguage(), ["de", "en"]),
   setNavPreset: (navPreset) => {
     save("navPreset", navPreset);

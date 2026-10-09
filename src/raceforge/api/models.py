@@ -34,6 +34,7 @@ class PartSummary(ApiModel):
     connectors: int
     device: str | None
     verified: bool
+    color: int | None = None  # usual LDraw colour (approximate); None for non-LEGO parts
 
 
 class Primitive(ApiModel):
@@ -52,7 +53,10 @@ class ScenePart(ApiModel):
     category: str
     pos: V3  # relative to the body
     quat: Q4
-    color: int  # LDraw colour code (function colours)
+    color: int  # LDraw colour code: function colour (by submodel role)
+    real_color: int = (
+        16  # LDraw colour code: the part's own colour (instance, else catalogue default)
+    )
     bbox_lo: V3
     bbox_hi: V3
 
@@ -521,7 +525,8 @@ class EditorPartView(ApiModel):
     name: str
     ldraw_id: str | None
     category: str
-    color: int
+    color: int  # function colour (by submodel role)
+    real_color: int = 16  # the part's own LEGO colour
     pos: V3
     quat: Q4
     bbox_lo: V3

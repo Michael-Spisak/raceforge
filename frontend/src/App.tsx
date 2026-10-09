@@ -11,7 +11,7 @@ import { StartScreen } from "./screens/StartScreen";
 import { TeamScreen } from "./screens/TeamScreen";
 import { TracksScreen } from "./screens/TracksScreen";
 import { TrainScreen } from "./screens/TrainScreen";
-import { type NavPreset, type Units, useSettings } from "./store/settings";
+import { type ColourMode, type NavPreset, type Units, useSettings } from "./store/settings";
 import { badgeOf, useWorkspace } from "./store/workspace";
 
 export type Tab = "start" | "parts" | "construct" | "tracks" | "simulate" | "train" | "live" | "replay" | "scans" | "team";
@@ -22,7 +22,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>("start");
   const [health, setHealth] = useState<Health | null>(null);
   const [offline, setOffline] = useState(false);
-  const { navPreset, setNavPreset, units, setUnits, language, setLanguage } = useSettings();
+  const { navPreset, setNavPreset, units, setUnits, language, setLanguage, colourMode, setColourMode } = useSettings();
   const wsBadge = badgeOf(useWorkspace((s) => s.status));
   const refreshWorkspace = useWorkspace((s) => s.refresh);
 
@@ -59,6 +59,10 @@ export function App() {
         <select aria-label={t("settings.units")} value={units} onChange={(e) => setUnits(e.target.value as Units)}>
           <option value="mm">mm</option>
           <option value="studs">studs</option>
+        </select>
+        <select aria-label={t("settings.colours")} data-testid="colour-mode" value={colourMode} onChange={(e) => setColourMode(e.target.value as ColourMode)}>
+          <option value="function">{t("settings.colours_function")}</option>
+          <option value="real">{t("settings.colours_real")}</option>
         </select>
         <select aria-label={t("settings.language")} value={language} onChange={(e) => setLanguage(e.target.value as "de" | "en")}>
           <option value="de">DE</option>
