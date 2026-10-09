@@ -341,3 +341,14 @@ class JobFinish(Model):
     status: Literal["done", "error", "cancelled", "paused"]  # paused: back to the queue
     result: dict[str, Any] | None = None
     error: str = Field(default="", max_length=10_000)
+
+
+# ------------------------------------------------------------------ live relay (spec 0027)
+class LiveSession(Model):
+    id: str
+    workspace_id: str
+    car: str
+    publisher: str  # username of the laptop's user
+    started_at: datetime
+    last_message_at: datetime
+    messages: int

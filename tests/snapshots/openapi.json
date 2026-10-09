@@ -2339,6 +2339,52 @@
         "title": "Layout",
         "type": "string"
       },
+      "LiveSession": {
+        "additionalProperties": false,
+        "properties": {
+          "car": {
+            "title": "Car",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "title": "Last Message At",
+            "type": "string"
+          },
+          "messages": {
+            "title": "Messages",
+            "type": "integer"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "car",
+          "publisher",
+          "started_at",
+          "last_message_at",
+          "messages"
+        ],
+        "title": "LiveSession",
+        "type": "object"
+      },
       "LocalObject": {
         "properties": {
           "id": {
@@ -8311,6 +8357,29 @@
           }
         },
         "summary": "Ws Save Job Params"
+      }
+    },
+    "/api/v1/workspace/live": {
+      "get": {
+        "description": "Cars currently shared by teammates' laptops.",
+        "operationId": "ws_live_sessions_api_v1_workspace_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LiveSession"
+                  },
+                  "title": "Response Ws Live Sessions Api V1 Workspace Live Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Live Sessions"
       }
     },
     "/api/v1/workspace/login": {

@@ -1,11 +1,22 @@
 """FastAPI app of the team backend (spec 0006). Separate from the local engine API (spec 0008)."""
 
+import asyncio
+import contextlib
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, Query, Request, Response
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    Query,
+    Request,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -13,6 +24,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from raceforge import __version__
 from raceforge.backend.blobs import make_store
 from raceforge.backend.db import Database
+from raceforge.backend.live import PUBLISHER_IDLE_S, LiveHub
 from raceforge.backend.models import (
     ApiTokenCreate,
     ApiTokenInfo,
@@ -26,6 +38,7 @@ from raceforge.backend.models import (
     JobInfo,
     JobProgress,
     JobProgressAck,
+    LiveSession,
     LoginRequest,
     ObjectCopy,
     ObjectCreate,
@@ -34,6 +47,7 @@ from raceforge.backend.models import (
     Problem,
     RefreshRequest,
     RegisterRequest,
+    Scope,
     Status,
     TokenPair,
     TotpCode,
@@ -87,6 +101,10 @@ def make_backend(
     return Backend(
         cfg, Database(cfg.database_url), make_store(cfg), clock or (lambda: datetime.now(UTC))
     )
+
+
+def _session_msg(info: LiveSession) -> str:
+    return '{"type": "session", ' + info.model_dump_json()[1:]
 
 
 def create_backend_app(backend: Backend | None = None) -> FastAPI:
@@ -178,6 +196,96 @@ def create_backend_app(backend: Backend | None = None) -> FastAPI:
     @app.delete(f"{p}/tokens/{{token_id}}", status_code=204)
     def revoke_token(token_id: str, a: Auth) -> None:
         be.revoke_token(a, token_id)
+
+    # ---------------------------------------------------------------- live relay (spec 0027)
+    hub = LiveHub()
+    app.state.live = hub
+
+    async def ws_actor(ws: WebSocket, scope: Scope) -> Actor | None:
+        """Header (engine) or cookie auth; closes the socket and returns None if denied."""
+        auth = ws.headers.get("authorization", "")
+        bearer = auth.lower().startswith("bearer ")
+        secret = auth[7:] if bearer else ws.cookies.get(ACCESS_COOKIE)
+        try:
+            if not secret:
+                raise ApiError(401, "not authenticated")
+            actor = await run_in_threadpool(be.authenticate, secret)
+            be.require(actor, scope)
+            return actor
+        except ApiError as e:
+            await ws.close(code=4000 + e.status, reason=e.detail[:120])
+            return None
+
+    @app.get(f"{p}/workspaces/{{workspace_id}}/live")
+    def list_live(workspace_id: str, a: Auth) -> list[LiveSession]:
+        be.require(a, Scope.READ)
+        return hub.list(workspace_id)
+
+    @app.websocket(f"{p}/workspaces/{{workspace_id}}/live/publish")
+    async def live_publish(ws: WebSocket, workspace_id: str) -> None:
+        actor = await ws_actor(ws, Scope.SIM_TRAIN)
+        if actor is None:
+            return
+        ids = {w.id for w in await run_in_threadpool(be.list_workspaces, actor)}
+        if workspace_id not in ids:
+            await ws.close(code=4404, reason="workspace not found")
+            return
+        await ws.accept()
+        try:
+            start = await asyncio.wait_for(ws.receive_json(), PUBLISHER_IDLE_S)
+            car = str(start.get("car") or "car") if isinstance(start, dict) else "car"
+        except (TimeoutError, ValueError, WebSocketDisconnect):
+            await ws.close()
+            return
+        session = hub.start(workspace_id, car, actor.username, be.clock())
+        await ws.send_json({"type": "session", "id": session.id})
+        try:
+            while True:
+                text = await asyncio.wait_for(ws.receive_text(), PUBLISHER_IDLE_S)
+                hub.publish(session.id, text, be.clock())
+        except (TimeoutError, WebSocketDisconnect):
+            pass
+        finally:
+            hub.end(session.id)
+            with contextlib.suppress(RuntimeError):
+                await ws.close()
+
+    @app.websocket(f"{p}/live/{{session_id}}/watch")
+    async def live_watch(ws: WebSocket, session_id: str) -> None:
+        if await ws_actor(ws, Scope.READ) is None:
+            return
+        info = hub.get(session_id)
+        queue = hub.watch(session_id) if info else None
+        if info is None or queue is None:
+            await ws.close(code=4404, reason="no such live session (or too many watchers)")
+            return
+        await ws.accept()
+
+        async def ignore_input() -> None:  # watchers are read-only; this notices a disconnect
+            while True:
+                await ws.receive_text()
+
+        reader = asyncio.create_task(ignore_input())
+        try:
+            await ws.send_text(_session_msg(info))
+            while not reader.done():
+                get = asyncio.create_task(queue.get())
+                done, _ = await asyncio.wait({get, reader}, return_when=asyncio.FIRST_COMPLETED)
+                if get not in done:
+                    get.cancel()
+                    break
+                text = get.result()
+                if text is None:
+                    await ws.send_text('{"type": "end"}')
+                    break
+                await ws.send_text(text)
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        finally:
+            reader.cancel()
+            hub.unwatch(session_id, queue)
+            with contextlib.suppress(RuntimeError):
+                await ws.close()
 
     # ---------------------------------------------------------------- workers & jobs (spec 0020)
     @app.post(f"{p}/workers", status_code=201)

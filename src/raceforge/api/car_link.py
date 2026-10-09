@@ -5,6 +5,10 @@ The UI opens ``/api/v1/car/live`` and sends ``{"type": "connect", "url": "ws://c
 ``teleop_release`` / ``stop`` / ``note`` messages go to the car. The engine adds ``{"type": "link",
 "state": ..., "rtt_ms": ...}`` messages (connection state, round-trip time from WebSocket pings) so
 the UI can warn above 100 ms.
+
+Spec 0027: with ``share`` (default) and a logged-in workspace the stream is also published to the
+team backend and recorded as a run log (``live_share``); ``{"type": "share", ...}`` messages tell
+the UI whether sharing works. Sharing never interferes with the car link.
 """
 
 import asyncio
@@ -12,15 +16,18 @@ import base64
 import contextlib
 import json
 import time
+from collections.abc import Callable
 from typing import Any, Literal
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import segno  # pyright: ignore[reportMissingTypeStubs]
 import websockets
 from fastapi import WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
+from raceforge.api.live_share import LiveShare, RunRecorder
 from raceforge.api.models import CarPairingCode, CarPairingRequest
+from raceforge.workspace.sync import Workspace
 
 FORWARD_TO_CAR = {"teleop", "teleop_release", "stop", "note"}
 PING_PERIOD_S = 1.0
@@ -31,6 +38,8 @@ class CarConnect(BaseModel):
     type: Literal["connect"] = "connect"
     url: str
     token: str | None = None
+    share: bool = True  # spec 0027: publish to the team backend when logged in
+    share_rate_hz: float = Field(default=10.0, ge=1.0, le=20.0)
 
 
 def car_url(url: str, token: str | None) -> str:
@@ -49,7 +58,11 @@ async def _send(ui: WebSocket, msg: dict[str, Any]) -> None:
         await ui.send_text(json.dumps(msg))
 
 
-async def relay(ui: WebSocket) -> None:
+async def relay(
+    ui: WebSocket,
+    workspace: Callable[[], Workspace | None] | None = None,
+    share_factory: Callable[[Workspace, float], LiveShare] = LiveShare,
+) -> None:
     """Runs one UI ↔ car session until either side closes."""
     await ui.accept()
     try:
@@ -73,10 +86,37 @@ async def relay(ui: WebSocket) -> None:
         await ui.close()
         return
     await _send(ui, {"type": "link", "state": "connected"})
+    ws = workspace() if workspace else None
+    recorder = RunRecorder() if ws is not None and ws.workspace_id else None
+    share = share_factory(ws, req.share_rate_hz) if ws is not None and req.share else None
+    opened = False
+    if share is None:
+        await _send(ui, {"type": "share", "state": "off", "session": None})
 
     async def car_to_ui() -> None:
+        nonlocal opened
         async for message in car:
-            await ui.send_text(message if isinstance(message, str) else message.decode())
+            text = message if isinstance(message, str) else message.decode()
+            await ui.send_text(text)
+            try:
+                msg: Any = json.loads(text)
+            except ValueError:
+                continue
+            if not isinstance(msg, dict):
+                continue
+            kind = str(msg.get("type"))  # pyright: ignore[reportUnknownMemberType]
+            if recorder is not None:
+                recorder.add(msg)  # pyright: ignore[reportUnknownArgumentType]
+            if share is None:
+                continue
+            before = None if not opened else share.state
+            if not opened:  # share under the car's name (hello), else its host name
+                opened = True
+                car_name = msg.get("car") if kind == "hello" else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                await share.open(str(car_name or urlsplit(url).hostname or "car"))
+            await share.send(text, kind)
+            if share.state != before:
+                await _send(ui, share.message())
 
     async def ui_to_car() -> None:
         while True:
@@ -87,6 +127,8 @@ async def relay(ui: WebSocket) -> None:
                 continue
             if isinstance(msg, dict) and msg.get("type") in FORWARD_TO_CAR:  # pyright: ignore[reportUnknownMemberType]
                 await car.send(text)
+                if recorder is not None and msg.get("type") == "note":  # pyright: ignore[reportUnknownMemberType]
+                    recorder.note(str(msg.get("text", "")))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
 
     async def ping() -> None:
         while True:
@@ -112,6 +154,16 @@ async def relay(ui: WebSocket) -> None:
             )
     with contextlib.suppress(Exception):
         await car.close()
+    if share is not None:
+        await share.close()
+    if recorder is not None and ws is not None:
+        try:
+            run = await asyncio.to_thread(recorder.save, ws)
+        except Exception as exc:  # never lose the drive: the file stays on disk
+            await _send(ui, {"type": "run", "saved": None, "detail": f"{exc} ({recorder.path})"})
+        else:
+            if run:
+                await _send(ui, {"type": "run", "saved": run})
     await _send(ui, {"type": "link", "state": "closed", "detail": reason})
     with contextlib.suppress(RuntimeError):
         await ui.close()
