@@ -83,6 +83,10 @@ class FakeCar:
                     self.last = time.monotonic()
                 elif kind == "teleop_release":
                     self.teleop = None
+                elif kind == "radio_check":  # spec 0030: a test car with its radios off
+                    await conn.send(
+                        json.dumps({"type": "radio_check", "ok": True, "violations": []})
+                    )
                 elif kind == "stop":
                     self.stopped = True
                     self.teleop = None

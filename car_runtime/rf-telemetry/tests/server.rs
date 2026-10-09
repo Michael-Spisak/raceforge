@@ -331,3 +331,26 @@ fn dropping_the_server_closes_clients() {
     }
     assert!(TcpStream::connect(addr).is_err(), "no longer listening");
 }
+
+#[test]
+fn radio_check_runs_on_request_without_arming() {
+    let rig = rig(None, 4);
+    let mut s = connect(&rig, "/").expect("upgrade");
+    recv_type(&mut s, "hello");
+    send(&mut s, r#"{"type":"radio_check"}"#);
+    let a = recv_type(&mut s, "ack");
+    assert_eq!(a["cmd"], "radio_check");
+    assert_eq!(a["ok"], false); // no check injected: not available
+
+    let blocked = "radio phy0 (wlan, phy0) is not blocked (rfkill)";
+    rig.server
+        .set_radio_check(Arc::new(move || vec![blocked.to_string()]));
+    send(&mut s, r#"{"type":"radio_check"}"#);
+    let r = recv_type(&mut s, "radio_check");
+    assert_eq!(r["ok"], false);
+    assert_eq!(r["violations"][0], blocked);
+
+    rig.server.set_radio_check(Arc::new(Vec::new));
+    send(&mut s, r#"{"type":"radio_check"}"#);
+    assert_eq!(recv_type(&mut s, "radio_check")["ok"], true);
+}

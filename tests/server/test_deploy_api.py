@@ -57,3 +57,18 @@ def test_errors_are_reported(client: TestClient, tmp_path: Path) -> None:
         json={"bundle": str(tmp_path), "target": "usb", "stick": str(tmp_path / "missing")},
     )
     assert r.status_code == 502 and "not a bundle" in r.json()["detail"]
+
+
+def test_race_bundle_from_the_app(client: TestClient) -> None:
+    """Spec 0030 AC2: race mode is in the manifest (the car arms it only after the radio check)."""
+    body = {
+        "controller": str(TEMPLATES_DIR / "wall_follow.py"),
+        "car_config": str(CAR_YAML),
+        "name": "race-day",
+        "race": True,
+    }
+    r = client.post("/api/v1/car/bundle", json=body)
+    assert r.status_code == 200, r.text
+    assert r.json()["mode"] == "race"
+    manifest = json.loads((Path(r.json()["path"]) / "bundle.json").read_text(encoding="utf-8"))
+    assert manifest["runtime"]["mode"] == "race"

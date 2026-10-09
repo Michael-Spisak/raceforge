@@ -49,7 +49,7 @@ def _resolve(path: str) -> Path:
 
 
 def build_from_request(req: BundleRequest, root: Path | None = None) -> BundleInfo:
-    """Spec 0012: a test-mode bundle (race bundles stay on the CLI: owner gate)."""
+    """Spec 0012: a test bundle, or with ``race`` a race-mode bundle (spec 0030, owner-approved)."""
     controller = _resolve(req.controller)
     car_path = _resolve(req.car_config)
     params = _resolve(req.params) if req.params else None
@@ -57,7 +57,7 @@ def build_from_request(req: BundleRequest, root: Path | None = None) -> BundleIn
     out = (root or bundles_dir()) / name
     out.parent.mkdir(parents=True, exist_ok=True)
     car = load_car_config(car_path)
-    m = build_car_bundle(out, controller, car, params=params, name=name)
+    m = build_car_bundle(out, controller, car, params=params, name=name, race=req.race)
     warnings: list[str] = []
     if car.telemetry is not None and token_in_file(car_path):
         warnings.append(

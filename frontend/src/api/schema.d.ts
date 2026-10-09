@@ -1453,7 +1453,10 @@ export interface components {
         };
         /**
          * BundleRequest
-         * @description Build a test-mode bundle: controller file + optional params + car config (spec 0012).
+         * @description Build a bundle: controller file + optional params + car config (spec 0012).
+         *
+         *     ``race`` (spec 0030): a race-mode bundle — arms only when every radio is off, no live view or
+         *     teleop, no test speed limit.
          */
         BundleRequest: {
             /** Car Config */
@@ -1464,6 +1467,11 @@ export interface components {
             name?: string | null;
             /** Params */
             params?: string | null;
+            /**
+             * Race
+             * @default false
+             */
+            race: boolean;
         };
         /** CarPairingCode */
         CarPairingCode: {

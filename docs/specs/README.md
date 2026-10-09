@@ -32,3 +32,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0027 | Live v2: dashboard, team relay, automatic run log | 6–7 | implemented (A–B) |
 | 0028 | MCP server v1 (parts, construction, sim, training, tracks, run logs) | 10–11 | implemented |
 | 0029 | Localisation v1: map, particle filter, racing line, localised controller | 8–9 | implemented |
+| 0030 | Race day v1: race bundles from the app, radio pre-check, checklist | 6–7 | implemented |
