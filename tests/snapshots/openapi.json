@@ -1155,6 +1155,11 @@
             ],
             "title": "Quat",
             "type": "array"
+          },
+          "real_color": {
+            "default": 16,
+            "title": "Real Color",
+            "type": "integer"
           }
         },
         "required": [
@@ -1905,6 +1910,17 @@
           "category": {
             "title": "Category",
             "type": "string"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
           },
           "connectors": {
             "title": "Connectors",
@@ -3491,6 +3507,11 @@
             ],
             "title": "Quat",
             "type": "array"
+          },
+          "real_color": {
+            "default": 16,
+            "title": "Real Color",
+            "type": "integer"
           }
         },
         "required": [

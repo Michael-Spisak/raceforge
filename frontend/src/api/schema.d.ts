@@ -1389,6 +1389,11 @@ export interface components {
                 number,
                 number
             ];
+            /**
+             * Real Color
+             * @default 16
+             */
+            real_color: number;
         };
         /** EgoView */
         EgoView: {
@@ -1668,6 +1673,8 @@ export interface components {
         PartSummary: {
             /** Category */
             category: string;
+            /** Color */
+            color?: number | null;
             /** Connectors */
             connectors: number;
             /** Device */
@@ -2304,6 +2311,11 @@ export interface components {
                 number,
                 number
             ];
+            /**
+             * Real Color
+             * @default 16
+             */
+            real_color: number;
         };
         /**
          * Scope

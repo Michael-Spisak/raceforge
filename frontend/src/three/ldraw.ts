@@ -11,7 +11,8 @@ export const LDRAW_TO_CORE = new Matrix4()
 
 /** Function colours by LDraw colour code (see raceforge.construct.ldraw_export.COLOURS). */
 export const LDRAW_COLOURS: Record<number, string> = {
-  0: "#1b2a34", 1: "#1e5aa8", 2: "#00852b", 15: "#f4f4f4", 16: "#8a8f99", 71: "#a0a5a9", 72: "#6c6e68",
+  0: "#1b2a34", 1: "#1e5aa8", 2: "#00852b", 4: "#b40000", 14: "#fac80a", 15: "#f4f4f4", 16: "#8a8f99",
+  19: "#e4cd9e", 25: "#d67923", 71: "#a0a5a9", 72: "#6c6e68",
 };
 
 let loader: LDrawLoader | null = null;

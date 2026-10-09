@@ -51,6 +51,9 @@ from raceforge.sim.record import read_frames, read_truth
 from raceforge.track.procedural import CorridorParams, generate_corridor
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "controllers" / "templates"
+# Function colours (plan §1): steering, drive, sensors, electronics, chassis; printed parts.
+ROLE_COLOURS = {"steering": 1, "drive": 4, "sensor_mast": 14, "electronics": 2, "chassis": 71}
+PRINTED_COLOUR = 25
 _GEOM_KIND: dict[int, Literal["box", "cylinder", "plane"]] = {0: "plane", 5: "cylinder", 6: "box"}
 
 
@@ -85,6 +88,7 @@ class Engine:
                     connectors=len(e.all_connectors()),
                     device=e.device.type if e.device else None,
                     verified=False,
+                    color=e.color,
                 )
             )
         return out
@@ -184,7 +188,8 @@ class Engine:
                 name=p.name,
                 ldraw_id=self.cat.entry(p.key).ldraw_id,
                 category=p.category,
-                color=COLOURS.get(self.cat.entry(p.key).category, 16),
+                color=self.colours(assembly, list(p.path), p.key, p.color)[0],
+                real_color=self.colours(assembly, list(p.path), p.key, p.color)[1],
                 pos=_v3(p.position),
                 quat=_mat_to_quat(p.rotation),
                 bbox_lo=_v3(p.bbox_lo),
@@ -336,6 +341,26 @@ class Engine:
             return "bom.csv", out.getvalue()
         raise ValueError(f"unknown export kind {kind!r}")
 
+    def colours(
+        self, assembly: Assembly, chain: list[str], key: str, inst_color: int | None
+    ) -> tuple[int, int]:
+        """(function colour by submodel role, real LEGO colour) as LDraw codes (spec 0017)."""
+        entry = self.cat.entry(key)
+        sub = assembly.submodels[assembly.root]
+        role = sub.role
+        for instance_id in chain[:-1]:
+            item = sub.item(instance_id)
+            if item is None or item.kind != "submodel":
+                break
+            sub = assembly.submodels[item.submodel]
+            role = sub.role or role
+        if entry.ldraw_id is None and entry.device is None:
+            function = PRINTED_COLOUR
+        else:
+            function = ROLE_COLOURS.get(role.value if role else "", COLOURS.get(entry.category, 16))
+        real = inst_color if inst_color is not None else entry.color
+        return function, real if real is not None else COLOURS.get(entry.category, 16)
+
     def car_scene(
         self,
         name: str,
@@ -357,6 +382,7 @@ class Engine:
                 p = brot.T @ (p - bpos)
                 rot = brot.T @ rot
             lo, hi = self.cat.bbox(key)
+            fc, rc = self.colours(assembly, chain, key, inst.color)
             bodies.setdefault(body, []).append(
                 ScenePart(
                     key=key,
@@ -364,7 +390,8 @@ class Engine:
                     category=entry.category.value,
                     pos=_v3(p),
                     quat=_mat_to_quat(rot),
-                    color=COLOURS.get(entry.category, 16),
+                    color=fc,
+                    real_color=rc,
                     bbox_lo=_v3(lo),
                     bbox_hi=_v3(hi),
                 )

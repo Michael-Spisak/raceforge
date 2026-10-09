@@ -22,7 +22,7 @@ export function PartsScreen() {
   const preview = selected && {
     name: selected.key,
     bodies: [{ name: "part", parts: [{ key: selected.key, ldraw_id: selected.ldraw_id, category: selected.category,
-      pos: [0, 0, 0] as [number, number, number], quat: [1, 0, 0, 0] as [number, number, number, number], color: 72,
+      pos: [0, 0, 0] as [number, number, number], quat: [1, 0, 0, 0] as [number, number, number, number], color: 72, real_color: selected.color ?? 72,
       bbox_lo: [-0.01, -0.01, -0.01] as [number, number, number], bbox_hi: [0.01, 0.01, 0.01] as [number, number, number] }] }],
   };
 

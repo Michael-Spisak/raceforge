@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Group } from "three";
 import type { CarScene, Schemas } from "../api/client";
+import { useSettings } from "../store/settings";
 import { LDRAW_COLOURS, loadPart } from "./ldraw";
 
 type ScenePart = Schemas["ScenePart"];
@@ -13,15 +14,16 @@ export function toThreeQuat(q: readonly number[]): [number, number, number, numb
 
 function PartMesh({ part, useLDraw }: { part: ScenePart; useLDraw: boolean }) {
   const [object, setObject] = useState<Group | null>(null);
+  const colour = useSettings((st) => (st.colourMode === "real" ? part.real_color ?? part.color : part.color));
   useEffect(() => {
     let alive = true;
     if (useLDraw && part.ldraw_id) {
-      void loadPart(part.ldraw_id, part.color).then((g) => alive && setObject(g));
+      void loadPart(part.ldraw_id, colour).then((g) => alive && setObject(g));
     }
     return () => {
       alive = false;
     };
-  }, [part.ldraw_id, part.color, useLDraw]);
+  }, [part.ldraw_id, colour, useLDraw]);
   const lo = part.bbox_lo;
   const hi = part.bbox_hi;
   const centre: [number, number, number] = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
@@ -33,7 +35,7 @@ function PartMesh({ part, useLDraw }: { part: ScenePart; useLDraw: boolean }) {
       ) : (
         <mesh position={centre}>
           <boxGeometry args={size} />
-          <meshStandardMaterial color={LDRAW_COLOURS[part.color] ?? "#8a8f99"} transparent opacity={part.ldraw_id ? 0.6 : 0.9} />
+          <meshStandardMaterial color={LDRAW_COLOURS[colour] ?? "#8a8f99"} transparent opacity={part.ldraw_id ? 0.6 : 0.9} />
         </mesh>
       )}
     </group>

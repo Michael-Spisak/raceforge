@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { Group } from "three";
 import type { Schemas } from "../api/client";
 import { toThreeQuat } from "./CarModel";
+import { useSettings } from "../store/settings";
 import { LDRAW_COLOURS, loadPart } from "./ldraw";
 
 type EditorPartView = Schemas["EditorPartView"];
@@ -11,13 +12,14 @@ const pathKey = (p: readonly string[]) => p.join("/");
 
 function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartView; selected: boolean; flagged: boolean; onSelect: (path: string[], additive: boolean) => void }) {
   const [object, setObject] = useState<Group | null>(null);
+  const colour = useSettings((st) => (st.colourMode === "real" ? part.real_color ?? part.color : part.color));
   useEffect(() => {
     let alive = true;
-    if (part.ldraw_id) void loadPart(part.ldraw_id, part.color).then((g) => alive && setObject(g));
+    if (part.ldraw_id) void loadPart(part.ldraw_id, colour).then((g) => alive && setObject(g));
     return () => {
       alive = false;
     };
-  }, [part.ldraw_id, part.color]);
+  }, [part.ldraw_id, colour]);
   const lo = part.bbox_lo;
   const hi = part.bbox_hi;
   const centre: [number, number, number] = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
@@ -33,7 +35,7 @@ function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartVie
       ) : (
         <mesh position={centre}>
           <boxGeometry args={size} />
-          <meshStandardMaterial color={LDRAW_COLOURS[part.color] ?? "#8a8f99"} transparent opacity={0.85} />
+          <meshStandardMaterial color={LDRAW_COLOURS[colour] ?? "#8a8f99"} transparent opacity={0.85} />
         </mesh>
       )}
       {(selected || flagged) && (
