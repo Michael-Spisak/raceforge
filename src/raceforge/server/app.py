@@ -109,6 +109,7 @@ from raceforge.parts.ldraw import library_dir
 from raceforge.track.edit import ValidationReport
 from raceforge.track.procedural import CorridorParams
 from raceforge.track.quick import QuickTrack
+from raceforge.track.scan_walls import ScanGrid
 from raceforge.workspace.client import BackendError, OfflineError
 from raceforge.workspace.sync import (
     Conflict,
@@ -376,7 +377,7 @@ def create_app(
     def ws_workers() -> list[WorkerInfo]:
         return ws().workers()
 
-    # ---------------------------------------------------- team live relay (spec 0027)
+    # ---------------------------------------------------- team live relay (spec 0032)
     @app.get(f"{w}/live")
     def ws_live_sessions() -> list[LiveSession]:
         """Cars currently shared by teammates' laptops."""
@@ -416,7 +417,7 @@ def create_app(
 
     @app.post("/api/v1/race-control/results")
     def race_control_save(req: RaceResult) -> RaceSaved:
-        """Save a timed race as a `run` object (race.json) in the team workspace (spec 0031)."""
+        """Save a timed race as a `run` object (race.json) in the team workspace (spec 0032)."""
         from raceforge.api.race_control import save_result
 
         return save_result(ws().ws, req)
@@ -567,7 +568,7 @@ def create_app(
 
     @app.post("/api/v1/tracks/quick/{name}/localisation")
     def quick_track_localisation(name: str, req: ScanOpen) -> ScanOpen:
-        """Params for the `localised` controller (map + racing line, spec 0029) to ``path``."""
+        """Params for the `localised` controller (map + racing line, spec 0032) to ``path``."""
         from raceforge.api.localisation import write_params
 
         try:
@@ -696,6 +697,16 @@ def create_app(
         """Car-height floor plan of a pass (spec 0024): underlay for drawing quick tracks."""
         try:
             return scans().floorplan(sha256, resolution, z_min, z_max)
+        except ScanNotFoundError as exc:
+            raise HTTPException(404, f"no scan {sha256}") from exc
+        except TscanError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/scans/{sha256}/grid")
+    def scan_grid(sha256: str) -> ScanGrid:
+        """Car-height occupancy grid for quick-track walls from the scan (spec 0032)."""
+        try:
+            return scans().grid(sha256)
         except ScanNotFoundError as exc:
             raise HTTPException(404, f"no scan {sha256}") from exc
         except TscanError as exc:

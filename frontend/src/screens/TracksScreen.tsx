@@ -21,9 +21,10 @@ interface Draft {
   obstacles: QuickObstacle[];
   edit: EditState;
   underlay: string | null; // scan pass sha256 drawn under the track (spec 0024)
+  scanWalls: Schemas["ScanGrid"] | null; // walls from the scan instead of width_m (spec 0032)
 }
 
-const EMPTY: Draft = { name: "", points: [], width_m: 1.6, loop: true, laps: 3, corner_radius_m: null, obstacles: [], edit: EMPTY_EDIT, underlay: null };
+const EMPTY: Draft = { name: "", points: [], width_m: 1.6, loop: true, laps: 3, corner_radius_m: null, obstacles: [], edit: EMPTY_EDIT, underlay: null, scanWalls: null };
 const SNAP = 0.25;
 const OBSTACLE_SIZE: Record<QuickObstacle["kind"], [number, number]> = { bin: [0.35, 0.35], pillar: [0.3, 0.3], bench: [1.2, 0.4] };
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
@@ -41,6 +42,7 @@ function toTrack(d: Draft): QuickTrack {
     friction: 0.75,
     edit: isEmptyEdit(d.edit) ? null : d.edit,
     underlay_sha256: d.underlay,
+    scan_walls: d.scanWalls,
   };
 }
 
@@ -78,6 +80,15 @@ export function TracksScreen() {
     api.scanFloorplan(draft.underlay).then((p) => { if (live) setPlan(p); }).catch((e: unknown) => { if (live) setError(message(e)); });
     return () => { live = false; };
   }, [draft.underlay]);
+  const [wallsBusy, setWallsBusy] = useState(false);
+  const toggleScanWalls = (on: boolean) => {
+    if (!on || !draft.underlay) return change({ ...draft, scanWalls: null });
+    setWallsBusy(true);
+    api.scanGrid(draft.underlay)
+      .then((g) => change({ ...draft, scanWalls: g }))
+      .catch((e: unknown) => setError(message(e)))
+      .finally(() => setWallsBusy(false));
+  };
   const measureWidth = () => {
     if (!draft.underlay || draft.points.length < 2) return;
     const pts = draft.loop ? [...draft.points, draft.points[0] as Pt] : draft.points;
@@ -226,7 +237,7 @@ export function TracksScreen() {
       setDraft({
         name: q.name, points: q.points as Pt[], width_m: q.width_m ?? 1.6, loop: q.loop ?? true, laps: q.laps ?? 3,
         corner_radius_m: q.corner_radius_m ?? null, obstacles: q.obstacles ?? [], edit: { ...EMPTY_EDIT, ...q.edit },
-        underlay: q.underlay_sha256 ?? null,
+        underlay: q.underlay_sha256 ?? null, scanWalls: q.scan_walls ?? null,
       });
     }).catch((e: unknown) => setError(message(e)));
   };
@@ -274,13 +285,19 @@ export function TracksScreen() {
           </div>
           <div className="field">
             <label htmlFor="qt-underlay">{t("tracks.underlay")}</label>
-            <select id="qt-underlay" data-testid="qt-underlay" value={draft.underlay ?? ""} onChange={(e) => change({ ...draft, underlay: e.target.value || null })}>
+            <select id="qt-underlay" data-testid="qt-underlay" value={draft.underlay ?? ""} onChange={(e) => change({ ...draft, underlay: e.target.value || null, scanWalls: null })}>
               <option value="">{t("tracks.underlay_none")}</option>
               {passes.map((p) => <option key={p.sha} value={p.sha}>{p.label}</option>)}
+              {draft.underlay && !passes.some((p) => p.sha === draft.underlay) && <option value={draft.underlay}>{t("tracks.underlay_missing", { sha: draft.underlay.slice(0, 8) })}</option>}
             </select>
           </div>
           {draft.underlay && (
             <div className="field">
+              <label>
+                <input type="checkbox" data-testid="qt-scan-walls" checked={!!draft.scanWalls} disabled={wallsBusy} onChange={(e) => toggleScanWalls(e.target.checked)} />{" "}
+                {t("tracks.scan_walls")}
+              </label>
+              {draft.scanWalls && <p className="muted">{t("tracks.scan_walls_help")}</p>}
               <button type="button" onClick={measureWidth} disabled={!plan || draft.points.length < 2} data-testid="qt-measure-width">{t("tracks.measure_width")}</button>
               {widthNote && <p className="muted">{widthNote}</p>}
             </div>

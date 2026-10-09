@@ -382,12 +382,17 @@ def assemble_corridor(
     friction: float,
     note: str,
     straight_start: bool = True,
+    walls_lr: tuple[Arr, Arr] | None = None,
 ) -> Corridor:
     """Walls, floor, checkpoints, start grid and race setup around a sampled centreline (shared by
-    the procedural generator and drawn quick tracks). Raises :class:`GenerationError` if invalid."""
+    the procedural generator and drawn quick tracks). Raises :class:`GenerationError` if invalid.
+    ``walls_lr``: wall polylines measured elsewhere (scan walls, spec 0032), one point per sample.
+    """
     n = len(centre)
     left = centre + normals * (widths / 2 + depth[0])[:, None]
     right = centre - normals * (widths / 2 + depth[1])[:, None]
+    if walls_lr is not None:
+        left, right = walls_lr
     # Validation.
     if (widths < width_min_m - 1e-9).any():
         raise GenerationError("corridor narrower than width_min_m")

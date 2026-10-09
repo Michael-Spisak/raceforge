@@ -27,6 +27,7 @@ from raceforge.track.procedural import (
     pose2,
     resample,
 )
+from raceforge.track.scan_walls import ScanGrid, fit_to_scan
 
 OBSTACLES: dict[str, tuple[str, tuple[float, float, float]]] = {
     "bin": ("bin", (0.35, 0.35, 0.6)),
@@ -61,6 +62,7 @@ class QuickTrack(BaseModel):
     friction: float = Field(default=0.75, gt=0, le=2.0)
     edit: TrackEdit | None = None  # track editor layer (spec 0025)
     underlay_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")  # spec 0024
+    scan_walls: ScanGrid | None = None  # walls from this scan grid, not from width_m (spec 0032)
 
     @model_validator(mode="after")
     def _check(self) -> "QuickTrack":
@@ -89,6 +91,14 @@ def build_quick_track(q: QuickTrack) -> Corridor:
     n = len(centre)
     widths = np.full(n, q.width_m)
     depth = np.zeros((2, n))
+    width_min = q.width_m
+    walls_lr = None
+    if q.scan_walls is not None:
+        centre, normals, widths, depth, *lr = fit_to_scan(
+            q.scan_walls, centre, normals, s, SAMPLE_M, q.width_m / 2, q.loop
+        )
+        walls_lr = (lr[0], lr[1])
+        width_min = 0.0  # checked on the free width in fit_to_scan
     curvature = np.abs(np.gradient(np.unwrap(np.arctan2(normals[:, 1], normals[:, 0])))) / SAMPLE_M
     objects = [
         TrackObject(
@@ -114,11 +124,12 @@ def build_quick_track(q: QuickTrack) -> Corridor:
         glass=glass,
         door_ids=[],
         loop=q.loop,
-        width_min_m=q.width_m,
+        width_min_m=width_min,
         wall_height_m=q.wall_height_m,
         friction=q.friction,
         note=f"quick track {q.name!r}",
         straight_start=False,
+        walls_lr=walls_lr,
     )
     setup = corridor.track.race_setups[0]
     track = corridor.track.model_copy(

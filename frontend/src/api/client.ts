@@ -133,6 +133,7 @@ export const api = {
   scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
   /** Car-height floor plan of a scan pass and the corridor width along a line (spec 0024). */
   scanFloorplan: (sha: string) => request<Schemas["FloorplanResponse"]>(`/api/v1/scans/${sha}/floorplan`),
+  scanGrid: (sha: string) => request<Schemas["ScanGrid"]>(`/api/v1/scans/${sha}/grid`),
   scanCorridorWidth: (sha: string, points: [number, number][]) =>
     request<Schemas["CorridorWidth"]>(`/api/v1/scans/${sha}/corridor-width`, { method: "POST", body: JSON.stringify({ points }) }),
   /** QR code for TrackScout's drive mode (spec 0010 C): the phone connects to the car directly. */
