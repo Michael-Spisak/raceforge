@@ -18,6 +18,10 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
 - Part C (added 2026-10-09): multi-select (Shift+click), group move/turn (about the selection's pivot on the
   LDU grid)/delete, duplicate (Ctrl+D, with the connections between the copied parts), mirror copy (M, across the
   XZ plane: position y → −y, rotation M·R·M — exact for parts symmetric to their own mirror plane).
+- Part D (added 2026-10-09, owner request "Parts im Editor schneller einfügen"): category picker and recently used
+  parts; with a part selected, a catalogue click **docks** the new part onto a free compatible connector of the
+  selection (`EditOp kind=attach, key, path, candidate`; connectors meet at one point, axes aligned, connection
+  recorded); Tab / "next position" cycles through all candidates (pair × direction).
 - Out of scope (later parts): gizmo dragging, submodel creation/linking UI,
   precision snap (pick A then B), rule checker and budget panel, overlap highlighting, gears/kinematics,
   custom parts.
@@ -52,4 +56,6 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
 - [ ] AC2b: A car edited in the editor (a part deleted) drives and finishes a race in the sim.
 - [ ] AC2c: A group of two parts turned 90° about z keeps their distance ((x, y) → (−y, x)); duplicate adds the
   copies at the offset; a mirror copy has y → −y; deleting the copies restores the part count without problems.
+- [ ] AC2d: Attaching a pin to a free beam records one connection; candidate 1 gives another position; a part
+  with no fitting connector is rejected (422).
 - [ ] AC3: The editor in the app selects, moves, undoes and deletes parts (manual check by the owner).

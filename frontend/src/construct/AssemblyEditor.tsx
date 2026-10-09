@@ -13,6 +13,8 @@ type EditOp = Partial<Schemas["EditOp"]>;
 type Assembly = Record<string, unknown>;
 
 const STUD = 0.008; // m
+const CATEGORIES = ["", "beam", "axle", "pin", "bush", "axle_joiner", "gear", "differential", "steering_arm", "steering_link",
+  "cv_joint", "wheel_rim", "tyre", "ev3_brick", "motor", "sensor", "board", "battery"];
 const LDU = 0.0004; // m
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
 const same = (a: readonly string[] | null | undefined, b: readonly string[] | null | undefined) => !!a && !!b && a.join("/") === b.join("/");
@@ -51,6 +53,16 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
   const [filter, setFilter] = useState("");
   const [showOverlaps, setShowOverlaps] = useState(false);
   const [found, setFound] = useState<PartSummary[]>([]);
+  const [category, setCategory] = useState("");
+  const [recent, setRecent] = useState<PartSummary[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("raceforge.editor.recent") ?? "[]") as PartSummary[];
+    } catch {
+      return [];
+    }
+  });
+  // Last docking, so Tab can try the next position from the same starting point.
+  const docking = useRef<{ base: Assembly; key: string; target: string[]; candidate: number } | null>(null);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const busy = useRef(false);
@@ -69,7 +81,12 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
         setView(r);
         if (!r.problems.length) publish(r.assembly, params);
         if (op.kind && op.kind !== "none") setSel(r.selected_many.length ? r.selected_many : r.selected ? [r.selected] : []);
-        setNote(r.snapped ? t("editor.snapped", { a: r.snapped.connector, b: r.snapped.target.join(" / ") }) : "");
+        if (op.kind !== "attach") docking.current = null;
+        setNote(
+          r.snapped ? t("editor.snapped", { a: r.snapped.connector, b: r.snapped.target.join(" / ") })
+            : op.kind === "attach" ? t("editor.docked", { n: (op.candidate ?? 0) % Math.max(1, r.candidates) + 1, count: r.candidates })
+              : "",
+        );
       })
       .catch((e: unknown) => setError(message(e)))
       .finally(() => { busy.current = false; });
@@ -103,6 +120,7 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) doRedo(); else doUndo(); return; }
       if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); return; }
+      if (e.key === "Tab" && docking.current) { e.preventDefault(); nextDocking(); return; }
       if (!selected) return;
       const target: EditOp = sel.length > 1 ? { paths: sel } : { path: selected };
       if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); apply({ kind: "duplicate", paths: sel, delta: [2 * STUD, 0, 0] }); return; }
@@ -123,10 +141,30 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
   });
 
   useEffect(() => {
-    if (!query.trim()) { setFound([]); return; }
-    const id = window.setTimeout(() => void api.parts(query).then((ps) => setFound(ps.slice(0, 30))).catch(() => undefined), 200);
+    if (!query.trim() && !category) { setFound([]); return; }
+    const id = window.setTimeout(() => void api.parts(query, category).then((ps) => setFound(ps.slice(0, 60))).catch(() => undefined), 150);
     return () => window.clearTimeout(id);
-  }, [query]);
+  }, [query, category]);
+
+  const insert = (p: PartSummary) => {
+    setRecent((r) => {
+      const next = [p, ...r.filter((x) => x.key !== p.key)].slice(0, 8);
+      try { localStorage.setItem("raceforge.editor.recent", JSON.stringify(next)); } catch { /* private window */ }
+      return next;
+    });
+    if (selected && view) {
+      docking.current = { base: view.assembly, key: p.key, target: selected, candidate: 0 };
+      apply({ kind: "attach", key: p.key, path: selected, candidate: 0 });
+    } else {
+      apply({ kind: "add", key: p.key, position: addAt() });
+    }
+  };
+  const nextDocking = () => {
+    const d = docking.current;
+    if (!d) return;
+    d.candidate += 1;
+    run(d.base, { kind: "attach", key: d.key, path: d.target, candidate: d.candidate }, false);
+  };
 
   const part = view?.parts.find((p) => same(p.path, selected));
   const flagged = new Set<string>([
@@ -193,11 +231,21 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
         </ul>
         <div className="field">
           <label htmlFor="editor-add">{t("editor.add")}</label>
-          <input id="editor-add" data-testid="editor-add" value={query} placeholder={t("editor.search")} onChange={(e) => setQuery(e.target.value)} />
+          <div style={{ display: "flex", gap: 4 }}>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} data-testid="editor-add-category" aria-label={t("editor.category")}>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{c ? t(`category.${c}`) : t("editor.category_all")}</option>)}
+            </select>
+            <input id="editor-add" data-testid="editor-add" value={query} placeholder={t("editor.search")} onChange={(e) => setQuery(e.target.value)} />
+          </div>
+          <span className="muted">{selected ? t("editor.add_docks") : t("editor.add_free")}</span>
         </div>
-        <ul className="list" style={{ maxHeight: 200, overflow: "auto" }}>
-          {found.map((p) => (
-            <li key={p.key} onClick={() => apply({ kind: "add", key: p.key, position: addAt() })} data-testid={`editor-add-${p.key}`}>
+        {docking.current && (
+          <button type="button" onClick={nextDocking} data-testid="editor-next-docking">{t("editor.next_docking")}</button>
+        )}
+        {!query && !category && recent.length > 0 && <div className="muted">{t("editor.recent")}</div>}
+        <ul className="list" style={{ maxHeight: 220, overflow: "auto" }}>
+          {(query || category ? found : recent).map((p) => (
+            <li key={p.key} onClick={() => insert(p)} data-testid={`editor-add-${p.key}`}>
               {p.name} <span className="muted">{p.key}</span>
             </li>
           ))}

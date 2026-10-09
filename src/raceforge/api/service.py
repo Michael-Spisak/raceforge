@@ -135,6 +135,7 @@ class Engine:
         selected: list[str] | None = op.path or None
         many: list[list[str]] = op.paths or ([op.path] if op.path else [])
         snapped: SnapInfo | None = None
+        candidates = 0
         if op.paths and op.kind in ("move", "rotate", "delete", "duplicate", "mirror"):
             if op.kind == "move":
                 assembly = ed.move_many(assembly, op.paths, op.delta)
@@ -153,6 +154,15 @@ class Engine:
             assembly = ed.rotate(assembly, op.path, op.axis, op.turns)
         elif op.kind == "delete":
             assembly, selected = ed.delete(assembly, op.path), None
+        elif op.kind == "attach":
+            if not op.key or not op.path:
+                raise ValueError("attach: key (catalogue part) and path (target part) are needed")
+            assembly, new, candidates = ed.attach(assembly, self.cat, op.key, op.path, op.candidate)
+            if not candidates:
+                raise ValueError(
+                    f"{op.key} has no connector that fits a free connector of the part"
+                )
+            selected = new
         elif op.kind == "add":
             if not op.key:
                 raise ValueError("key: which catalogue part to add")
@@ -214,6 +224,7 @@ class Engine:
             problems=problems,
             selected=selected,
             selected_many=many,
+            candidates=candidates,
             snapped=snapped,
             rules=rules,
             overlaps=overlap_pairs,
