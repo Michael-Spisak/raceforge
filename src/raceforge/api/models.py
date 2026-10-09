@@ -25,6 +25,28 @@ class Health(ApiModel):
     ldraw_dir: str
 
 
+class LDrawPart(ApiModel):
+    """A part of the LDraw library that is not in the catalogue yet (spec 0018)."""
+
+    ldraw_id: str
+    title: str
+    category: str | None
+    in_catalogue: bool = False
+
+
+class LocalPartRequest(ApiModel):
+    """Add an LDraw part to the team's local catalogue (unverified). Holes/length create the
+    standard pin-hole / pin-or-axle connectors like the curated beams, pins and axles."""
+
+    ldraw_id: str = Field(min_length=1, max_length=40, pattern=r"^[A-Za-z0-9._-]+$")
+    name: str | None = Field(default=None, max_length=120)
+    category: str
+    mass_g: float = Field(gt=0, le=5000)
+    holes: int | None = Field(default=None, ge=1, le=40)
+    length_studs: int | None = Field(default=None, ge=1, le=40)
+    color: int | None = Field(default=None, ge=0)
+
+
 class PartSummary(ApiModel):
     key: str
     ldraw_id: str | None
@@ -35,6 +57,7 @@ class PartSummary(ApiModel):
     device: str | None
     verified: bool
     color: int | None = None  # usual LDraw colour (approximate); None for non-LEGO parts
+    origin: Literal["curated", "local"] = "curated"  # local: added by the team (spec 0018)
 
 
 class Primitive(ApiModel):

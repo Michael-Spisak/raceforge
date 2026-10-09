@@ -213,6 +213,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parts/ldraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Parts Ldraw
+         * @description Search the whole LDraw library (spec 0018).
+         */
+        get: operations["parts_ldraw_api_v1_parts_ldraw_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parts/local": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parts Add Local
+         * @description Add an LDraw part to the team's local catalogue (unverified).
+         */
+        post: operations["parts_add_local_api_v1_parts_local_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quickstart": {
         parameters: {
             query?: never;
@@ -1630,6 +1670,23 @@ export interface components {
             role: "member" | "admin";
         };
         /**
+         * LDrawPart
+         * @description A part of the LDraw library that is not in the catalogue yet (spec 0018).
+         */
+        LDrawPart: {
+            /** Category */
+            category: string | null;
+            /**
+             * In Catalogue
+             * @default false
+             */
+            in_catalogue: boolean;
+            /** Ldraw Id */
+            ldraw_id: string;
+            /** Title */
+            title: string;
+        };
+        /**
          * Layout
          * @enum {string}
          */
@@ -1649,6 +1706,27 @@ export interface components {
             tags: string[];
             /** Workspace Id */
             workspace_id: string;
+        };
+        /**
+         * LocalPartRequest
+         * @description Add an LDraw part to the team's local catalogue (unverified). Holes/length create the
+         *     standard pin-hole / pin-or-axle connectors like the curated beams, pins and axles.
+         */
+        LocalPartRequest: {
+            /** Category */
+            category: string;
+            /** Color */
+            color?: number | null;
+            /** Holes */
+            holes?: number | null;
+            /** Ldraw Id */
+            ldraw_id: string;
+            /** Length Studs */
+            length_studs?: number | null;
+            /** Mass G */
+            mass_g: number;
+            /** Name */
+            name?: string | null;
         };
         /** LocalVersion */
         LocalVersion: {
@@ -1698,6 +1776,12 @@ export interface components {
             mass_g: number;
             /** Name */
             name: string;
+            /**
+             * Origin
+             * @default curated
+             * @enum {string}
+             */
+            origin: "curated" | "local";
             /** Verified */
             verified: boolean;
         };
@@ -3143,6 +3227,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PartSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parts_ldraw_api_v1_parts_ldraw_get: {
+        parameters: {
+            query?: {
+                query?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LDrawPart"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    parts_add_local_api_v1_parts_local_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalPartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartSummary"];
                 };
             };
             /** @description Validation Error */

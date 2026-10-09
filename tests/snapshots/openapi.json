@@ -1764,6 +1764,43 @@
         "title": "InviteRequest",
         "type": "object"
       },
+      "LDrawPart": {
+        "additionalProperties": false,
+        "description": "A part of the LDraw library that is not in the catalogue yet (spec 0018).",
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "in_catalogue": {
+            "default": false,
+            "title": "In Catalogue",
+            "type": "boolean"
+          },
+          "ldraw_id": {
+            "title": "Ldraw Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ldraw_id",
+          "title",
+          "category"
+        ],
+        "title": "LDrawPart",
+        "type": "object"
+      },
       "Layout": {
         "enum": [
           "rwd",
@@ -1823,6 +1860,86 @@
           "latest"
         ],
         "title": "LocalObject",
+        "type": "object"
+      },
+      "LocalPartRequest": {
+        "additionalProperties": false,
+        "description": "Add an LDraw part to the team's local catalogue (unverified). Holes/length create the\nstandard pin-hole / pin-or-axle connectors like the curated beams, pins and axles.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "holes": {
+            "anyOf": [
+              {
+                "maximum": 40.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holes"
+          },
+          "ldraw_id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "title": "Ldraw Id",
+            "type": "string"
+          },
+          "length_studs": {
+            "anyOf": [
+              {
+                "maximum": 40.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Studs"
+          },
+          "mass_g": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 5000.0,
+            "title": "Mass G",
+            "type": "number"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "ldraw_id",
+          "category",
+          "mass_g"
+        ],
+        "title": "LocalPartRequest",
         "type": "object"
       },
       "LocalVersion": {
@@ -1971,6 +2088,15 @@
           },
           "name": {
             "title": "Name",
+            "type": "string"
+          },
+          "origin": {
+            "default": "curated",
+            "enum": [
+              "curated",
+              "local"
+            ],
+            "title": "Origin",
             "type": "string"
           },
           "verified": {
@@ -5199,6 +5325,102 @@
           }
         },
         "summary": "Parts"
+      }
+    },
+    "/api/v1/parts/ldraw": {
+      "get": {
+        "description": "Search the whole LDraw library (spec 0018).",
+        "operationId": "parts_ldraw_api_v1_parts_ldraw_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LDrawPart"
+                  },
+                  "title": "Response Parts Ldraw Api V1 Parts Ldraw Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parts Ldraw"
+      }
+    },
+    "/api/v1/parts/local": {
+      "post": {
+        "description": "Add an LDraw part to the team's local catalogue (unverified).",
+        "operationId": "parts_add_local_api_v1_parts_local_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalPartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parts Add Local"
       }
     },
     "/api/v1/quickstart": {

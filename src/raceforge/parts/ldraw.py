@@ -110,3 +110,47 @@ class LDrawLibrary:
                 coords = [float(v) for v in parts[2 : 2 + 3 * n]]
                 out.extend((coords[k], coords[k + 1], coords[k + 2]) for k in range(0, 3 * n, 3))
         return tuple(out)
+
+
+@dataclass(frozen=True)
+class LDrawPartInfo:
+    ldraw_id: str
+    title: str
+    category: str | None  # from "0 !CATEGORY", else the first word of the title
+
+
+def part_index(root: Path) -> list[LDrawPartInfo]:
+    """Searchable list of the library's parts (spec 0018): ``parts/*.dat`` headers, without
+    moved/alias (``~``, ``=``, ``_``) and sub-parts. Cached next to the library."""
+    import json
+
+    parts_dir = root / "parts"
+    if not parts_dir.is_dir():
+        return []
+    files = sorted(p for p in parts_dir.iterdir() if p.suffix.lower() == ".dat")
+    cache = root.parent / "ldraw-index.json"
+    if cache.is_file():
+        try:
+            data = json.loads(cache.read_text(encoding="utf-8"))
+            if data.get("count") == len(files):
+                return [LDrawPartInfo(**x) for x in data["parts"]]
+        except (ValueError, KeyError, TypeError):
+            pass
+    out: list[LDrawPartInfo] = []
+    for f in files:
+        title, category = "", None
+        with f.open(encoding="utf-8", errors="replace") as fh:
+            for n, line in enumerate(fh):
+                if n == 0:
+                    title = line[2:].strip() if line.startswith("0 ") else ""
+                elif line.startswith("0 !CATEGORY"):
+                    category = line[len("0 !CATEGORY") :].strip()
+                elif n > 15 or line.startswith(("1 ", "2 ", "3 ", "4 ")):
+                    break
+        if not title or title[0] in "~=_|" or "Moved to" in title:
+            continue
+        out.append(LDrawPartInfo(f.stem, title, category or title.split()[0]))
+    cache.write_text(
+        json.dumps({"count": len(files), "parts": [p.__dict__ for p in out]}), encoding="utf-8"
+    )
+    return out

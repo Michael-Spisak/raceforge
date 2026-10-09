@@ -110,6 +110,11 @@ export const api = {
     request<QuickstartResponse>("/api/v1/quickstart", { method: "POST", body: JSON.stringify(params) }),
   exportText: (kind: "assembly" | "mpd" | "mjcf", params: Partial<QuickStartParams>) =>
     request<string>(`/api/v1/quickstart/export/${kind}`, { method: "POST", body: JSON.stringify(params) }),
+  /** Whole LDraw library and the team's local catalogue additions (spec 0018). */
+  ldrawParts: (query: string, limit = 80) =>
+    request<Schemas["LDrawPart"][]>(`/api/v1/parts/ldraw?query=${encodeURIComponent(query)}&limit=${limit}`),
+  addLocalPart: (req: Schemas["LocalPartRequest"]) =>
+    request<PartSummary>("/api/v1/parts/local", { method: "POST", body: JSON.stringify(req) }),
   controllers: () => request<ControllerInfo[]>("/api/v1/controllers"),
   replay: (path: string) => request<ReplaySummary>("/api/v1/replays", { method: "POST", body: JSON.stringify({ path }) }),
   /** TrackScout passes the engine can show (spec 0009). */

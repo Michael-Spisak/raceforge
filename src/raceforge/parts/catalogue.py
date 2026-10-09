@@ -1,12 +1,13 @@
 """Curated parts catalogue: masses, connectors, devices and bounding boxes (spec 0002)."""
 
 import hashlib
+import os
 import uuid
 from enum import StrEnum
 from functools import cached_property
 from importlib import resources
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
@@ -76,6 +77,9 @@ class CatalogueEntry(_Model):
     device: Device | None = None
     sense_axis_ld: tuple[float, float, float] | None = None
     bbox_mm: tuple[tuple[float, float, float], tuple[float, float, float]] | None = None
+    origin: Literal["curated", "local"] = (
+        "curated"  # local: added by the team from LDraw (spec 0018)
+    )
 
     def all_connectors(self) -> list[ConnectorSpec]:
         out: list[ConnectorSpec] = []
@@ -132,6 +136,51 @@ def deterministic_object_id(key: str) -> str:
     return str(uuid.UUID(int=value))
 
 
+def local_catalogue_path() -> Path:
+    """Team additions to the catalogue: $RACEFORGE_LOCAL_CATALOGUE, else next to the workspace
+    cache (``$RACEFORGE_WORKSPACE_DIR/..`` or ``~/.cache/raceforge``)."""
+    env = os.environ.get("RACEFORGE_LOCAL_CATALOGUE")
+    if env:
+        return Path(env)
+    ws = os.environ.get("RACEFORGE_WORKSPACE_DIR")
+    base = Path(ws).parent if ws else Path.home() / ".cache" / "raceforge"
+    return base / "catalogue.local.yaml"
+
+
+def core_bbox_mm(lo_ldu: Vec, hi_ldu: Vec) -> tuple[Vec, Vec]:
+    """An LDraw-frame box (LDU) as the core-frame box in millimetres (for ``bbox_mm``)."""
+    corners = [
+        ldraw_point_to_core((x, y, z))
+        for x in (lo_ldu[0], hi_ldu[0])
+        for y in (lo_ldu[1], hi_ldu[1])
+        for z in (lo_ldu[2], hi_ldu[2])
+    ]
+    xs, ys, zs = zip(*corners, strict=True)
+    lo = (round(min(xs) * 1000, 3), round(min(ys) * 1000, 3), round(min(zs) * 1000, 3))
+    hi = (round(max(xs) * 1000, 3), round(max(ys) * 1000, 3), round(max(zs) * 1000, 3))
+    return lo, hi
+
+
+def load_local_entries(path: Path) -> list[CatalogueEntry]:
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or []
+    return [
+        CatalogueEntry.model_validate({**cast(dict[str, Any], item), "origin": "local"})
+        for item in cast(list[Any], raw)
+    ]
+
+
+def save_local_entry(entry: CatalogueEntry, path: Path | None = None) -> None:
+    """Add or replace ``entry`` in the local catalogue file (written atomically)."""
+    p = path or local_catalogue_path()
+    entries = [e for e in (load_local_entries(p) if p.is_file() else []) if e.key != entry.key]
+    entries.append(entry)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    data = [e.model_dump(mode="json", exclude_defaults=True, exclude={"origin"}) for e in entries]
+    tmp.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    tmp.replace(p)
+
+
 class Catalogue:
     """Loaded catalogue with core ``Part`` objects, version refs and core-frame bounding boxes."""
 
@@ -142,7 +191,27 @@ class Catalogue:
         self._bboxes_ldu = bboxes_ldu
 
     @classmethod
-    def load(cls, directory: Path | None = None) -> "Catalogue":
+    def load(
+        cls, directory: Path | None = None, local: Path | Literal[False] | None = None
+    ) -> "Catalogue":
+        """The curated catalogue plus the team's local additions (``local``: file, default
+        :func:`local_catalogue_path`; ``False``: curated only)."""
+        cat = cls._load_curated(directory)
+        local_path = local_catalogue_path() if local is None else local
+        if local_path is not False and local_path.is_file():
+            for entry in load_local_entries(local_path):
+                if entry.key not in cat.entries:
+                    cat.entries[entry.key] = entry
+        return cat
+
+    def extend(self, entry: CatalogueEntry) -> None:
+        """Add or replace an entry at runtime (spec 0018); cached parts/refs are rebuilt."""
+        self.entries[entry.key] = entry
+        for name in ("_parts", "_refs", "_by_hash"):
+            self.__dict__.pop(name, None)
+
+    @classmethod
+    def _load_curated(cls, directory: Path | None = None) -> "Catalogue":
         base: Any = directory if directory is not None else DATA
         raw = yaml.safe_load(base.joinpath("catalogue.yaml").read_text(encoding="utf-8"))
         entries = [CatalogueEntry.model_validate(item) for item in cast(list[Any], raw)]
