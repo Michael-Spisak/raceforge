@@ -2538,7 +2538,7 @@ export interface components {
          * Scope
          * @enum {string}
          */
-        Scope: "read" | "sim_train" | "edit" | "admin";
+        Scope: "read" | "sim_train" | "edit" | "admin" | "worker";
         /** SensorSpec */
         SensorSpec: {
             /**

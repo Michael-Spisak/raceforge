@@ -21,6 +21,11 @@ from raceforge.backend.models import (
     DraftOut,
     InviteCreate,
     InviteInfo,
+    JobCreate,
+    JobFinish,
+    JobInfo,
+    JobProgress,
+    JobProgressAck,
     LoginRequest,
     ObjectCopy,
     ObjectCreate,
@@ -39,6 +44,11 @@ from raceforge.backend.models import (
     VersionContent,
     VersionCreate,
     VersionInfo,
+    WorkerHeartbeat,
+    WorkerInfo,
+    WorkerJob,
+    WorkerRegister,
+    WorkerRegistration,
     WorkspaceCreate,
     WorkspaceInfo,
 )
@@ -168,6 +178,59 @@ def create_backend_app(backend: Backend | None = None) -> FastAPI:
     @app.delete(f"{p}/tokens/{{token_id}}", status_code=204)
     def revoke_token(token_id: str, a: Auth) -> None:
         be.revoke_token(a, token_id)
+
+    # ---------------------------------------------------------------- workers & jobs (spec 0020)
+    @app.post(f"{p}/workers", status_code=201)
+    def register_worker(req: WorkerRegister, a: Auth) -> WorkerRegistration:
+        """Register a team computer; the returned token only works for the /worker endpoints."""
+        return be.register_worker(a, req)
+
+    @app.get(f"{p}/workspaces/{{workspace_id}}/workers")
+    def list_workers(workspace_id: str, a: Auth) -> list[WorkerInfo]:
+        return be.list_workers(a, workspace_id)
+
+    @app.delete(f"{p}/workers/{{worker_id}}", status_code=204)
+    def remove_worker(worker_id: str, a: Auth) -> None:
+        be.remove_worker(a, worker_id)
+
+    @app.post(f"{p}/workspaces/{{workspace_id}}/jobs", status_code=201)
+    def create_job(workspace_id: str, req: JobCreate, a: Auth) -> JobInfo:
+        return be.create_job(a, workspace_id, req)
+
+    @app.get(f"{p}/workspaces/{{workspace_id}}/jobs")
+    def list_jobs(
+        workspace_id: str, a: Auth, limit: Annotated[int, Query(ge=1, le=500)] = 50
+    ) -> list[JobInfo]:
+        return be.list_jobs(a, workspace_id, limit)
+
+    @app.get(f"{p}/jobs/{{job_id}}")
+    def get_job(job_id: str, a: Auth) -> JobInfo:
+        return be.get_job(a, job_id)
+
+    @app.post(f"{p}/jobs/{{job_id}}/cancel")
+    def cancel_job(job_id: str, a: Auth) -> JobInfo:
+        return be.cancel_job(a, job_id)
+
+    @app.post(f"{p}/worker/heartbeat")
+    def worker_heartbeat(req: WorkerHeartbeat, a: Auth) -> WorkerInfo:
+        return be.worker_heartbeat(a, req)
+
+    @app.post(
+        f"{p}/worker/claim",
+        response_model=WorkerJob,
+        responses={204: {"description": "no queued job"}},
+    )
+    def worker_claim(a: Auth) -> Response | WorkerJob:
+        job = be.worker_claim(a)
+        return job if job is not None else Response(status_code=204)
+
+    @app.post(f"{p}/worker/jobs/{{job_id}}/progress")
+    def worker_progress(job_id: str, req: JobProgress, a: Auth) -> JobProgressAck:
+        return be.job_progress(a, job_id, req)
+
+    @app.post(f"{p}/worker/jobs/{{job_id}}/finish")
+    def worker_finish(job_id: str, req: JobFinish, a: Auth) -> JobInfo:
+        return be.job_finish(a, job_id, req)
 
     # ---------------------------------------------------------------- workspaces & objects
     @app.get(f"{p}/workspaces")

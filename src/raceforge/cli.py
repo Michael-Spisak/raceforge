@@ -330,6 +330,70 @@ def _cmd_train(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_worker(args: argparse.Namespace) -> int:
+    """Spec 0020: register this computer as a team worker and run the team's jobs."""
+    import socket
+
+    from raceforge.api.worker_runner import (
+        WorkerConfig,
+        config_path,
+        load_config,
+        run_worker,
+        save_config,
+    )
+    from raceforge.api.workspace import default_root
+    from raceforge.workspace.client import BackendClient, BackendError, OfflineError
+    from raceforge.workspace.sync import Workspace
+
+    cmd = args.worker_command
+    try:
+        if cmd == "register":
+            ws = Workspace(default_root())
+            status = ws.status()
+            if ws.workspace_id is None or status.server_url is None:
+                print("error: log in and pick a workspace on the Team tab first", file=sys.stderr)
+                return 1
+            name = args.name or socket.gethostname().removesuffix(".local")
+            reg = ws.client().register_worker(ws.workspace_id, name)
+            path = save_config(
+                WorkerConfig(status.server_url, reg.token, reg.worker.id, name, ws.workspace_id)
+            )
+            print(f"registered worker {name!r}; token saved to {path} (owner-only)")
+            print("start it with: raceforge worker run")
+            return 0
+        cfg = load_config()
+        if cfg is None:
+            print(
+                f"error: not registered (no {config_path()}): raceforge worker register",
+                file=sys.stderr,
+            )
+            return 1
+        client = BackendClient(cfg.server, access=cfg.token)
+        if cmd == "status":
+            info = client.worker_heartbeat({})
+            state = ("online" if info.online else "offline", "busy" if info.busy else "idle")
+            print(f"{info.name}: {state[0]}, {state[1]}")
+            return 0
+        if cmd == "remove":
+            ws = Workspace(default_root())
+            ws.client().remove_worker(cfg.worker_id)
+            config_path().unlink(missing_ok=True)
+            print(f"worker {cfg.name!r} removed; its token is revoked")
+            return 0
+        print(f"worker {cfg.name!r} waiting for jobs on {cfg.server} (Ctrl+C to stop)", flush=True)
+        try:
+            n = run_worker(
+                client, idle_only=args.idle_only, once=args.once, out=lambda s: print(s, flush=True)
+            )
+        except KeyboardInterrupt:
+            return 0
+        print(f"{n} job(s) done")
+        return 0
+    except (BackendError, OfflineError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+
 def _cmd_capture(args: argparse.Namespace) -> int:
     from raceforge.capture.tscan import TscanError, TscanPass
 
@@ -528,6 +592,20 @@ def main(argv: list[str] | None = None) -> int:
     ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")
     ui.add_argument("--browser", action="store_true", help="open the UI in the default browser")
     ui.set_defaults(func=_cmd_ui)
+
+    wk = sub.add_parser("worker", help="run the team's training jobs on this computer (spec 0020)")
+    wsub = wk.add_subparsers(dest="worker_command", required=True)
+    wreg = wsub.add_parser("register", help="register this computer in the current workspace")
+    wreg.add_argument("--name", help="worker name (default: host name)")
+    wrun = wsub.add_parser("run", help="wait for jobs and run them")
+    wrun.add_argument(
+        "--idle-only", action="store_true", help="only start jobs when the CPU is idle"
+    )
+    wrun.add_argument("--once", action="store_true", help="run at most one job, then exit")
+    wsub.add_parser("status", help="show whether the backend sees this worker")
+    wsub.add_parser("remove", help="unregister this computer and revoke its token")
+    for p in wsub.choices.values():
+        p.set_defaults(func=_cmd_worker)
 
     tr = sub.add_parser("train", help="benchmark and tune controllers in the sim (spec 0013)")
     tsub = tr.add_subparsers(dest="train_command", required=True)

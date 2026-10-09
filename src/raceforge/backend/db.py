@@ -168,6 +168,44 @@ class UploadPart(Base):
     sha256: Mapped[str] = mapped_column(String(64))
 
 
+class Worker(Base):
+    """A team computer that runs training/benchmark jobs (spec 0020); one ``worker`` token each."""
+
+    __tablename__ = "workers"
+    id: Mapped[str] = mapped_column(ID, primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ID, ForeignKey("workspaces.id"), index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    token_id: Mapped[str] = mapped_column(ID, ForeignKey("tokens.id"), unique=True)
+    created_by: Mapped[str] = mapped_column(ID, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    last_seen_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    info: Mapped[dict[str, Any]] = mapped_column(JSON)  # cpu cores, gpu, os, version
+    removed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+
+
+class Job(Base):
+    """A queued benchmark/tuning job (spec 0020); inputs and results travel inline (JSON)."""
+
+    __tablename__ = "jobs"
+    id: Mapped[str] = mapped_column(ID, primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ID, ForeignKey("workspaces.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(32))  # benchmark | tune
+    status: Mapped[str] = mapped_column(
+        String(16), index=True
+    )  # queued|running|done|error|cancelled
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    progress: Mapped[dict[str, Any]] = mapped_column(JSON)
+    log: Mapped[str] = mapped_column(Text, default="")
+    error: Mapped[str] = mapped_column(Text, default="")
+    worker_id: Mapped[str | None] = mapped_column(ID, ForeignKey("workers.id"))
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by: Mapped[str] = mapped_column(ID, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+
+
 class AuditEntry(Base):
     __tablename__ = "audit"
     id: Mapped[int] = mapped_column(

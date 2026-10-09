@@ -24,6 +24,7 @@ class Scope(StrEnum):
     SIM_TRAIN = "sim_train"
     EDIT = "edit"
     ADMIN = "admin"
+    WORKER = "worker"  # only worker tokens (spec 0020): fetch jobs, report progress and results
 
 
 Username = Field(pattern=r"^[a-z0-9][a-z0-9._-]{1,31}$")
@@ -239,3 +240,90 @@ class Status(Model):
 
 class Problem(Model):
     detail: str
+
+
+# ------------------------------------------------------------------ workers & jobs (spec 0020)
+JobKind = Literal["benchmark", "tune"]
+JobStatus = Literal["queued", "running", "done", "error", "cancelled"]
+MAX_SOURCE_BYTES = 512 * 1024
+
+
+class WorkerRegister(Model):
+    """Register a team computer as a worker of a workspace; returns its ``worker`` token once."""
+
+    workspace_id: ObjectId
+    name: str = Field(min_length=1, max_length=128)
+
+
+class WorkerInfo(Model):
+    id: str
+    workspace_id: str
+    name: str
+    created_by: str
+    created_at: datetime
+    last_seen_at: datetime | None
+    online: bool  # seen within the last 2 minutes
+    busy: bool
+    info: dict[str, Any]
+
+
+class WorkerRegistration(Model):
+    worker: WorkerInfo
+    token: str  # rfw_…, shown once; only valid for the /worker endpoints
+
+
+class JobCreate(Model):
+    kind: JobKind
+    request: dict[str, Any]  # TrainBenchRequest / TrainTuneRequest race settings (spec 0013)
+    controller_name: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._-]+\.py$")
+    controller_source: str = Field(min_length=1, max_length=MAX_SOURCE_BYTES)
+    params_yaml: str | None = Field(default=None, max_length=64 * 1024)
+
+
+class JobInfo(Model):
+    id: str
+    workspace_id: str
+    kind: JobKind
+    status: JobStatus
+    controller_name: str
+    created_by: str
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    worker_id: str | None
+    worker_name: str | None
+    progress: dict[str, Any]
+    result: dict[str, Any] | None
+    error: str
+    log_tail: list[str]
+    cancel_requested: bool
+
+
+class WorkerJob(Model):
+    """What a worker gets when it claims a job: everything needed to run it."""
+
+    id: str
+    kind: JobKind
+    request: dict[str, Any]
+    controller_name: str
+    controller_source: str
+    params_yaml: str | None
+
+
+class WorkerHeartbeat(Model):
+    info: dict[str, Any] = Field(default_factory=dict[str, Any])
+
+
+class JobProgress(Model):
+    progress: dict[str, Any] = Field(default_factory=dict[str, Any])
+    log: list[str] = Field(default_factory=list[str], max_length=500)
+
+
+class JobProgressAck(Model):
+    cancel: bool  # the user cancelled: stop after the current step and finish as "cancelled"
+
+
+class JobFinish(Model):
+    status: Literal["done", "error", "cancelled"]
+    result: dict[str, Any] | None = None
+    error: str = Field(default="", max_length=10_000)
