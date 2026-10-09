@@ -25,3 +25,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0020 | Workers v1: team computers run training/benchmark jobs (worker tokens) | 4–5 | implemented (A–C) |
 | 0021 | Connectors on 3D-printed parts (click on the mesh) | 6–7 | approved |
 | 0022 | RL v1: PPO policy, ONNX on the car (optional extra `rl`) | 8–9 | approved |
+| 0023 | Imitation learning v1: behaviour cloning from recorded drives | 10–11 | approved |

@@ -124,9 +124,14 @@ class SimSession:
                 Path(start.controller), Path(start.params_path) if start.params_path else None
             )
         )
-        record = Path(start.record_path) if start.record_path else None
+        record = Path(start.record_path).expanduser() if start.record_path else None
         if record is not None:
+            if not record.is_absolute():  # relative: the engine's recordings folder (spec 0023)
+                from raceforge.api.train_jobs import runs_dir
+
+                record = runs_dir() / record.name
             record.parent.mkdir(parents=True, exist_ok=True)
+        self.record_path = str(record) if record is not None else None
         length = float(self.sim.length)
         self.race = RaceSession(
             self.sim, controller, max_time_s=start.laps * length / 0.12 + 120, record=record
@@ -248,5 +253,5 @@ class SimSession:
             sim_time_s=_r(r.sim_time_s, 2),
             wall_contacts=r.wall_contacts,
             problems=r.problems[:20],
-            record_path=self.start.record_path,
+            record_path=self.record_path,
         )

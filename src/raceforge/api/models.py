@@ -474,6 +474,26 @@ class TrainRLRequest(ApiModel):
     race: "TrainRace" = Field(default_factory=lambda: TrainRace())
 
 
+class TrainBCRequest(ApiModel):
+    """Behaviour cloning from recorded drives (spec 0023)."""
+
+    recordings: list[str] = []  # MCAP files; empty: every recording in the engine's runs folder
+    epochs: int = Field(default=60, ge=1, le=2000)
+    all_states: bool = False  # False: only teleop frames (demonstrations)
+    out: str | None = None
+    race: "TrainRace" = Field(default_factory=lambda: TrainRace())
+
+
+class RecordingInfo(ApiModel):
+    path: str
+    name: str
+    frames: int
+    demo_frames: int  # teleop frames
+    duration_s: float
+    modified: float  # unix time
+    error: str = ""
+
+
 Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 HhMm = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -541,7 +561,7 @@ class TrainTrial(ApiModel):
 
 class TrainJob(ApiModel):
     id: str
-    kind: Literal["benchmark", "tune", "rl"]
+    kind: Literal["benchmark", "tune", "rl", "bc"]
     controller: str
     state: Literal["running", "done", "error", "cancelled"]
     started_at: float
@@ -549,6 +569,7 @@ class TrainJob(ApiModel):
     total: int  # runs (benchmark), trials (tune) or environment steps (rl)
     steps_done: int = 0  # rl
     mean_reward: float | None = None  # rl: mean episode reward of the last rollout
+    val_loss: float | None = None  # bc: validation loss of the last epoch
     runs: list[TrainRun] = []
     trials: list[TrainTrial] = []
     score: float | None = None  # benchmark score / held-out score of the tuned params

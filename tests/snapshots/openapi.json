@@ -3289,6 +3289,50 @@
         "title": "ReceiveRequest",
         "type": "object"
       },
+      "RecordingInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "demo_frames": {
+            "title": "Demo Frames",
+            "type": "integer"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "number"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "frames": {
+            "title": "Frames",
+            "type": "integer"
+          },
+          "modified": {
+            "title": "Modified",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "name",
+          "frames",
+          "demo_frames",
+          "duration_s",
+          "modified"
+        ],
+        "title": "RecordingInfo",
+        "type": "object"
+      },
       "ReplayRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4732,6 +4776,48 @@
         "title": "TrackScoutPairing",
         "type": "object"
       },
+      "TrainBCRequest": {
+        "additionalProperties": false,
+        "description": "Behaviour cloning from recorded drives (spec 0023).",
+        "properties": {
+          "all_states": {
+            "default": false,
+            "title": "All States",
+            "type": "boolean"
+          },
+          "epochs": {
+            "default": 60,
+            "maximum": 2000.0,
+            "minimum": 1.0,
+            "title": "Epochs",
+            "type": "integer"
+          },
+          "out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Out"
+          },
+          "race": {
+            "$ref": "#/components/schemas/TrainRace"
+          },
+          "recordings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Recordings",
+            "type": "array"
+          }
+        },
+        "title": "TrainBCRequest",
+        "type": "object"
+      },
       "TrainBenchRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4833,7 +4919,8 @@
             "enum": [
               "benchmark",
               "tune",
-              "rl"
+              "rl",
+              "bc"
             ],
             "title": "Kind",
             "type": "string"
@@ -4909,6 +4996,17 @@
             },
             "title": "Trials",
             "type": "array"
+          },
+          "val_loss": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Val Loss"
           }
         },
         "required": [
@@ -6884,6 +6982,45 @@
         "summary": "Quick Track Save"
       }
     },
+    "/api/v1/train/bc": {
+      "post": {
+        "description": "Learn a policy from recorded drives (behaviour cloning, spec 0023).",
+        "operationId": "train_bc_api_v1_train_bc_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainBCRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Train Bc"
+      }
+    },
     "/api/v1/train/benchmark": {
       "post": {
         "description": "Start a benchmark job: the controller on held-out corridors.",
@@ -7021,6 +7158,29 @@
           }
         },
         "summary": "Train Job Cancel"
+      }
+    },
+    "/api/v1/train/recordings": {
+      "get": {
+        "description": "Recorded runs (e.g. teleop demonstrations) in the engine's runs folder (spec 0023).",
+        "operationId": "train_recordings_api_v1_train_recordings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecordingInfo"
+                  },
+                  "title": "Response Train Recordings Api V1 Train Recordings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Train Recordings"
       }
     },
     "/api/v1/train/rl": {

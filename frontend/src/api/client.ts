@@ -149,6 +149,8 @@ export const api = {
   /** Training jobs (spec 0013): one at a time in the engine; poll the job for progress. */
   trainBenchmark: (req: TrainBenchRequest) => request<TrainJob>("/api/v1/train/benchmark", { method: "POST", body: JSON.stringify(req) }),
   trainRL: (req: Schemas["TrainRLRequest"]) => request<TrainJob>("/api/v1/train/rl", { method: "POST", body: JSON.stringify(req) }),
+  trainRecordings: () => request<Schemas["RecordingInfo"][]>("/api/v1/train/recordings"),
+  trainBC: (req: Schemas["TrainBCRequest"]) => request<TrainJob>("/api/v1/train/bc", { method: "POST", body: JSON.stringify(req) }),
   trainTune: (req: TrainTuneRequest) => request<TrainJob>("/api/v1/train/tune", { method: "POST", body: JSON.stringify(req) }),
   trainJobs: () => request<TrainJob[]>("/api/v1/train/jobs"),
   trainCancel: (id: string) => request<TrainJob>(`/api/v1/train/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
