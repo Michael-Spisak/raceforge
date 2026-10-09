@@ -177,6 +177,7 @@ class SimStart(ApiModel):
     quickstart: QuickStartParams | None = None
     record_path: str | None = None
     quick_track: str | None = None  # name of a saved quick track (spec 0014) instead of `corridor`
+    battery: bool = False  # model the motor battery: sag, charge, brownout (spec 0021)
     assembly: dict[str, Any] | None = None  # edited car (Construct editor, spec 0015) for "ego"
 
 

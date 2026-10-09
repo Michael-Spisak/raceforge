@@ -2843,6 +2843,11 @@ export interface components {
             assembly?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Battery
+             * @default false
+             */
+            battery: boolean;
             /** Controller */
             controller: string;
             corridor?: components["schemas"]["CorridorParams"];

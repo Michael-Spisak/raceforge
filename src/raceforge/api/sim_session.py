@@ -24,6 +24,7 @@ from raceforge.control.params import ControllerParams
 from raceforge.control.types import Command, Observation
 from raceforge.core.assembly import Assembly
 from raceforge.core.io import load_as
+from raceforge.sim.battery import EV3_PACK
 from raceforge.sim.engine import Simulation
 from raceforge.sim.runner import SIM_SENSORS
 from raceforge.sim.simio import RaceSession
@@ -116,7 +117,9 @@ class SimSession:
             CarEntry(f"opp{i + 1}", car.assembly, spec, i + 1, True) for i in range(start.opponents)
         ]
         self.world = build_world(track, entries, cat, seed=start.seed)
-        self.sim = Simulation(self.world, seed=start.seed)
+        self.sim = Simulation(
+            self.world, seed=start.seed, battery=EV3_PACK if start.battery else None
+        )
         controller: Controller[ControllerParams] = (
             StandStill()
             if start.controller == "none"

@@ -4681,6 +4681,11 @@
             ],
             "title": "Assembly"
           },
+          "battery": {
+            "default": false,
+            "title": "Battery",
+            "type": "boolean"
+          },
           "controller": {
             "title": "Controller",
             "type": "string"

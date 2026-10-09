@@ -6,7 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from raceforge.core.devices import GyroParams, Lidar2DParams, RangeSensorParams
+from raceforge.core.devices import BatteryParams, GyroParams, Lidar2DParams, RangeSensorParams
+from raceforge.sim.battery import LOW_SOC, BatteryModel, BatteryState
 from raceforge.sim.mj import mujoco
 from raceforge.sim.mjcf import TIMESTEP, RateLimiter
 from raceforge.sim.sensors import Encoders, Gyro, Lidar, LidarScan, Stamped, Ultrasonic
@@ -81,6 +82,7 @@ class _CarState:
     top_speed: float = 1.0
     last_arc: float | None = None
     anchor: tuple[float, float] | None = None
+    battery: BatteryModel | None = None
 
 
 def _wrap(a: float) -> float:
@@ -91,9 +93,16 @@ class Simulation:
     """Steps a :class:`World` with a fixed control period; deterministic for a given seed."""
 
     def __init__(
-        self, world: World, seed: int = 0, control_dt: float = 0.02, crosstalk_prob: float = 0.02
+        self,
+        world: World,
+        seed: int = 0,
+        control_dt: float = 0.02,
+        crosstalk_prob: float = 0.02,
+        battery: BatteryParams | None = None,
+        battery_soc: float = 1.0,
     ) -> None:
         self.world = world
+        self._battery = (battery, battery_soc)
         self.model: Any = world.model
         self.data: Any = mujoco.MjData(self.model)
         self.surface_of_geom = world.surface_of_geom
@@ -163,6 +172,9 @@ class Simulation:
             st.encoders = Encoders(
                 [h.prefix + j for j in st.driven_joints], d.gear_ratio, h.derived.wheel_radius_m
             )
+            pack, soc = self._battery
+            if pack is not None:
+                st.battery = BatteryModel(pack, d.motor, motors=len(spec.drives), soc=soc)
         return st
 
     def _driven_joints(self, h: CarHandle) -> list[str]:
@@ -220,8 +232,12 @@ class Simulation:
                 )
             ),
             bumper=st.bumper,
-            battery_v=7.4,
+            battery_v=7.4 if st.battery is None else st.battery.volts,
         )
+
+    def battery_state(self, car: str) -> BatteryState | None:
+        b = self.cars[car].battery
+        return None if b is None else b.state()
 
     def progress(self, car: str) -> Progress:
         return self.cars[car].progress
@@ -258,8 +274,25 @@ class Simulation:
             + 1.5 * err / st.top_speed
             + 4.0 * st.integral / st.top_speed
         )
+        duty = max(-1.0, min(1.0, duty))
+        if st.battery is not None:
+            self._power(st, duty)
+            duty *= st.battery.drive_scale()
         for a in h.info.drive_actuators:
-            self.data.actuator(h.prefix + a).ctrl = max(-1.0, min(1.0, duty))
+            self.data.actuator(h.prefix + a).ctrl = duty
+
+    def _power(self, st: _CarState, duty: float) -> None:
+        """Battery step for one physics step; events for low charge and brownout (spec 0021)."""
+        assert st.battery is not None
+        h = st.handle
+        wheel = float(np.mean([self.data.joint(h.prefix + j).qvel[0] for j in st.driven_joints]))
+        motor_speed = wheel * h.entry.spec.drives[0].gear_ratio
+        name = next(n for n, c in self.cars.items() if c is st)
+        if st.battery.step(duty, motor_speed, TIMESTEP):
+            self.events.append(Event(self.t, name, "brownout"))
+        if st.battery.soc < LOW_SOC and not st.battery.low_reported:
+            st.battery.low_reported = True
+            self.events.append(Event(self.t, name, "low_battery"))
 
     def _sense(self, st: _CarState) -> None:
         firing = len(st.ultrasonics)

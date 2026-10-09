@@ -22,4 +22,8 @@ Detail questions are asked just-in-time while writing each spec.
 | 0016 | Rule checker, budget and overlaps in the Construct editor | 4–5 | approved |
 | 0018 | More parts: LDraw library search, team catalogue additions | 4–5 | approved |
 | 0019 | Import 3D-printed parts (STL/3MF/OBJ/PLY, mass, cost, mesh) | 6–7 | approved |
+<<<<<<< HEAD
 | 0020 | Track editor v1: race setup, objects, surfaces, check distances, validation | 8–9 | approved |
+=======
+| 0021 | Battery and power model in the simulator | 6–7 | approved |
+>>>>>>> 53f1fd1 (Spec 0021: battery and power model in the simulator)
