@@ -7,6 +7,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { api, type ControllerInfo, type FrameMessage, type SimStart, type QuickTrackInfo } from "../api/client";
 import { interpolate, type TimedPoses } from "../sim/interp";
 import { useSimulation } from "../sim/useSimulation";
+import { useEditedCar } from "../store/editedCar";
 import { CarModel, type Pose } from "../three/CarModel";
 import { TrackModel } from "../three/TrackModel";
 import { Viewport } from "../three/Viewport";
@@ -75,6 +76,8 @@ export function SimulateScreen() {
   const [controllers, setControllers] = useState<ControllerInfo[]>([]);
   const [form, setForm] = useState({ controller: "", track: "", seed: 0, loop: true, length: 40, laps: 1, opponents: 0, record: false });
   const [quickTracks, setQuickTracks] = useState<QuickTrackInfo[]>([]);
+  const edited = useEditedCar();
+  const [useEdited, setUseEdited] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [follow, setFollow] = useState(true);
   const [showSensors, setShowSensors] = useState(true);
@@ -101,6 +104,7 @@ export function SimulateScreen() {
       speed,
       record_path: form.record ? `runs/run-${Date.now()}.mcap` : null,
       quick_track: form.track || null,
+      ...(useEdited && edited.assembly ? { assembly: edited.assembly, quickstart: edited.params as SimStart["quickstart"] } : {}),
     };
     sim.start(req);
   };
@@ -114,6 +118,13 @@ export function SimulateScreen() {
           <select id="ctrl" data-testid="sim-controller" value={form.controller} onChange={(e) => setForm({ ...form, controller: e.target.value })}>
             {controllers.map((c) => <option key={c.path} value={c.path}>{c.name}{c.template ? "" : " (file)"}</option>)}
             <option value="none">{t("simulate.no_controller")}</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="sim-car">{t("simulate.car")}</label>
+          <select id="sim-car" data-testid="sim-car" value={useEdited && edited.assembly ? "edited" : "quick"} onChange={(e) => setUseEdited(e.target.value === "edited")}>
+            <option value="quick">{t("simulate.car_quick")}</option>
+            {edited.assembly && <option value="edited">{t("simulate.car_edited")}</option>}
           </select>
         </div>
         <div className="field">

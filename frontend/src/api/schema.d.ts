@@ -2202,6 +2202,10 @@ export interface components {
         };
         /** SimStart */
         SimStart: {
+            /** Assembly */
+            assembly?: {
+                [key: string]: unknown;
+            } | null;
             /** Controller */
             controller: string;
             corridor?: components["schemas"]["CorridorParams"];

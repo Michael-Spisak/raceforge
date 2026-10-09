@@ -3379,6 +3379,18 @@
       "SimStart": {
         "additionalProperties": false,
         "properties": {
+          "assembly": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assembly"
+          },
           "controller": {
             "title": "Controller",
             "type": "string"
