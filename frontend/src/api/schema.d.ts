@@ -807,6 +807,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ws Live Sessions
+         * @description Cars currently shared by teammates' laptops.
+         */
+        get: operations["ws_live_sessions_api_v1_workspace_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/login": {
         parameters: {
             query?: never;
@@ -2156,6 +2176,29 @@ export interface components {
          * @enum {string}
          */
         Layout: "rwd" | "awd" | "fwd";
+        /** LiveSession */
+        LiveSession: {
+            /** Car */
+            car: string;
+            /** Id */
+            id: string;
+            /**
+             * Last Message At
+             * Format: date-time
+             */
+            last_message_at: string;
+            /** Messages */
+            messages: number;
+            /** Publisher */
+            publisher: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
         /** LocalObject */
         LocalObject: {
             /** Id */
@@ -5207,6 +5250,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_live_sessions_api_v1_workspace_live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveSession"][];
                 };
             };
         };

@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import json
 import time
 from pathlib import Path
 from typing import Annotated, Any
@@ -14,6 +15,7 @@ from pydantic import ValidationError
 
 from raceforge import __version__
 from raceforge.api import deploy as car_deploy
+from raceforge.api import live_share
 from raceforge.api.car_link import pairing_code
 from raceforge.api.car_link import relay as car_relay
 from raceforge.api.construct_settings import load_settings as load_construct_settings
@@ -87,6 +89,7 @@ from raceforge.backend.models import (
     ApiTokenInfo,
     InviteInfo,
     JobInfo,
+    LiveSession,
     TotpCode,
     TotpSetup,
     UserInfo,
@@ -310,7 +313,7 @@ def create_app(
     @app.websocket("/api/v1/car/live")
     async def car_live(ws: WebSocket) -> None:
         """Relay to a real car's telemetry/teleop WebSocket (spec 0010; protocol in car_link)."""
-        await car_relay(ws)
+        await car_relay(ws, workspace=lambda: app.state.workspace().ws)
 
     @app.websocket("/api/v1/sim")
     async def sim_socket(ws: WebSocket) -> None:
@@ -367,6 +370,44 @@ def create_app(
     @app.get(f"{w}/workers")
     def ws_workers() -> list[WorkerInfo]:
         return ws().workers()
+
+    # ---------------------------------------------------- team live relay (spec 0027)
+    @app.get(f"{w}/live")
+    def ws_live_sessions() -> list[LiveSession]:
+        """Cars currently shared by teammates' laptops."""
+        return live_share.list_sessions(ws().ws)
+
+    @app.websocket(f"{w}/live/{{session_id}}/watch")
+    async def ws_live_watch(ui: WebSocket, session_id: str) -> None:
+        """Read-only view of a teammate's car through the backend (proxied: the UI has no token)."""
+        await ui.accept()
+        try:
+            upstream = await live_share.watch(ws().ws, session_id)
+        except Exception as exc:  # not logged in, offline, unknown session
+            await ui.send_text(
+                json.dumps({"type": "end", "detail": str(exc) or type(exc).__name__})
+            )
+            await ui.close()
+            return
+
+        async def pump() -> None:
+            while True:
+                msg = await upstream.recv()
+                await ui.send_text(msg if isinstance(msg, str) else msg.decode())
+
+        async def drain() -> None:  # notices the UI closing
+            while True:
+                await ui.receive_text()
+
+        tasks = [asyncio.create_task(pump()), asyncio.create_task(drain())]
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in tasks:
+            t.cancel()
+        with contextlib.suppress(Exception):
+            await upstream.close()
+        with contextlib.suppress(Exception):
+            await ui.send_text(json.dumps({"type": "end"}))
+            await ui.close()
 
     @app.get(f"{w}/worker/local")
     def ws_local_worker() -> LocalWorkerStatus:
