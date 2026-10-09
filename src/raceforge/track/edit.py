@@ -1,4 +1,4 @@
-"""Track editor v1 (spec 0023): non-destructive edit layer on a built corridor + validator.
+"""Track editor v1 (spec 0025): non-destructive edit layer on a built corridor + validator.
 
 The layer uses plain ``(x, y)`` tuples (m); :func:`apply_edit` converts them to the core models.
 Removing the layer restores the unedited track exactly.

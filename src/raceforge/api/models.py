@@ -177,7 +177,7 @@ class SimStart(ApiModel):
     quickstart: QuickStartParams | None = None
     record_path: str | None = None
     quick_track: str | None = None  # name of a saved quick track (spec 0014) instead of `corridor`
-    battery: bool = False  # model the motor battery: sag, charge, brownout (spec 0024)
+    battery: bool = False  # model the motor battery: sag, charge, brownout (spec 0026)
     assembly: dict[str, Any] | None = None  # edited car (Construct editor, spec 0015) for "ego"
 
 
@@ -610,7 +610,7 @@ class QuickTrackPreview(ApiModel):
     start_line: tuple[tuple[float, float], tuple[float, float]] | None = None
     direction: tuple[float, float] | None = None
     objects: list[QuickTrackObject] = []
-    # Track editor (spec 0023).
+    # Track editor (spec 0025).
     finish_line: tuple[tuple[float, float], tuple[float, float]] | None = None
     start_grid: list[tuple[float, float, float]] = []  # x, y, yaw (rad)
     checkpoints: list[tuple[tuple[float, float], tuple[float, float]]] = []

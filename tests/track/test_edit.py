@@ -1,4 +1,4 @@
-"""Spec 0023: track editor layer and validator."""
+"""Spec 0025: track editor layer and validator."""
 
 import numpy as np
 

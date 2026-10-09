@@ -1,4 +1,4 @@
-"""Spec 0024: battery model — sag, charge, brownout."""
+"""Spec 0026: battery model — sag, charge, brownout."""
 
 from raceforge.core.devices import BatteryParams
 from raceforge.parts.catalogue import Catalogue

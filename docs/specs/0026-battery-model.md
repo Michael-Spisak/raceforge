@@ -1,4 +1,4 @@
-# Spec 0024: Battery and power model in the simulator
+# Spec 0026: Battery and power model in the simulator
 
 - **Status:** approved (owner request 2026-10-09: "next item from the plan")
 - **Owner:** Michael Spisak
