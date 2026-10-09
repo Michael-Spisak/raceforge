@@ -4,6 +4,7 @@ import { api, type Health } from "./api/client";
 import { ConstructScreen } from "./screens/ConstructScreen";
 import { LiveScreen } from "./screens/LiveScreen";
 import { PartsScreen } from "./screens/PartsScreen";
+import { RaceControlScreen } from "./screens/RaceControlScreen";
 import { ReplayScreen } from "./screens/ReplayScreen";
 import { ScansScreen } from "./screens/ScansScreen";
 import { SimulateScreen } from "./screens/SimulateScreen";
@@ -14,8 +15,8 @@ import { TrainScreen } from "./screens/TrainScreen";
 import { type ColourMode, type NavPreset, type Units, useSettings } from "./store/settings";
 import { badgeOf, useWorkspace } from "./store/workspace";
 
-export type Tab = "start" | "parts" | "construct" | "tracks" | "simulate" | "train" | "live" | "replay" | "scans" | "team";
-const TABS: Tab[] = ["start", "parts", "construct", "tracks", "simulate", "train", "live", "replay", "scans", "team"];
+export type Tab = "start" | "parts" | "construct" | "tracks" | "simulate" | "train" | "live" | "race" | "replay" | "scans" | "team";
+const TABS: Tab[] = ["start", "parts", "construct", "tracks", "simulate", "train", "live", "race", "replay", "scans", "team"];
 
 export function App() {
   const { t } = useTranslation();
@@ -79,6 +80,7 @@ export function App() {
       {tab === "simulate" && <SimulateScreen />}
       {tab === "train" && <TrainScreen />}
       {tab === "live" && <LiveScreen />}
+      {tab === "race" && <RaceControlScreen />}
       {tab === "replay" && <ReplayScreen />}
       {tab === "scans" && <ScansScreen />}
       {tab === "team" && <TeamScreen />}

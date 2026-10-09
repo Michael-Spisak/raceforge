@@ -24,6 +24,10 @@ pub struct SensorSnapshot {
     pub estop: bool,
     /// The resume button is pressed (restart after a fault when held long enough).
     pub resume: bool,
+    /// The start button is pressed (spec 0031; same button as resume by default).
+    pub start_button: bool,
+    /// Start cable contact: `Some(true)` plugged in, `Some(false)` pulled, `None` no cable.
+    pub start_wire: Option<bool>,
     /// A critical sensor link (e.g. the EV3) delivered no valid data within its timeout.
     pub link_lost: Option<String>,
     /// When the LiDAR revolution in `lidar` finished (the runtime converts it to `t_s`).

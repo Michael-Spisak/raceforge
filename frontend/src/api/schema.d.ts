@@ -385,6 +385,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/race-control/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Race Control Save
+         * @description Save a timed race as a `run` object (race.json) in the team workspace (spec 0031).
+         */
+        post: operations["race_control_save_api_v1_race_control_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/replays": {
         parameters: {
             query?: never;
@@ -2860,6 +2880,29 @@ export interface components {
             };
         };
         /**
+         * RaceResult
+         * @description One race timed in Race Control: start signal time, laps per car, incidents, standings.
+         */
+        RaceResult: {
+            /** Cars */
+            cars: {
+                [key: string]: unknown;
+            }[];
+            /** Laps */
+            laps: number;
+            /** Standings */
+            standings?: {
+                [key: string]: unknown;
+            }[];
+            /** Started At Ms */
+            started_at_ms: number;
+        };
+        /** RaceSaved */
+        RaceSaved: {
+            /** Run */
+            run: string;
+        };
+        /**
          * RaceSetupEdit
          * @description Missing fields fall back to the automatic values of spec 0014.
          */
@@ -4586,6 +4629,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuickstartSchema"];
+                };
+            };
+        };
+    };
+    race_control_save_api_v1_race_control_results_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RaceResult"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RaceSaved"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

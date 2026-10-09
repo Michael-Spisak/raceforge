@@ -52,6 +52,8 @@ from raceforge.api.models import (
     QuickstartSchema,
     QuickTrackInfo,
     QuickTrackPreview,
+    RaceResult,
+    RaceSaved,
     ReceiveRequest,
     RecordingInfo,
     ReplayRequest,
@@ -411,6 +413,13 @@ def create_app(
         with contextlib.suppress(Exception):
             await ui.send_text(json.dumps({"type": "end"}))
             await ui.close()
+
+    @app.post("/api/v1/race-control/results")
+    def race_control_save(req: RaceResult) -> RaceSaved:
+        """Save a timed race as a `run` object (race.json) in the team workspace (spec 0031)."""
+        from raceforge.api.race_control import save_result
+
+        return save_result(ws().ws, req)
 
     @app.get(f"{w}/worker/local")
     def ws_local_worker() -> LocalWorkerStatus:

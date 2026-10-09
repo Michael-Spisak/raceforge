@@ -238,6 +238,11 @@ export function carSocketUrl(): string {
   return `${base.replace(/^http/, "ws")}/api/v1/car/live`;
 }
 
+/** Race Control (spec 0031): save a timed race to the team workspace. */
+export const raceControl = {
+  save: (body: Schemas["RaceResult"]) => request<Schemas["RaceSaved"]>("/api/v1/race-control/results", { method: "POST", body: JSON.stringify(body) }),
+};
+
 /** Read-only view of a teammate's car through the team relay (spec 0027). */
 export function liveWatchUrl(session: string): string {
   const base = engineBase() || `${window.location.protocol}//${window.location.host}`;

@@ -88,6 +88,8 @@ class Ev3Spec(_Model):
     link_timeout_ms: int = Field(default=100, ge=20, le=1000)
     # EV3 button that restarts the controller after a fault when held for 1 s.
     resume_button: Literal["up", "down", "left", "right", "enter", "backspace"] = "enter"
+    # Spec 0031: touch-sensor port of the pull-away start cable (contact opens = start).
+    start_touch_port: SensorPort | None = None
 
 
 class LidarSpec(_Model):
@@ -130,6 +132,19 @@ class TelemetrySpec(_Model):
 UsbId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{4}:[0-9a-f]{4}$")]
 
 
+class StartSpec(_Model):
+    """Race start (spec 0031): the car waits in READY until a start signal.
+
+    ``button``: press and release the start button, then ``countdown_s``; ``wire``: pulling the
+    start cable on ``ev3.start_touch_port`` starts at once (it must have been plugged in first)."""
+
+    methods: list[Literal["button", "wire"]] = Field(
+        default_factory=lambda: ["button"], min_length=1
+    )
+    countdown_s: float = Field(default=3.0, ge=0.0, le=30.0)
+    button: Literal["up", "down", "left", "right", "enter", "backspace"] = "enter"
+
+
 class RuntimeSpec(_Model):
     mode: Literal["test", "race"] = "test"
     deadline_ms: float = Field(default=15.0, gt=0, le=50)
@@ -137,6 +152,8 @@ class RuntimeSpec(_Model):
     # Race mode refuses to arm while any radio may be active (spec 0005 AC5). USB dongles that
     # do not advertise the wireless USB class are listed here as "vendor:product" (lowercase hex).
     radio_usb_ids: list[UsbId] = Field(default_factory=list[UsbId])
+    # Spec 0031: wait for a start signal (absent: drive at once; race bundles default to button).
+    start: StartSpec | None = None
 
 
 class BundleManifest(_Model):
@@ -294,6 +311,10 @@ def build_car_bundle(
     if out_dir.exists() and any(out_dir.iterdir()) and not (out_dir / MANIFEST).is_file():
         raise BundleError(f"{out_dir}: not empty and not a bundle; choose another --out")
     runtime = car.runtime.model_copy(update={"mode": "race"}) if race else car.runtime
+    if race and runtime.start is None:  # never drive off the moment the runtime boots in a race
+        runtime = runtime.model_copy(update={"start": StartSpec()})
+    if runtime.start and "wire" in runtime.start.methods and car.ev3.start_touch_port is None:
+        raise BundleError("start method 'wire' needs ev3.start_touch_port in the car config")
     tmp = out_dir.with_name(f".{out_dir.name}.tmp")
     shutil.rmtree(tmp, ignore_errors=True)
     try:
