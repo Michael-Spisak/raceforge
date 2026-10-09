@@ -571,8 +571,9 @@ def generate(params: QuickStartParams, cat: Catalogue | None = None) -> QuickSta
     b.connect(steer_gear, "hub", steer_shaft, "mid")
 
     # --- Electronics: EV3 brick on an axle through its rear holes (m3/m4), carried by two standing
-    # beams pinned outside the rails; board on top, power bank behind.
-    brick_x = _free_hole(wb / 2 - 6, used, -1, wb + 1)
+    # beams pinned outside the rails; board on top, power bank behind. The brick sits a little ahead
+    # of mid-wheelbase to balance the drive motor hanging behind the rear axle.
+    brick_x = _free_hole(wb / 2 - 4, used, -1, wb + 1)
     posts: list[str] = []
     for side in (1, -1):
         rid, hole = rail_hole(side, brick_x)

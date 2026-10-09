@@ -98,15 +98,12 @@ def test_sensor_and_motor_mounts_are_coaxial(cat: Catalogue, layout: Layout) -> 
         layout=layout,
         drive_motor="ev3_medium",
         sensors=[
-            SensorSpec(kind=kind, preset=preset)
-            for kind, preset in [
-                ("ev3_ultrasonic", "front"),
-                ("ev3_ultrasonic", "rear"),
-                ("ev3_touch", "left"),
-                ("ev3_gyro", "right"),
-                ("ev3_gyro", "center"),
-                ("lidar_2d", "top"),
-            ]
+            SensorSpec(kind="ev3_ultrasonic", preset="front"),
+            SensorSpec(kind="ev3_ultrasonic", preset="rear"),
+            SensorSpec(kind="ev3_touch", preset="left"),
+            SensorSpec(kind="ev3_gyro", preset="right"),
+            SensorSpec(kind="ev3_gyro", preset="center"),
+            SensorSpec(kind="lidar_2d", preset="top"),
         ],
     )
     res = generate(params, cat)
