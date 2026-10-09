@@ -38,6 +38,8 @@ from raceforge.api.models import (
     InviteRequest,
     LDrawPart,
     LocalPartRequest,
+    LocalWorkerStatus,
+    LocalWorkerUpdate,
     PartSummary,
     PrintedImportRequest,
     PrintedPreview,
@@ -363,6 +365,16 @@ def create_app(
     @app.get(f"{w}/workers")
     def ws_workers() -> list[WorkerInfo]:
         return ws().workers()
+
+    @app.get(f"{w}/worker/local")
+    def ws_local_worker() -> LocalWorkerStatus:
+        """This computer as a team worker (spec 0020 part C)."""
+        return ws().local_worker.status()
+
+    @app.put(f"{w}/worker/local")
+    def ws_set_local_worker(req: LocalWorkerUpdate) -> LocalWorkerStatus:
+        """Switch this computer's worker on/off (registers it once) and set its policy."""
+        return ws().local_worker.update(req)
 
     @app.get(f"{w}/jobs")
     def ws_jobs() -> list[JobInfo]:
