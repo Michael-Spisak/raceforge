@@ -5,7 +5,7 @@ Score (lower is better): mean time to finish the race; a DNF counts as
 """
 
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -107,7 +107,9 @@ def benchmark(
     params: Mapping[str, Any] | Path | str | None = None,
     cfg: BenchConfig | None = None,
     progress: Callable[[RunResult], None] | None = None,
+    done: Sequence[RunResult] = (),
 ) -> BenchResult:
+    """``done``: races of an earlier, paused attempt (spec 0020) — their corridors are skipped."""
     cfg = cfg or BenchConfig()
     if cfg.quick is not None:
         build_quick_track(cfg.quick)  # an undrivable track fails here, not as silent DNFs
@@ -115,6 +117,7 @@ def benchmark(
     else:
         CorridorParams(length_m=cfg.length_m)  # bad settings fail here, not as silent DNFs
         seeds = corridor_seeds(cfg.seed0, cfg.tracks, cfg.length_m)
+    skip = {r.seed for r in done}
     tracks = [
         TrackConfig(
             seed=seed,
@@ -124,11 +127,12 @@ def benchmark(
             quick=cfg.quick,
         )
         for seed in seeds
+        if seed not in skip
     ]
     p: Mapping[str, Any] | str | None = str(params) if isinstance(params, Path) else params
     workers = _workers(cfg.workers, len(tracks))
-    runs: list[RunResult] = []
-    if workers == 1:
+    runs: list[RunResult] = [r for r in done if r.seed in seeds]
+    if workers == 1:  # also when every corridor was done already
         for t in tracks:
             runs.append(run_one(str(controller), p, t, cfg.max_time_s))
             if progress:
@@ -143,4 +147,5 @@ def benchmark(
                     progress(runs[-1])  # may raise to cancel: pending races are dropped
         finally:
             pool.shutdown(wait=True, cancel_futures=True)
+    runs.sort(key=lambda r: seeds.index(r.seed))
     return BenchResult(runs=runs, max_time_s=cfg.max_time_s)

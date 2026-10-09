@@ -187,9 +187,15 @@ class BackendClient:
         r = self.request("POST", "/worker/claim")
         return None if r.status_code == 204 else WorkerJob.model_validate(r.json())
 
-    def job_progress(self, job_id: str, progress: dict[str, Any], log: list[str]) -> bool:
-        """Report progress; returns True when the user asked to cancel."""
-        body = {"progress": progress, "log": log}
+    def job_progress(
+        self,
+        job_id: str,
+        progress: dict[str, Any],
+        log: list[str],
+        partial: dict[str, Any] | None = None,
+    ) -> bool:
+        """Report progress (``partial``: results so far); True when the user asked to cancel."""
+        body = {"progress": progress, "log": log, "partial": partial}
         r = self.request("POST", f"/worker/jobs/{job_id}/progress", json=body)
         return bool(r.json()["cancel"])
 

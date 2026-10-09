@@ -369,7 +369,10 @@ def _cmd_train(args: argparse.Namespace) -> int:
 def _cmd_worker(args: argparse.Namespace) -> int:
     """Spec 0020: register this computer as a team worker and run the team's jobs."""
     import socket
+    from datetime import datetime
 
+    from raceforge.api.models import WorkerPolicy
+    from raceforge.api.worker_policy import SystemProbe, decide
     from raceforge.api.worker_runner import (
         WorkerConfig,
         config_path,
@@ -405,10 +408,20 @@ def _cmd_worker(args: argparse.Namespace) -> int:
             )
             return 1
         client = BackendClient(cfg.server, access=cfg.token)
+        policy = cfg.worker_policy()
+        if cmd == "run" and (args.mode or args.idle_only or args.idle_minutes):
+            changes: dict[str, object] = (
+                {"mode": args.mode or "idle"} if (args.mode or args.idle_only) else {}
+            )
+            if args.idle_minutes:
+                changes["idle_minutes"] = args.idle_minutes
+            policy = WorkerPolicy.model_validate({**policy.model_dump(), **changes})
         if cmd == "status":
             info = client.worker_heartbeat({})
             state = ("online" if info.online else "offline", "busy" if info.busy else "idle")
-            print(f"{info.name}: {state[0]}, {state[1]}")
+            avail = decide(policy, datetime.now(), SystemProbe())
+            why = "can take jobs" if avail.available else f"waiting: {avail.reason}"
+            print(f"{info.name}: {state[0]}, {state[1]}; policy {policy.mode} ({why})")
             return 0
         if cmd == "remove":
             ws = Workspace(default_root())
@@ -416,10 +429,14 @@ def _cmd_worker(args: argparse.Namespace) -> int:
             config_path().unlink(missing_ok=True)
             print(f"worker {cfg.name!r} removed; its token is revoked")
             return 0
-        print(f"worker {cfg.name!r} waiting for jobs on {cfg.server} (Ctrl+C to stop)", flush=True)
+        print(
+            f"worker {cfg.name!r} ({policy.mode}) waiting for jobs on {cfg.server}"
+            " (Ctrl+C to stop)",
+            flush=True,
+        )
         try:
             n = run_worker(
-                client, idle_only=args.idle_only, once=args.once, out=lambda s: print(s, flush=True)
+                client, policy=policy, once=args.once, out=lambda s: print(s, flush=True)
             )
         except KeyboardInterrupt:
             return 0
@@ -635,7 +652,13 @@ def main(argv: list[str] | None = None) -> int:
     wreg.add_argument("--name", help="worker name (default: host name)")
     wrun = wsub.add_parser("run", help="wait for jobs and run them")
     wrun.add_argument(
-        "--idle-only", action="store_true", help="only start jobs when the CPU is idle"
+        "--mode",
+        choices=["always", "idle", "schedule", "paused"],
+        help="when to take jobs (default: saved policy, else idle = nobody uses the computer)",
+    )
+    wrun.add_argument("--idle-only", action="store_true", help="same as --mode idle")
+    wrun.add_argument(
+        "--idle-minutes", type=float, help="idle mode: minutes without keyboard/mouse input"
     )
     wrun.add_argument("--once", action="store_true", help="run at most one job, then exit")
     wsub.add_parser("status", help="show whether the backend sees this worker")

@@ -474,6 +474,27 @@ class TrainRLRequest(ApiModel):
     race: "TrainRace" = Field(default_factory=lambda: TrainRace())
 
 
+Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+HhMm = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class ScheduleWindow(ApiModel):
+    """A weekly time window; ``end`` before ``start`` crosses midnight (days = start days)."""
+
+    days: list[Weekday] = Field(min_length=1)
+    start: str = HhMm
+    end: str = HhMm
+
+
+class WorkerPolicy(ApiModel):
+    """When this computer takes team jobs (spec 0020 part C)."""
+
+    mode: Literal["always", "idle", "schedule", "paused"] = "idle"
+    idle_minutes: float = Field(default=10.0, ge=1.0, le=240.0)  # no keyboard/mouse input
+    schedule: list[ScheduleWindow] = Field(default_factory=list[ScheduleWindow])
+    processes: int = Field(default=0, ge=0, le=256)  # parallel races; 0: CPU count - 1
+
+
 class TeamJobRequest(ApiModel):
     """Run a training job on a team worker (spec 0020): exactly one of bench/tune/rl."""
 
