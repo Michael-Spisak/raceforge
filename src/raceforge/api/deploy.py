@@ -36,11 +36,23 @@ def _safe_name(name: str) -> str:
     return safe or "bundle"
 
 
+def _resolve(path: str) -> Path:
+    """User paths: absolute, relative to the engine's folder, or relative to the project (the app
+    may start the engine elsewhere, e.g. ``controllers/car.example.yaml``)."""
+    p = Path(path).expanduser()
+    if p.is_absolute() or p.exists():
+        return p
+    from raceforge.api.service import TEMPLATES_DIR
+
+    project = TEMPLATES_DIR.parent.parent
+    return project / p if (project / p).exists() else p
+
+
 def build_from_request(req: BundleRequest, root: Path | None = None) -> BundleInfo:
     """Spec 0012: a test-mode bundle (race bundles stay on the CLI: owner gate)."""
-    controller = Path(req.controller).expanduser()
-    car_path = Path(req.car_config).expanduser()
-    params = Path(req.params).expanduser() if req.params else None
+    controller = _resolve(req.controller)
+    car_path = _resolve(req.car_config)
+    params = _resolve(req.params) if req.params else None
     name = _safe_name(req.name or controller.stem)
     out = (root or bundles_dir()) / name
     out.parent.mkdir(parents=True, exist_ok=True)
