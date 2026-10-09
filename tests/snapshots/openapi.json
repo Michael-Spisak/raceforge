@@ -105,6 +105,7 @@
               ],
               "kind": "none",
               "path": [],
+              "paths": [],
               "position": [
                 0.0,
                 0.0,
@@ -200,6 +201,17 @@
               }
             ],
             "title": "Selected"
+          },
+          "selected_many": {
+            "default": [],
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Selected Many",
+            "type": "array"
           },
           "snapped": {
             "anyOf": [
@@ -889,7 +901,9 @@
               "rotate",
               "delete",
               "add",
-              "snap"
+              "snap",
+              "duplicate",
+              "mirror"
             ],
             "title": "Kind",
             "type": "string"
@@ -900,6 +914,17 @@
               "type": "string"
             },
             "title": "Path",
+            "type": "array"
+          },
+          "paths": {
+            "default": [],
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Paths",
             "type": "array"
           },
           "position": {

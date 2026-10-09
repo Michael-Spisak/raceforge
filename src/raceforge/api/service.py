@@ -129,8 +129,21 @@ class Engine:
         assembly = load_as(Assembly, req.assembly)
         op = req.op
         selected: list[str] | None = op.path or None
+        many: list[list[str]] = op.paths or ([op.path] if op.path else [])
         snapped: SnapInfo | None = None
-        if op.kind == "move":
+        if op.paths and op.kind in ("move", "rotate", "delete", "duplicate", "mirror"):
+            if op.kind == "move":
+                assembly = ed.move_many(assembly, op.paths, op.delta)
+            elif op.kind == "rotate":
+                assembly = ed.rotate_many(assembly, op.paths, op.axis, op.turns)
+            elif op.kind == "delete":
+                assembly, many = ed.delete_many(assembly, op.paths), []
+            elif op.kind == "duplicate":
+                assembly, many = ed.duplicate(assembly, self.cat, op.paths, op.delta)
+            else:
+                assembly, many = ed.mirror_copy(assembly, self.cat, op.paths, op.axis)
+            selected = many[0] if len(many) == 1 else None
+        elif op.kind == "move":
             assembly = ed.move(assembly, op.path, op.delta)
         elif op.kind == "rotate":
             assembly = ed.rotate(assembly, op.path, op.axis, op.turns)
@@ -140,7 +153,13 @@ class Engine:
             if not op.key:
                 raise ValueError("key: which catalogue part to add")
             assembly, selected = ed.add(assembly, self.cat, op.key, op.position)
-        if selected and (op.kind == "snap" or (req.snap and op.kind in ("move", "add"))):
+        if not op.paths:
+            many = [selected] if selected else []
+        if (
+            selected
+            and not op.paths
+            and (op.kind == "snap" or (req.snap and op.kind in ("move", "add")))
+        ):
             res = ed.snap(assembly, self.cat, selected)
             assembly = res.assembly
             if res.snapped and res.connector and res.target and res.target_connector:
@@ -189,6 +208,7 @@ class Engine:
             warnings=warnings,
             problems=problems,
             selected=selected,
+            selected_many=many,
             snapped=snapped,
             rules=rules,
             overlaps=overlap_pairs,

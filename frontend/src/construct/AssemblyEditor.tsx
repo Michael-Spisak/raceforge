@@ -30,7 +30,11 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
   const { t } = useTranslation();
   const units = useSettings((s) => s.units);
   const [view, setView] = useState<EditResponse | null>(null);
-  const [selected, setSelected] = useState<string[] | null>(null);
+  const [sel, setSel] = useState<string[][]>([]);
+  const selected = sel.length ? sel[sel.length - 1] ?? null : null; // last clicked = primary
+  const setSelected = (path: string[] | null) => setSel(path ? [path] : []);
+  const pick = (path: string[], additive: boolean) =>
+    setSel((s) => (additive ? (s.some((p) => same(p, path)) ? s.filter((p) => !same(p, path)) : [...s, path]) : [path]));
   const [undo, setUndo] = useState<Assembly[]>([]);
   const [redo, setRedo] = useState<Assembly[]>([]);
   const [snapOn, setSnapOn] = useState(true);
@@ -55,7 +59,7 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
         }
         setView(r);
         if (!r.problems.length) publish(r.assembly, params);
-        if (op.kind && op.kind !== "none") setSelected(r.selected ?? null);
+        if (op.kind && op.kind !== "none") setSel(r.selected_many.length ? r.selected_many : r.selected ? [r.selected] : []);
         setNote(r.snapped ? t("editor.snapped", { a: r.snapped.connector, b: r.snapped.target.join(" / ") }) : "");
       })
       .catch((e: unknown) => setError(message(e)))
@@ -91,15 +95,18 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
       if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) doRedo(); else doUndo(); return; }
       if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); return; }
       if (!selected) return;
+      const target: EditOp = sel.length > 1 ? { paths: sel } : { path: selected };
+      if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); apply({ kind: "duplicate", paths: sel, delta: [2 * STUD, 0, 0] }); return; }
+      if (!mod && e.key.toLowerCase() === "m") { e.preventDefault(); apply({ kind: "mirror", paths: sel, axis: "y" }); return; }
       const step = e.shiftKey ? LDU : STUD;
       const moves: Record<string, [number, number, number]> = {
         ArrowLeft: [-step, 0, 0], ArrowRight: [step, 0, 0], ArrowUp: [0, step, 0], ArrowDown: [0, -step, 0],
         PageUp: [0, 0, step], PageDown: [0, 0, -step],
       };
       const turns: Record<string, "x" | "y" | "z"> = { r: "z", t: "x", y: "y" };
-      if (moves[e.key]) { e.preventDefault(); apply({ kind: "move", path: selected, delta: moves[e.key] }); }
-      else if (turns[e.key.toLowerCase()]) { e.preventDefault(); apply({ kind: "rotate", path: selected, axis: turns[e.key.toLowerCase()], turns: e.shiftKey ? -1 : 1 }); }
-      else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); apply({ kind: "delete", path: selected }); }
+      if (moves[e.key]) { e.preventDefault(); apply({ kind: "move", ...target, delta: moves[e.key] }); }
+      else if (turns[e.key.toLowerCase()]) { e.preventDefault(); apply({ kind: "rotate", ...target, axis: turns[e.key.toLowerCase()], turns: e.shiftKey ? -1 : 1 }); }
+      else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); apply({ kind: "delete", ...target }); }
       else if (e.key === "Escape") setSelected(null);
     };
     window.addEventListener("keydown", onKey);
@@ -132,7 +139,18 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
           <button type="button" onClick={doRedo} disabled={!redo.length} title="Ctrl+Y">{t("editor.redo")}</button>
         </div>
         <div className="field"><label><input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} /> {t("editor.snap")}</label></div>
-        {part ? (
+        {sel.length > 1 && (
+          <div className="panel" data-testid="editor-group">
+            <strong>{t("editor.group", { count: sel.length })}</strong>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+              <button type="button" onClick={() => apply({ kind: "rotate", paths: sel, axis: "z" })}>R ⟲z</button>
+              <button type="button" onClick={() => apply({ kind: "duplicate", paths: sel, delta: [2 * STUD, 0, 0] })}>{t("editor.duplicate")}</button>
+              <button type="button" onClick={() => apply({ kind: "mirror", paths: sel, axis: "y" })}>{t("editor.mirror")}</button>
+              <button type="button" onClick={() => apply({ kind: "delete", paths: sel })}>{t("editor.delete")}</button>
+            </div>
+          </div>
+        )}
+        {sel.length <= 1 && part ? (
           <div className="panel" data-testid="editor-selected">
             <strong>{part.name}</strong> <span className="muted">({part.key})</span>
             <div className="muted">{part.path.join(" / ")}</div>
@@ -145,10 +163,12 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
               <button type="button" onClick={() => apply({ kind: "rotate", path: part.path, axis: "x" })}>T ⟲x</button>
               <button type="button" onClick={() => apply({ kind: "rotate", path: part.path, axis: "y" })}>Y ⟲y</button>
               <button type="button" onClick={() => apply({ kind: "snap", path: part.path })}>{t("editor.snap_now")}</button>
+              <button type="button" onClick={() => apply({ kind: "duplicate", paths: [part.path], delta: [2 * STUD, 0, 0] })}>{t("editor.duplicate")}</button>
+              <button type="button" onClick={() => apply({ kind: "mirror", paths: [part.path], axis: "y" })}>{t("editor.mirror")}</button>
               <button type="button" onClick={() => apply({ kind: "delete", path: part.path })} data-testid="editor-delete">{t("editor.delete")}</button>
             </div>
           </div>
-        ) : <p className="muted">{t("editor.pick")}</p>}
+        ) : sel.length <= 1 && <p className="muted">{t("editor.pick")}</p>}
         <div className="field">
           <label htmlFor="editor-filter">{t("editor.parts")}</label>
           <input id="editor-filter" value={filter} placeholder={t("editor.filter")} onChange={(e) => setFilter(e.target.value)} />
@@ -157,7 +177,7 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
           {view?.parts
             .filter((p) => !filter || `${p.name} ${p.key} ${p.path.join("/")}`.toLowerCase().includes(filter.toLowerCase()))
             .map((p) => (
-              <li key={p.path.join("/")} aria-selected={same(p.path, selected)} onClick={() => setSelected(p.path)}>
+              <li key={p.path.join("/")} aria-selected={sel.some((q) => same(q, p.path))} onClick={(e) => pick(p.path, e.shiftKey)}>
                 {p.path[p.path.length - 1]} <span className="muted">{p.name}</span>
               </li>
             ))}
@@ -182,7 +202,7 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
       </aside>
       <section className="main">
         <Viewport testId="editor-viewport">
-          {view && <EditorParts parts={view.parts} selected={selected} flagged={flagged} onSelect={setSelected} />}
+          {view && <EditorParts parts={view.parts} selected={sel} flagged={flagged} onSelect={pick} />}
           <gridHelper args={[1, 125, "#9aa1ab", "#c4c9d0"]} rotation-x={Math.PI / 2} />
         </Viewport>
         <div className="statusbar" data-testid="editor-status">

@@ -8,6 +8,7 @@ through nested and mirrored submodels.
 """
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -22,7 +23,7 @@ from raceforge.core.frames import (
     matrix_to_quat,
     quat_to_matrix,
 )
-from raceforge.core.primitives import Pose, Vec3
+from raceforge.core.primitives import Pose, Quat, Vec3
 from raceforge.parts.catalogue import Catalogue
 
 type Arr = npt.NDArray[np.float64]
@@ -172,6 +173,13 @@ def move(assembly: Assembly, path: list[str], delta_world: tuple[float, float, f
     return _with_item(assembly, sub, new, item.id)
 
 
+def _quat(m: Arr) -> Quat:
+    r = [[float(v) for v in row] for row in m]
+    return matrix_to_quat(
+        ((r[0][0], r[0][1], r[0][2]), (r[1][0], r[1][1], r[1][2]), (r[2][0], r[2][1], r[2][2]))
+    )
+
+
 def _axis_rotation(axis: AxisName, quarter_turns: int) -> Arr:
     a = math.pi / 2 * quarter_turns
     c, s = round(math.cos(a)), round(math.sin(a))
@@ -189,15 +197,9 @@ def rotate(assembly: Assembly, path: list[str], axis: AxisName, quarter_turns: i
     rot_local = r_parent.T @ _axis_rotation(axis, quarter_turns) @ r_parent  # proper rotation
     r_local = np.array(quat_to_matrix(item.pose.orientation))
     new_r = rot_local @ r_local
-    rows = [tuple(float(v) for v in row) for row in new_r]
-    quat = matrix_to_quat(
-        (
-            (rows[0][0], rows[0][1], rows[0][2]),
-            (rows[1][0], rows[1][1], rows[1][2]),
-            (rows[2][0], rows[2][1], rows[2][2]),
-        )
+    new = item.model_copy(
+        update={"pose": Pose(position=item.pose.position, orientation=_quat(new_r))}
     )
-    new = item.model_copy(update={"pose": Pose(position=item.pose.position, orientation=quat)})
     return _with_item(assembly, sub, new, item.id)
 
 
@@ -222,6 +224,114 @@ def _drop_connections(assembly: Assembly, path: list[str]) -> Assembly:
 def delete(assembly: Assembly, path: list[str]) -> Assembly:
     sub, item = _parent_and_item(assembly, path)
     return _drop_connections(_with_item(assembly, sub, None, item.id), path)
+
+
+# ------------------------------------------------------------------ groups (spec 0015 part C)
+def _origin(assembly: Assembly, path: list[str]) -> Arr:
+    return np.array(instance_transform(assembly, path).translation)
+
+
+def pivot_of(assembly: Assembly, paths: list[list[str]]) -> Arr:
+    """Turning point of a selection: centre of the part origins, on the LDU grid."""
+    centre = np.mean([_origin(assembly, p) for p in paths], axis=0)
+    return np.round(centre / 0.0004) * 0.0004
+
+
+def move_many(
+    assembly: Assembly, paths: list[list[str]], delta_world: tuple[float, float, float]
+) -> Assembly:
+    for path in paths:
+        assembly = move(assembly, path, delta_world)
+    return assembly
+
+
+def rotate_many(
+    assembly: Assembly, paths: list[list[str]], axis: AxisName, quarter_turns: int = 1
+) -> Assembly:
+    """Turn a selection as one rigid group about its pivot (world axis, 90° steps)."""
+    if len(paths) == 1:
+        return rotate(assembly, paths[0], axis, quarter_turns)
+    pivot = pivot_of(assembly, paths)
+    rot = _axis_rotation(axis, quarter_turns)
+    for path in paths:
+        before = _origin(assembly, path)
+        assembly = rotate(assembly, path, axis, quarter_turns)
+        after = pivot + rot @ (before - pivot)
+        d = after - before
+        assembly = move(assembly, path, (float(d[0]), float(d[1]), float(d[2])))
+    return assembly
+
+
+def delete_many(assembly: Assembly, paths: list[list[str]]) -> Assembly:
+    for path in sorted(paths, key=len, reverse=True):
+        assembly = delete(assembly, path)
+    return assembly
+
+
+def _copy_into_root(
+    assembly: Assembly,
+    cat: Catalogue,
+    paths: list[list[str]],
+    place: Callable[[Arr, Arr], tuple[Arr, Arr]],
+) -> tuple[Assembly, list[list[str]]]:
+    """Copy parts into the root submodel at ``place(origin, rotation)`` (world, proper rotation)
+    and copy the connections between them; returns the new paths in selection order."""
+    placements = {tuple(c): pl for c, _, pl in iter_part_placements(assembly)}
+    new_paths: list[list[str]] = []
+    renamed: dict[tuple[str, ...], list[str]] = {}
+    for path in paths:
+        _, item = _parent_and_item(assembly, path)
+        pl = placements[tuple(path)]
+        origin = np.array(pl.pose.position.as_tuple())
+        rotation = np.array(quat_to_matrix(pl.pose.orientation))
+        pos, rot = place(origin, rotation)
+        key = cat.key_for_hash(item.part.content_hash)
+        assembly, new = add(
+            assembly, cat, key, (float(pos[0]), float(pos[1]), float(pos[2])), item.color
+        )
+        sub, inst = _parent_and_item(assembly, new)
+        inst = inst.model_copy(
+            update={"pose": Pose(position=inst.pose.position, orientation=_quat(rot))}
+        )
+        assembly = _with_item(assembly, sub, inst, inst.id)
+        renamed[tuple(path)] = new
+        new_paths.append(new)
+    copies: list[Connection] = []
+    for c in assembly.connections:
+        a, b = renamed.get(tuple(c.a.instances)), renamed.get(tuple(c.b.instances))
+        if a is not None and b is not None:
+            copies.append(
+                Connection(
+                    a=ConnectorPath(instances=a, connector=c.a.connector),
+                    b=ConnectorPath(instances=b, connector=c.b.connector),
+                )
+            )
+    if copies:
+        assembly = assembly.model_copy(update={"connections": [*assembly.connections, *copies]})
+    return assembly, new_paths
+
+
+def duplicate(
+    assembly: Assembly,
+    cat: Catalogue,
+    paths: list[list[str]],
+    offset: tuple[float, float, float],
+) -> tuple[Assembly, list[list[str]]]:
+    """Copies of the selection (with their connections), shifted by ``offset`` metres."""
+    d = np.array(offset)
+    return _copy_into_root(assembly, cat, paths, lambda o, r: (o + d, r))
+
+
+def mirror_copy(
+    assembly: Assembly, cat: Catalogue, paths: list[list[str]], axis: AxisName = "y"
+) -> tuple[Assembly, list[list[str]]]:
+    """Copies of the selection mirrored across the plane normal to ``axis`` through the origin
+    (left ↔ right for ``y``). The rotation is conjugated (M·R·M), which is exact for parts that are
+    symmetric to their own mirror plane; handed parts may need turning afterwards."""
+    m = np.diag(
+        [-1.0 if axis == "x" else 1.0, -1.0 if axis == "y" else 1.0, -1.0 if axis == "z" else 1.0]
+    )
+    return _copy_into_root(assembly, cat, paths, lambda o, r: (m @ o, m @ r @ m))
 
 
 def add(
