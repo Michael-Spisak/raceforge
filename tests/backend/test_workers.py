@@ -1,8 +1,18 @@
 """Spec 0020: worker registration, job queue, and the worker token's limits (security gate)."""
 
 from pathlib import Path
+from typing import cast
 
+import httpx
+
+from raceforge.workspace.client import ClientFactory
 from tests.backend.conftest import Env, Team
+
+
+def _direct(env: Env) -> ClientFactory:
+    """The backend test client as client factory (TestClient may be httpx2-based, same API)."""
+    return lambda _: cast(httpx.Client, env.client)
+
 
 SOURCE = "from raceforge.control.controller import Controller\n"
 
@@ -105,7 +115,9 @@ def test_worker_runs_a_benchmark_job_end_to_end(env: Env, team: Team) -> None:
     from raceforge.workspace.client import BackendClient
 
     member = BackendClient(
-        "http://test", access=team.member["Authorization"][7:], factory=lambda _: env.client
+        "http://test",
+        access=team.member["Authorization"][7:],
+        factory=_direct(env),
     )
     reg = member.register_worker(team.ws, "lab-pc")
     job = member.create_job(
@@ -117,7 +129,7 @@ def test_worker_runs_a_benchmark_job_end_to_end(env: Env, team: Team) -> None:
             controller_source=(TEMPLATES_DIR / "centering.py").read_text(encoding="utf-8"),
         ),
     )
-    worker = BackendClient("http://test", access=reg.token, factory=lambda _: env.client)
+    worker = BackendClient("http://test", access=reg.token, factory=_direct(env))
     lines: list[str] = []
     assert run_worker(worker, once=True, out=lines.append) == 1
     done = member.job(job.id)
@@ -160,10 +172,14 @@ def test_engine_queues_a_team_job_and_saves_tuned_params(
     assert engine.get(f"{w}/jobs").json()[0]["status"] == "queued"
 
     reg = BackendClient(
-        "http://t", access=team.member["Authorization"][7:], factory=lambda _: env.client
+        "http://t",
+        access=team.member["Authorization"][7:],
+        factory=_direct(env),
     )
     worker = BackendClient(
-        "http://t", access=reg.register_worker(team.ws, "pc").token, factory=lambda _: env.client
+        "http://t",
+        access=reg.register_worker(team.ws, "pc").token,
+        factory=_direct(env),
     )
     from raceforge.api.worker_runner import run_worker
 
@@ -190,7 +206,7 @@ def test_paused_benchmark_is_finished_by_another_worker_with_the_same_runs(
     from raceforge.workspace.client import BackendClient
 
     def client(token: str) -> BackendClient:
-        return BackendClient("http://test", access=token, factory=lambda _: env.client)
+        return BackendClient("http://test", access=token, factory=_direct(env))
 
     member = client(team.member["Authorization"][7:])
     race = {"tracks": 2, "length_m": 20, "max_time_s": 120}

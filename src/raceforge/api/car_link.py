@@ -17,7 +17,7 @@ import contextlib
 import json
 import time
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import segno  # pyright: ignore[reportMissingTypeStubs]
@@ -104,15 +104,16 @@ async def relay(
                 continue
             if not isinstance(msg, dict):
                 continue
-            kind = str(msg.get("type"))  # pyright: ignore[reportUnknownMemberType]
+            msg = cast(dict[str, Any], msg)
+            kind = str(msg.get("type"))
             if recorder is not None:
-                recorder.add(msg)  # pyright: ignore[reportUnknownArgumentType]
+                recorder.add(msg)
             if share is None:
                 continue
             before = None if not opened else share.state
             if not opened:  # share under the car's name (hello), else its host name
                 opened = True
-                car_name = msg.get("car") if kind == "hello" else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                car_name = msg.get("car") if kind == "hello" else None
                 await share.open(str(car_name or urlsplit(url).hostname or "car"))
             await share.send(text, kind)
             if share.state != before:

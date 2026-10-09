@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_THRESHOLDS, Rolling, alarms } from "./dashboard";
+import { DEFAULT_THRESHOLDS, Rolling, alarms } from "./alarms";
 
 describe("rolling history (spec 0027 AC4)", () => {
   it("keeps only the last span and groups states", () => {

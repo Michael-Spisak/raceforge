@@ -4,7 +4,7 @@ import gzip
 import json
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def _num(v: Any) -> float | None:
@@ -27,10 +27,13 @@ def summarize(lines: Iterable[str], notes: list[dict[str, Any]] | None = None) -
     car = None
     for line in lines:
         try:
-            row = json.loads(line)
+            row: Any = json.loads(line)
         except ValueError:
             continue
-        msg = row.get("msg") or {}
+        if not isinstance(row, dict):
+            continue
+        row = cast(dict[str, Any], row)
+        msg: Any = row.get("msg") or {}
         kind = msg.get("type")
         if kind == "hello":
             car = msg.get("car")
@@ -38,7 +41,7 @@ def summarize(lines: Iterable[str], notes: list[dict[str, Any]] | None = None) -
             events += 1
         if kind != "telemetry":
             continue
-        frame = msg.get("frame") or {}
+        frame: Any = msg.get("frame") or {}
         t = _num(row.get("rx_t"))
         if t is None:
             continue
@@ -52,21 +55,22 @@ def summarize(lines: Iterable[str], notes: list[dict[str, Any]] | None = None) -
                 state_s[state_prev] = state_s.get(state_prev, 0.0) + dt
         t_prev = t
         state_prev = str(frame.get("state") or "-")
-        meas = frame.get("meas") or {}
+        meas: Any = frame.get("meas") or {}
         speed = _num(meas.get("speed_m_s"))
         speed_prev = speed if speed is not None else 0.0
         if speed is not None:
             speeds.append(speed)
-        loop = frame.get("loop") or {}
+        loop: Any = frame.get("loop") or {}
         if (rate := _num(loop.get("rate_hz"))) is not None:
             rates.append(rate)
         if (miss := loop.get("deadline_misses")) is not None and isinstance(miss, int):
             misses.append(miss)
-        power = frame.get("power") or {}
+        power: Any = frame.get("power") or {}
         volts = _num(power.get("ev3_battery_v")) or _num(power.get("motor_battery_v"))
         if volts is not None:
             battery.append(volts)
-        faults.update(str(f) for f in frame.get("faults") or [])
+        fault_list: list[Any] = frame.get("faults") or []
+        faults.update(str(f) for f in fault_list)
     duration = (t_prev - t0) if t0 is not None and t_prev is not None else 0.0
     return {
         "car": car,
