@@ -245,6 +245,7 @@ class Problem(Model):
 # ------------------------------------------------------------------ workers & jobs (spec 0020)
 JobKind = Literal["benchmark", "tune"]
 JobStatus = Literal["queued", "running", "done", "error", "cancelled"]
+JobPriority = Literal["normal", "high", "critical"]  # part C: critical is admin only
 MAX_SOURCE_BYTES = 512 * 1024
 
 
@@ -278,6 +279,10 @@ class JobCreate(Model):
     controller_name: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._-]+\.py$")
     controller_source: str = Field(min_length=1, max_length=MAX_SOURCE_BYTES)
     params_yaml: str | None = Field(default=None, max_length=64 * 1024)
+    # part C
+    priority: JobPriority = "normal"
+    target_worker_id: str | None = None  # only this worker may run the job
+    raceforge_version: str | None = Field(default=None, max_length=32)  # only workers of it
 
 
 class JobInfo(Model):
@@ -297,6 +302,10 @@ class JobInfo(Model):
     error: str
     log_tail: list[str]
     cancel_requested: bool
+    priority: JobPriority = "normal"
+    target_worker_id: str | None = None
+    raceforge_version: str | None = None
+    attempt: int = 1  # counts lost workers; the 3rd loss ends the job as error
 
 
 class WorkerJob(Model):
@@ -308,6 +317,8 @@ class WorkerJob(Model):
     controller_name: str
     controller_source: str
     params_yaml: str | None
+    attempt: int = 1
+    resume: dict[str, Any] | None = None  # partial result of an earlier attempt: continue from it
 
 
 class WorkerHeartbeat(Model):
@@ -317,6 +328,9 @@ class WorkerHeartbeat(Model):
 class JobProgress(Model):
     progress: dict[str, Any] = Field(default_factory=dict[str, Any])
     log: list[str] = Field(default_factory=list[str], max_length=500)
+    partial: dict[str, Any] | None = (
+        None  # finished runs/trials so far (kept if the worker is lost)
+    )
 
 
 class JobProgressAck(Model):
@@ -324,6 +338,6 @@ class JobProgressAck(Model):
 
 
 class JobFinish(Model):
-    status: Literal["done", "error", "cancelled"]
+    status: Literal["done", "error", "cancelled", "paused"]  # paused: back to the queue
     result: dict[str, Any] | None = None
     error: str = Field(default="", max_length=10_000)

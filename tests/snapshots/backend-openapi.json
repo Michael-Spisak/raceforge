@@ -365,10 +365,43 @@
             ],
             "title": "Params Yaml"
           },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "high",
+              "critical"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "raceforge_version": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raceforge Version"
+          },
           "request": {
             "additionalProperties": true,
             "title": "Request",
             "type": "object"
+          },
+          "target_worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Worker Id"
           }
         },
         "required": [
@@ -405,7 +438,8 @@
             "enum": [
               "done",
               "error",
-              "cancelled"
+              "cancelled",
+              "paused"
             ],
             "title": "Status",
             "type": "string"
@@ -420,6 +454,11 @@
       "JobInfo": {
         "additionalProperties": false,
         "properties": {
+          "attempt": {
+            "default": 1,
+            "title": "Attempt",
+            "type": "integer"
+          },
           "cancel_requested": {
             "title": "Cancel Requested",
             "type": "boolean"
@@ -472,10 +511,31 @@
             "title": "Log Tail",
             "type": "array"
           },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "high",
+              "critical"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
           "progress": {
             "additionalProperties": true,
             "title": "Progress",
             "type": "object"
+          },
+          "raceforge_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raceforge Version"
           },
           "result": {
             "anyOf": [
@@ -511,6 +571,17 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "target_worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Worker Id"
           },
           "worker_id": {
             "anyOf": [
@@ -570,6 +641,18 @@
             "maxItems": 500,
             "title": "Log",
             "type": "array"
+          },
+          "partial": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partial"
           },
           "progress": {
             "additionalProperties": true,
@@ -1432,6 +1515,11 @@
         "additionalProperties": false,
         "description": "What a worker gets when it claims a job: everything needed to run it.",
         "properties": {
+          "attempt": {
+            "default": 1,
+            "title": "Attempt",
+            "type": "integer"
+          },
           "controller_name": {
             "title": "Controller Name",
             "type": "string"
@@ -1467,6 +1555,18 @@
             "additionalProperties": true,
             "title": "Request",
             "type": "object"
+          },
+          "resume": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume"
           }
         },
         "required": [
