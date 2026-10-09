@@ -35,6 +35,8 @@ from raceforge.api.models import (
     Health,
     InboxAction,
     InviteRequest,
+    LDrawPart,
+    LocalPartRequest,
     PartSummary,
     QuickstartResponse,
     QuickstartSchema,
@@ -178,6 +180,21 @@ def create_app(
         return PlainTextResponse(
             text, headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
+
+    @app.get("/api/v1/parts/ldraw")
+    def parts_ldraw(
+        query: str = "", limit: Annotated[int, Query(ge=1, le=500)] = 50
+    ) -> list[LDrawPart]:
+        """Search the whole LDraw library (spec 0018)."""
+        return eng.ldraw_search(query, limit)
+
+    @app.post("/api/v1/parts/local")
+    def parts_add_local(req: LocalPartRequest) -> PartSummary:
+        """Add an LDraw part to the team's local catalogue (unverified)."""
+        try:
+            return eng.add_local_part(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get("/api/v1/controllers")
     def controllers(extra: Annotated[list[str] | None, Query()] = None) -> list[ControllerInfo]:

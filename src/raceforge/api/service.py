@@ -19,6 +19,8 @@ from raceforge.api.models import (
     EditorConnector,
     EditorPartView,
     Health,
+    LDrawPart,
+    LocalPartRequest,
     PartSummary,
     Primitive,
     QuickstartResponse,
@@ -89,9 +91,71 @@ class Engine:
                     device=e.device.type if e.device else None,
                     verified=False,
                     color=e.color,
+                    origin=e.origin,
                 )
             )
         return out
+
+    def ldraw_search(self, query: str, limit: int = 50) -> list[LDrawPart]:
+        """Parts of the whole LDraw library (spec 0018); every word must match."""
+        from raceforge.parts.ldraw import part_index
+
+        words = query.lower().split()
+        known = {e.ldraw_id for e in self.cat.entries.values() if e.ldraw_id}
+        out: list[LDrawPart] = []
+        for p in part_index(library_dir()):
+            text = f"{p.ldraw_id} {p.title}".lower()
+            if all(w in text for w in words):
+                out.append(
+                    LDrawPart(
+                        ldraw_id=p.ldraw_id,
+                        title=p.title,
+                        category=p.category,
+                        in_catalogue=p.ldraw_id in known,
+                    )
+                )
+                if len(out) >= limit:
+                    break
+        return out
+
+    def add_local_part(self, req: LocalPartRequest) -> PartSummary:
+        """Add an LDraw part to the local catalogue (bbox from the geometry) and use it at once."""
+        from raceforge.parts.catalogue import (
+            CatalogueEntry,
+            Category,
+            core_bbox_mm,
+            save_local_entry,
+        )
+        from raceforge.parts.ldraw import LDrawLibrary
+
+        try:
+            category = Category(req.category)
+        except ValueError as e:
+            raise ValueError(f"category: unknown {req.category!r}") from e
+        existing = self.cat.entries.get(req.ldraw_id)
+        if existing is not None and existing.origin == "curated":
+            raise ValueError(f"{req.ldraw_id} is already in the curated catalogue")
+        lib = LDrawLibrary(library_dir())
+        box = lib.bbox(f"{req.ldraw_id}.dat")
+        if box is None:
+            raise ValueError(f"{req.ldraw_id}.dat not found in the LDraw library")
+        title = lib.title(f"{req.ldraw_id}.dat") or req.ldraw_id
+        entry = CatalogueEntry(
+            key=req.ldraw_id,
+            ldraw_id=req.ldraw_id,
+            name=req.name or title,
+            category=category,
+            mass_g=req.mass_g,
+            mass_source="entered by the team (unverified)",
+            holes=req.holes,
+            length_studs=req.length_studs,
+            color=req.color,
+            bbox_mm=core_bbox_mm(box.lo, box.hi),
+            origin="local",
+        )
+        save_local_entry(entry)
+        self.cat.extend(entry)
+        return next(p for p in self.parts(req.ldraw_id) if p.key == entry.key)
 
     # ---- quick-start
     def quickstart_schema(self) -> QuickstartSchema:
