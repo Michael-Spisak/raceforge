@@ -118,3 +118,20 @@ def test_group_rotate_duplicate_and_mirror() -> None:
 
     gone = _edit(client, dup["assembly"], kind="delete", paths=dup["selected_many"])
     assert len(gone["parts"]) == n and gone["problems"] == []
+
+
+def test_export_edited_car() -> None:
+    client = TestClient(create_app(Engine(), frontend_dist=None))
+    base = _edit(client, client.post("/api/v1/quickstart", json={}).json()["assembly"])
+    extra = _edit(client, base["assembly"], kind="add", key="32524", position=[0, 0, 0.3])
+    body = {"assembly": extra["assembly"]}
+    texts = {}
+    for kind in ("assembly", "mpd", "mjcf", "bom"):
+        r = client.post(f"/api/v1/assembly/export/{kind}", json=body)
+        assert r.status_code == 200, (kind, r.text)
+        texts[kind] = r.text
+    assert texts["mpd"].startswith("0 FILE") and "<mujoco" in texts["mjcf"]
+    bom = {row.split(",")[0]: row.split(",") for row in texts["bom"].splitlines()[1:]}
+    base_beams = sum(1 for p in base["parts"] if p["key"] == "32524")
+    assert int(bom["32524"][4]) == base_beams + 1
+    assert client.post("/api/v1/assembly/export/nope", json=body).status_code == 404

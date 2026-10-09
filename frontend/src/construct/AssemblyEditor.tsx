@@ -17,6 +17,15 @@ const LDU = 0.0004; // m
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
 const same = (a: readonly string[] | null | undefined, b: readonly string[] | null | undefined) => !!a && !!b && a.join("/") === b.join("/");
 
+function download(name: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function typing(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
@@ -197,6 +206,21 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
         {view && (
           <RulesPanel rules={view.rules ?? []} budget={view.budget} showOverlaps={showOverlaps} onShowOverlaps={setShowOverlaps}
                       onSelect={setSelected} onSettingsSaved={() => run(view.assembly, { kind: "none" }, false)} />
+        )}
+        {view && (
+          <div className="panel">
+            <h4 style={{ marginTop: 0 }}>{t("construct.export")}</h4>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["assembly", "mpd", "mjcf", "bom"] as const).map((k) => (
+                <button key={k} type="button" data-testid={`editor-export-${k}`}
+                        onClick={() => void api.exportAssembly(k, view.assembly, params)
+                          .then((text) => download({ assembly: "assembly.json", mpd: "car.mpd", mjcf: "car.xml", bom: "bom.csv" }[k], text))
+                          .catch((e: unknown) => setError(message(e)))}>
+                  {t(`editor.export_${k}`)}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {view && <SaveAssembly assembly={view.assembly} disabled={view.problems.length > 0} />}
       </aside>

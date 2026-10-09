@@ -20,7 +20,7 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
   XZ plane: position y → −y, rotation M·R·M — exact for parts symmetric to their own mirror plane).
 - Out of scope (later parts): gizmo dragging, submodel creation/linking UI,
   precision snap (pick A then B), rule checker and budget panel, overlap highlighting, gears/kinematics,
-  custom parts, MPD export of edited assemblies.
+  custom parts.
 
 ## Interfaces (additive)
 - `POST /api/v1/assembly/edit` — `AssemblyEditRequest {assembly, quickstart (drives/steering for derived
@@ -28,6 +28,8 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
   position}, snap: bool}` → `AssemblyEditResponse {assembly, parts: [EditorPartView{path, key, name,
   ldraw_id, category, color, pos, quat, bbox, mirrored, linked, connectors (world)}], derived, warnings,
   problems, selected, snapped?}`. Unknown parts/paths → 422.
+- `POST /api/v1/assembly/export/{assembly|mpd|mjcf|bom}` (`AssemblyExportRequest {assembly, quickstart}`) → text
+  file of the edited car (BOM CSV with counts, LEGO flag and prices from the Construct settings).
 - `POST /api/v1/workspace/save/assembly {slug, assembly, message}` → `LocalVersion` (validated first).
 - `SimStart.assembly: dict | null`: race the edited car as "ego" (bodies and joints come from its connection
   graph and joint roles; drives and steering motor from `SimStart.quickstart`). The Simulate tab offers

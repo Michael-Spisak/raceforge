@@ -503,6 +503,11 @@ class AssemblyEditRequest(ApiModel):
     snap: bool = True  # after move/add: snap to a compatible connector nearby
 
 
+class AssemblyExportRequest(ApiModel):
+    assembly: dict[str, Any]
+    quickstart: QuickStartParams = Field(default_factory=QuickStartParams)  # drives for MJCF
+
+
 class EditorConnector(ApiModel):
     id: str
     type: str

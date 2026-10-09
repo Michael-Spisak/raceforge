@@ -21,6 +21,7 @@ from raceforge.api.construct_settings import save_settings as save_construct_set
 from raceforge.api.models import (
     AssemblyEditRequest,
     AssemblyEditResponse,
+    AssemblyExportRequest,
     BundleInfo,
     BundleRequest,
     CarPairingCode,
@@ -159,6 +160,21 @@ def create_app(
             filename, text = eng.export(params, kind)
         except ValueError as exc:
             raise HTTPException(404, str(exc)) from exc
+        return PlainTextResponse(
+            text, headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+
+    @app.post("/api/v1/assembly/export/{kind}", response_class=PlainTextResponse)
+    def assembly_export(kind: str, req: AssemblyExportRequest) -> PlainTextResponse:
+        """Export the edited car: assembly | mpd | mjcf | bom (spec 0015)."""
+        try:
+            filename, text = eng.export_assembly(req.assembly, req.quickstart, kind)
+        except KeyError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                422 if kind in ("assembly", "mpd", "mjcf", "bom") else 404, str(exc)
+            ) from exc
         return PlainTextResponse(
             text, headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )

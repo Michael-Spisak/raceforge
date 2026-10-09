@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assembly/export/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assembly Export
+         * @description Export the edited car: assembly | mpd | mjcf | bom (spec 0015).
+         */
+        post: operations["assembly_export_api_v1_assembly_export__kind__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/car/bundle": {
         parameters: {
             query?: never;
@@ -988,6 +1008,14 @@ export interface components {
             snapped?: components["schemas"]["SnapInfo"] | null;
             /** Warnings */
             warnings: components["schemas"]["Warning"][];
+        };
+        /** AssemblyExportRequest */
+        AssemblyExportRequest: {
+            /** Assembly */
+            assembly: {
+                [key: string]: unknown;
+            };
+            quickstart?: components["schemas"]["QuickStartParams"];
         };
         /** BudgetLine */
         BudgetLine: {
@@ -2758,6 +2786,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssemblyEditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assembly_export_api_v1_assembly_export__kind__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssemblyExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */
