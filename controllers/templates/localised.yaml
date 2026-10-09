@@ -1,0 +1,3 @@
+# Fill with `raceforge localise TRACK --out this.yaml` (spec 0029); without a map the
+# controller drives reactively (centering on the LiDAR).
+speed_scale: 0.8

@@ -105,6 +105,20 @@ def _cmd_sim(args: argparse.Namespace) -> int:
         return 0
 
 
+def _cmd_localise(args: argparse.Namespace) -> int:
+    """Spec 0029: map + racing line of a quick track as params for the `localised` controller."""
+    from raceforge.api.localisation import write_params
+
+    out = Path(args.out or f"{args.track}.localised.yaml").expanduser()
+    try:
+        write_params(args.track, out)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(f"wrote {out} - deploy it with controllers/templates/localised.py")
+    return 0
+
+
 def _cmd_mcp(args: argparse.Namespace) -> int:
     """Spec 0028: serve RaceForge to AI assistants (stdio by default, or local streamable HTTP)."""
     from raceforge.mcp.server import run
@@ -699,6 +713,13 @@ def main(argv: list[str] | None = None) -> int:
         "--usb-result", metavar="STICK", help="show what the car reported on the stick"
     )
     dep.set_defaults(func=_cmd_deploy)
+
+    lo = sub.add_parser(
+        "localise", help="map + racing line of a quick track for the car (spec 0029)"
+    )
+    lo.add_argument("track", help="quick track name (Tracks tab)")
+    lo.add_argument("--out", help="params YAML (default: TRACK.localised.yaml)")
+    lo.set_defaults(func=_cmd_localise)
 
     mc = sub.add_parser("mcp", help="MCP server for AI assistants (Claude, Cursor, …; spec 0028)")
     mc.add_argument(

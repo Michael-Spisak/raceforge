@@ -8130,6 +8130,56 @@
         "summary": "Quick Track Save"
       }
     },
+    "/api/v1/tracks/quick/{name}/localisation": {
+      "post": {
+        "description": "Params for the `localised` controller (map + racing line, spec 0029) to ``path``.",
+        "operationId": "quick_track_localisation_api_v1_tracks_quick__name__localisation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanOpen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanOpen"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quick Track Localisation"
+      }
+    },
     "/api/v1/train/bc": {
       "post": {
         "description": "Learn a policy from recorded drives (behaviour cloning, spec 0023).",

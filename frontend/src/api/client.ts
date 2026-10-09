@@ -149,6 +149,8 @@ export const api = {
   quickTrackPreview: (q: QuickTrack) => request<QuickTrackPreview>("/api/v1/tracks/quick/preview", { method: "POST", body: JSON.stringify(q) }),
   quickTrackValidate: (q: QuickTrack) => request<Schemas["ValidationReport"]>("/api/v1/tracks/quick/validate", { method: "POST", body: JSON.stringify(q) }),
   quickTracks: () => request<QuickTrackInfo[]>("/api/v1/tracks/quick"),
+  /** Map + racing line as params for the `localised` controller (spec 0029). */
+  localiseQuickTrack: (name: string, path: string) => request<{ path: string }>(`/api/v1/tracks/quick/${encodeURIComponent(name)}/localisation`, { method: "POST", body: JSON.stringify({ path }) }),
   quickTrack: (name: string) => request<QuickTrack>(`/api/v1/tracks/quick/${encodeURIComponent(name)}`),
   saveQuickTrack: (name: string, q: QuickTrack) =>
     request<QuickTrackPreview>(`/api/v1/tracks/quick/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(q) }),
