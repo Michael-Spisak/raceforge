@@ -26,6 +26,10 @@ export type DeployRequest = Schemas["DeployRequest"];
 export type DeployResponse = Schemas["DeployResponse"];
 export type InstallResult = Schemas["InstallResult"];
 export type TrainRace = Schemas["TrainRace"];
+export type QuickTrack = Schemas["QuickTrack"];
+export type QuickObstacle = Schemas["QuickObstacle"];
+export type QuickTrackInfo = Schemas["QuickTrackInfo"];
+export type QuickTrackPreview = Schemas["QuickTrackPreview"];
 export type TrainJob = Schemas["TrainJob"];
 export type TrainBenchRequest = Schemas["TrainBenchRequest"];
 export type TrainTuneRequest = Schemas["TrainTuneRequest"];
@@ -114,6 +118,13 @@ export const api = {
   scan: (sha: string) => request<ScanDetail>(`/api/v1/scans/${sha}`),
   scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
   /** QR code for TrackScout's drive mode (spec 0010 C): the phone connects to the car directly. */
+  /** Quick tracks (spec 0014): drawn corridors, saved in the engine. */
+  quickTrackPreview: (q: QuickTrack) => request<QuickTrackPreview>("/api/v1/tracks/quick/preview", { method: "POST", body: JSON.stringify(q) }),
+  quickTracks: () => request<QuickTrackInfo[]>("/api/v1/tracks/quick"),
+  quickTrack: (name: string) => request<QuickTrack>(`/api/v1/tracks/quick/${encodeURIComponent(name)}`),
+  saveQuickTrack: (name: string, q: QuickTrack) =>
+    request<QuickTrackPreview>(`/api/v1/tracks/quick/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(q) }),
+  deleteQuickTrack: (name: string) => request<null>(`/api/v1/tracks/quick/${encodeURIComponent(name)}`, { method: "DELETE" }),
   /** Training jobs (spec 0013): one at a time in the engine; poll the job for progress. */
   trainBenchmark: (req: TrainBenchRequest) => request<TrainJob>("/api/v1/train/benchmark", { method: "POST", body: JSON.stringify(req) }),
   trainTune: (req: TrainTuneRequest) => request<TrainJob>("/api/v1/train/tune", { method: "POST", body: JSON.stringify(req) }),

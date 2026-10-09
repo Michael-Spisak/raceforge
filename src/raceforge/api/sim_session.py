@@ -92,7 +92,12 @@ class SimSession:
         params = start.quickstart or QuickStartParams(drive_gears="20-28", sensors=SIM_SENSORS)
         car = generate(params, cat)
         spec = vehicle_spec(car, cat)
-        cor = generate_corridor(start.corridor)
+        if start.quick_track:
+            from raceforge.api.tracks import QuickTracks
+
+            cor = QuickTracks().corridor(start.quick_track, laps=start.laps)
+        else:
+            cor = generate_corridor(start.corridor)
         track = cor.track
         setup = track.race_setups[0]
         if setup.start_line == setup.finish_line and setup.laps != start.laps:

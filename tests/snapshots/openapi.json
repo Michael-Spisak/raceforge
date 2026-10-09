@@ -1412,6 +1412,40 @@
         "title": "Primitive",
         "type": "object"
       },
+      "QuickObstacle": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "bin",
+              "pillar",
+              "bench"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          },
+          "yaw_deg": {
+            "default": 0.0,
+            "title": "Yaw Deg",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "x",
+          "y"
+        ],
+        "title": "QuickObstacle",
+        "type": "object"
+      },
       "QuickStartParams": {
         "additionalProperties": false,
         "description": "Inputs of the quick-start generator (spec 0002); invalid values list valid ones.",
@@ -1555,6 +1589,317 @@
           }
         },
         "title": "QuickStartParams",
+        "type": "object"
+      },
+      "QuickTrack": {
+        "additionalProperties": false,
+        "description": "What the user draws: centreline points (m), one corridor width, loop or point-to-point.",
+        "properties": {
+          "corner_radius_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corner Radius M"
+          },
+          "friction": {
+            "default": 0.75,
+            "exclusiveMinimum": 0.0,
+            "maximum": 2.0,
+            "title": "Friction",
+            "type": "number"
+          },
+          "laps": {
+            "default": 3,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Laps",
+            "type": "integer"
+          },
+          "loop": {
+            "default": true,
+            "title": "Loop",
+            "type": "boolean"
+          },
+          "name": {
+            "default": "quick track",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "obstacles": {
+            "items": {
+              "$ref": "#/components/schemas/QuickObstacle"
+            },
+            "maxItems": 200,
+            "title": "Obstacles",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 500,
+            "minItems": 2,
+            "title": "Points",
+            "type": "array"
+          },
+          "wall_height_m": {
+            "default": 2.5,
+            "exclusiveMinimum": 0.0,
+            "maximum": 10.0,
+            "title": "Wall Height M",
+            "type": "number"
+          },
+          "width_m": {
+            "default": 1.6,
+            "maximum": 4.0,
+            "minimum": 0.6,
+            "title": "Width M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "title": "QuickTrack",
+        "type": "object"
+      },
+      "QuickTrackInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "length_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length M"
+          },
+          "loop": {
+            "title": "Loop",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "loop"
+        ],
+        "title": "QuickTrackInfo",
+        "type": "object"
+      },
+      "QuickTrackObject": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "size_x": {
+            "title": "Size X",
+            "type": "number"
+          },
+          "size_y": {
+            "title": "Size Y",
+            "type": "number"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          },
+          "yaw": {
+            "title": "Yaw",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "x",
+          "y",
+          "yaw",
+          "size_x",
+          "size_y"
+        ],
+        "title": "QuickTrackObject",
+        "type": "object"
+      },
+      "QuickTrackPreview": {
+        "additionalProperties": false,
+        "description": "2D view of a drawn track as the simulator will build it (or why it cannot).",
+        "properties": {
+          "centreline": {
+            "default": [],
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Centreline",
+            "type": "array"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "length_m": {
+            "default": 0.0,
+            "title": "Length M",
+            "type": "number"
+          },
+          "objects": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/QuickTrackObject"
+            },
+            "title": "Objects",
+            "type": "array"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "start_line": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Line"
+          },
+          "walls": {
+            "default": [],
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Walls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "QuickTrackPreview",
         "type": "object"
       },
       "QuickstartResponse": {
@@ -2618,6 +2963,17 @@
               }
             ],
             "title": "Params Path"
+          },
+          "quick_track": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quick Track"
           },
           "quickstart": {
             "anyOf": [
@@ -4166,6 +4522,188 @@
           }
         },
         "summary": "Sim Protocol"
+      }
+    },
+    "/api/v1/tracks/quick": {
+      "get": {
+        "operationId": "quick_track_list_api_v1_tracks_quick_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuickTrackInfo"
+                  },
+                  "title": "Response Quick Track List Api V1 Tracks Quick Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Quick Track List"
+      }
+    },
+    "/api/v1/tracks/quick/preview": {
+      "post": {
+        "description": "2D preview of a drawn track as the simulator builds it (``ok: false`` + reason).",
+        "operationId": "quick_track_preview_api_v1_tracks_quick_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickTrack"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickTrackPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quick Track Preview"
+      }
+    },
+    "/api/v1/tracks/quick/{name}": {
+      "delete": {
+        "operationId": "quick_track_delete_api_v1_tracks_quick__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quick Track Delete"
+      },
+      "get": {
+        "operationId": "quick_track_get_api_v1_tracks_quick__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickTrack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quick Track Get"
+      },
+      "put": {
+        "operationId": "quick_track_save_api_v1_tracks_quick__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickTrack"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickTrackPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quick Track Save"
       }
     },
     "/api/v1/train/benchmark": {

@@ -75,7 +75,7 @@ class GenerationError(ValueError):
     pass
 
 
-def _fillet(points: Arr, radius: float, closed: bool) -> Arr:
+def fillet(points: Arr, radius: float, closed: bool) -> Arr:
     """Round every interior corner of a polyline with an arc of ``radius`` and resample."""
     pts = points if not closed else points[:-1]
     n = len(pts)
@@ -111,7 +111,7 @@ def _fillet(points: Arr, radius: float, closed: bool) -> Arr:
     return np.array(out)
 
 
-def _resample(points: Arr, step: float) -> tuple[Arr, Arr]:
+def resample(points: Arr, step: float) -> tuple[Arr, Arr]:
     seg = np.linalg.norm(np.diff(points, axis=0), axis=1)
     s = np.concatenate([[0.0], np.cumsum(seg)])
     total = float(s[-1])
@@ -167,7 +167,7 @@ def _open_skeleton(p: CorridorParams, rng: np.random.Generator) -> Arr:
     return np.array(pts)
 
 
-def _normals(xy: Arr) -> Arr:
+def normals_of(xy: Arr) -> Arr:
     t = np.gradient(xy, axis=0)
     t /= np.linalg.norm(t, axis=1, keepdims=True)
     return np.column_stack([-t[:, 1], t[:, 0]])
@@ -190,7 +190,7 @@ def _segments_intersect(a: Arr, b: Arr, skip_adjacent: bool) -> bool:
     return bool(hit.any())
 
 
-def _pose2(xy: Arr, z: float, yaw: float) -> Pose:
+def pose2(xy: Arr, z: float, yaw: float) -> Pose:
     x, y = float(xy[0]), float(xy[1])
     h = yaw / 2
     return Pose(
@@ -212,11 +212,11 @@ def generate_corridor(params: CorridorParams, max_attempts: int = 20) -> Corrido
 def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
     skeleton = _loop_skeleton(p, rng) if p.loop else _open_skeleton(p, rng)
     radius = p.width_max_m / 2 + 0.4
-    centre, s = _resample(_fillet(skeleton, radius, p.loop), SAMPLE_M)
+    centre, s = resample(fillet(skeleton, radius, p.loop), SAMPLE_M)
     if p.loop:
         centre[-1] = centre[0]
     n = len(centre)
-    normals = _normals(centre)
+    normals = normals_of(centre)
     if p.loop:
         normals[-1] = normals[0]
 
@@ -280,7 +280,7 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
             TrackObject(
                 id=oid,
                 class_id="door",
-                pose=_pose2(hinge, 1.0, heading(i)),
+                pose=pose2(hinge, 1.0, heading(i)),
                 size=Vec3(x=0.9, y=0.04, z=2.0),
                 static=True,
             )
@@ -296,7 +296,7 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
             TrackObject(
                 id=f"pillar-{k + 1}",
                 class_id="pillar",
-                pose=_pose2(c, 1.25, heading(i)),
+                pose=pose2(c, 1.25, heading(i)),
                 size=Vec3(x=0.3, y=0.3, z=2.5),
             )
         )
@@ -315,7 +315,7 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
             TrackObject(
                 id=f"{cls}-{k + 1}",
                 class_id=cls,
-                pose=_pose2(c, size[2] / 2, heading(i)),
+                pose=pose2(c, size[2] / 2, heading(i)),
                 size=Vec3(x=size[0], y=size[1], z=size[2]),
                 static=False,
                 randomisation=RandomRange(position_xy_m=0.3, yaw_rad=0.3, presence_prob=0.7),
@@ -346,8 +346,50 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
                 i = j + int(4.0 / SAMPLE_M)
             i += 1
 
+    friction = float(rng.uniform(p.friction_min, p.friction_max))
+    return assemble_corridor(
+        centre,
+        s,
+        normals,
+        widths,
+        depth,
+        straight,
+        objects=objects,
+        glass=glass,
+        door_ids=door_ids,
+        loop=p.loop,
+        width_min_m=p.width_min_m,
+        wall_height_m=p.wall_height_m,
+        friction=friction,
+        note=f"procedural corridor seed={p.seed} loop={p.loop}",
+    )
+
+
+def assemble_corridor(
+    centre: Arr,
+    s: Arr,
+    normals: Arr,
+    widths: Arr,
+    depth: Arr,
+    straight: npt.NDArray[np.bool_],
+    *,
+    objects: list[TrackObject],
+    glass: list[SurfaceRegion],
+    door_ids: list[str],
+    loop: bool,
+    width_min_m: float,
+    wall_height_m: float,
+    friction: float,
+    note: str,
+    straight_start: bool = True,
+) -> Corridor:
+    """Walls, floor, checkpoints, start grid and race setup around a sampled centreline (shared by
+    the procedural generator and drawn quick tracks). Raises :class:`GenerationError` if invalid."""
+    n = len(centre)
+    left = centre + normals * (widths / 2 + depth[0])[:, None]
+    right = centre - normals * (widths / 2 + depth[1])[:, None]
     # Validation.
-    if (widths < p.width_min_m - 1e-9).any():
+    if (widths < width_min_m - 1e-9).any():
         raise GenerationError("corridor narrower than width_min_m")
     if _segments_intersect(left, left, True) or _segments_intersect(right, right, True):
         raise GenerationError("wall self-intersection")
@@ -355,13 +397,10 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
         raise GenerationError("walls cross each other")
 
     walls = [
-        Wall(
-            points=[Vec2(x=float(x), y=float(y)) for x, y in left[::-1]], height_m=p.wall_height_m
-        ),
-        Wall(points=[Vec2(x=float(x), y=float(y)) for x, y in right], height_m=p.wall_height_m),
+        Wall(points=[Vec2(x=float(x), y=float(y)) for x, y in left[::-1]], height_m=wall_height_m),
+        Wall(points=[Vec2(x=float(x), y=float(y)) for x, y in right], height_m=wall_height_m),
     ]
-    floor_pts = left[:-1] if p.loop else np.vstack([left, right[::-1]])
-    friction = float(rng.uniform(p.friction_min, p.friction_max))
+    floor_pts = left[:-1] if loop else np.vstack([left, right[::-1]])
     floor = Polygon2D(points=[Vec2(x=float(x), y=float(y)) for x, y in floor_pts])
 
     cps = [i for i in range(n) if (s[i] % CHECKPOINT_M) < SAMPLE_M / 2 or i == n - 1]
@@ -385,11 +424,17 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
     candidates = [
         i for i in cps if window <= i < n - window and straight[i - window : i + window].all()
     ]
+    if not candidates and not straight_start:
+        # Drawn tracks: the straightest checkpoint with room for the grid behind it.
+        curv = np.abs(np.gradient(np.unwrap(np.arctan2(normals[:, 1], normals[:, 0]))))
+        inner = [i for i in cps if window <= i < n - window]
+        if inner:
+            candidates = [min(inner, key=lambda i: float(curv[i - window : i + window].sum()))]
     if not candidates:
         raise GenerationError("no straight section for the start grid")
     i0 = candidates[0]
     start = checkpoints[cps.index(i0)]
-    finish = start if p.loop else checkpoints[-4]
+    finish = start if loop else checkpoints[-4]
     t0 = np.gradient(centre, axis=0)[i0]
     t0 = t0 / np.linalg.norm(t0)
     grid: list[Pose2D] = []
@@ -405,13 +450,13 @@ def _generate(p: CorridorParams, rng: np.random.Generator) -> Corridor:
         start_line=start,
         finish_line=finish,
         direction=Vec2(x=float(t0[0]), y=float(t0[1])),
-        laps=3 if p.loop else 1,
+        laps=3 if loop else 1,
         start_grid=grid,
         checkpoints=checkpoints,
         door_states=dict.fromkeys(door_ids, DoorState.RANDOM),
     )
     track = Track(
-        frame_origin_note=f"procedural corridor seed={p.seed} loop={p.loop}",
+        frame_origin_note=note,
         floor=floor,
         walls=walls,
         objects=objects,
