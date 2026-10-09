@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.27",
     "lxml>=5.0",
     "mcap>=1.2",
+    "mcp>=2.3,<3",
     "minio>=7.2,<8",
     "mujoco>=3.2",
     "networkx>=3.0",
@@ -118,6 +119,13 @@ name = "backend server does not depend on the engine, front-ends, sim or the syn
 type = "forbidden"
 source_modules = ["raceforge.backend"]
 forbidden_modules = ["raceforge.api", "raceforge.server", "raceforge.sim", "raceforge.control", "raceforge.train", "raceforge.workspace", "raceforge.mcp"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "MCP server only talks to raceforge.api (spec 0028)"
+type = "forbidden"
+source_modules = ["raceforge.mcp"]
+forbidden_modules = ["raceforge.sim", "raceforge.train", "raceforge.control", "raceforge.construct", "raceforge.parts", "raceforge.track", "raceforge.backend", "raceforge.server", "raceforge.workspace", "raceforge.cli"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]

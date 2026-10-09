@@ -105,6 +105,14 @@ def _cmd_sim(args: argparse.Namespace) -> int:
         return 0
 
 
+def _cmd_mcp(args: argparse.Namespace) -> int:
+    """Spec 0028: serve RaceForge to AI assistants (stdio by default, or local streamable HTTP)."""
+    from raceforge.mcp.server import run
+
+    run(http=args.http, port=args.port, read_only=args.read_only)
+    return 0
+
+
 def _cmd_ui(args: argparse.Namespace) -> int:
     import socket
     import webbrowser
@@ -691,6 +699,14 @@ def main(argv: list[str] | None = None) -> int:
         "--usb-result", metavar="STICK", help="show what the car reported on the stick"
     )
     dep.set_defaults(func=_cmd_deploy)
+
+    mc = sub.add_parser("mcp", help="MCP server for AI assistants (Claude, Cursor, …; spec 0028)")
+    mc.add_argument(
+        "--http", action="store_true", help="streamable HTTP on 127.0.0.1 instead of stdio"
+    )
+    mc.add_argument("--port", type=int, default=8766, help="HTTP port (default 8766)")
+    mc.add_argument("--read-only", action="store_true", help="only tools that change nothing")
+    mc.set_defaults(func=_cmd_mcp)
 
     ui = sub.add_parser("ui", help="start the local engine and the user interface")
     ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")
