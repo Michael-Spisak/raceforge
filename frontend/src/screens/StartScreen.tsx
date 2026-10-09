@@ -7,6 +7,7 @@ export function StartScreen({ health, onOpen }: { health: Health | null; onOpen:
   const cards: { tab: Tab; text: string }[] = [
     { tab: "parts", text: t("start.parts") },
     { tab: "construct", text: t("start.construct") },
+    { tab: "tracks", text: t("start.tracks") },
     { tab: "simulate", text: t("start.simulate") },
     { tab: "train", text: t("start.train") },
     { tab: "live", text: t("start.live") },

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { api, type ControllerInfo, type FrameMessage, type SimStart } from "../api/client";
+import { api, type ControllerInfo, type FrameMessage, type SimStart, type QuickTrackInfo } from "../api/client";
 import { interpolate, type TimedPoses } from "../sim/interp";
 import { useSimulation } from "../sim/useSimulation";
 import { CarModel, type Pose } from "../three/CarModel";
@@ -73,7 +73,8 @@ export function SimulateScreen() {
   const { t } = useTranslation();
   const sim = useSimulation();
   const [controllers, setControllers] = useState<ControllerInfo[]>([]);
-  const [form, setForm] = useState({ controller: "", seed: 0, loop: true, length: 40, laps: 1, opponents: 0, record: false });
+  const [form, setForm] = useState({ controller: "", track: "", seed: 0, loop: true, length: 40, laps: 1, opponents: 0, record: false });
+  const [quickTracks, setQuickTracks] = useState<QuickTrackInfo[]>([]);
   const [speed, setSpeed] = useState(1);
   const [follow, setFollow] = useState(true);
   const [showSensors, setShowSensors] = useState(true);
@@ -81,6 +82,7 @@ export function SimulateScreen() {
   const controls = useRef<OrbitControlsImpl | null>(null);
 
   useEffect(() => {
+    void api.quickTracks().then((qs) => setQuickTracks(qs.filter((q) => !q.error))).catch(() => undefined);
     void api.controllers().then((cs) => {
       setControllers(cs);
       setForm((f) => ({ ...f, controller: f.controller || cs.find((c) => c.name === "centering")?.path || cs[0]?.path || "" }));
@@ -98,6 +100,7 @@ export function SimulateScreen() {
       seed: form.seed,
       speed,
       record_path: form.record ? `runs/run-${Date.now()}.mcap` : null,
+      quick_track: form.track || null,
     };
     sim.start(req);
   };
@@ -114,14 +117,25 @@ export function SimulateScreen() {
           </select>
         </div>
         <div className="field">
-          <label htmlFor="seed">{t("simulate.corridor_seed")}</label>
-          <input id="seed" type="number" value={form.seed} onChange={(e) => setForm({ ...form, seed: Number(e.target.value) })} />
+          <label htmlFor="sim-track">{t("simulate.track")}</label>
+          <select id="sim-track" data-testid="sim-track" value={form.track} onChange={(e) => setForm({ ...form, track: e.target.value })}>
+            <option value="">{t("simulate.track_procedural")}</option>
+            {quickTracks.map((q) => <option key={q.name} value={q.name}>{q.name}{q.length_m ? ` (${q.length_m.toFixed(0)} m)` : ""}</option>)}
+          </select>
         </div>
-        <div className="field"><label><input type="checkbox" checked={form.loop} onChange={(e) => setForm({ ...form, loop: e.target.checked })} /> {t("simulate.loop")}</label></div>
-        <div className="field">
-          <label htmlFor="len">{t("simulate.length")}</label>
-          <input id="len" type="number" min={20} max={120} value={form.length} onChange={(e) => setForm({ ...form, length: Number(e.target.value) })} />
-        </div>
+        {!form.track && (
+          <>
+            <div className="field">
+              <label htmlFor="seed">{t("simulate.corridor_seed")}</label>
+              <input id="seed" type="number" value={form.seed} onChange={(e) => setForm({ ...form, seed: Number(e.target.value) })} />
+            </div>
+            <div className="field"><label><input type="checkbox" checked={form.loop} onChange={(e) => setForm({ ...form, loop: e.target.checked })} /> {t("simulate.loop")}</label></div>
+            <div className="field">
+              <label htmlFor="len">{t("simulate.length")}</label>
+              <input id="len" type="number" min={20} max={120} value={form.length} onChange={(e) => setForm({ ...form, length: Number(e.target.value) })} />
+            </div>
+          </>
+        )}
         <div className="field">
           <label htmlFor="laps">{t("simulate.laps")}</label>
           <input id="laps" data-testid="sim-laps" type="number" min={1} max={20} value={form.laps} onChange={(e) => setForm({ ...form, laps: Number(e.target.value) })} />

@@ -32,6 +32,8 @@ from raceforge.api.models import (
     PartSummary,
     QuickstartResponse,
     QuickstartSchema,
+    QuickTrackInfo,
+    QuickTrackPreview,
     ReceiveRequest,
     ReplayRequest,
     ReplaySummary,
@@ -58,6 +60,8 @@ from raceforge.api.models import (
 from raceforge.api.scans import ScanApi, ScanNotFoundError
 from raceforge.api.service import Engine
 from raceforge.api.sim_session import SimSession
+from raceforge.api.tracks import QuickTracks
+from raceforge.api.tracks import preview as quick_preview
 from raceforge.api.train_jobs import TrainJobs
 from raceforge.api.workspace import WorkspaceApi
 from raceforge.backend.models import (
@@ -74,6 +78,7 @@ from raceforge.capture.tscan import TscanError
 from raceforge.construct.quickstart import QuickStartParams
 from raceforge.parts.ldraw import library_dir
 from raceforge.track.procedural import CorridorParams
+from raceforge.track.quick import QuickTrack
 from raceforge.workspace.client import BackendError, OfflineError
 from raceforge.workspace.sync import (
     Conflict,
@@ -103,6 +108,7 @@ def create_app(
 
     app.state.workspace = ws
     train_jobs = TrainJobs()
+    quick_tracks = QuickTracks()
     scan_holder: list[ScanApi] = []
 
     def scans() -> ScanApi:
@@ -333,6 +339,39 @@ def create_app(
         return ws().pair_trackscout()
 
     # ------------------------------------------------------------ scans (spec 0009)
+    # ------------------------------------------------------------ quick tracks (spec 0014)
+    @app.post("/api/v1/tracks/quick/preview")
+    def quick_track_preview(q: QuickTrack) -> QuickTrackPreview:
+        """2D preview of a drawn track as the simulator builds it (``ok: false`` + reason)."""
+        return quick_preview(q)
+
+    @app.get("/api/v1/tracks/quick")
+    def quick_track_list() -> list[QuickTrackInfo]:
+        return quick_tracks.list()
+
+    @app.get("/api/v1/tracks/quick/{name}")
+    def quick_track_get(name: str) -> QuickTrack:
+        try:
+            return quick_tracks.get(name)
+        except KeyError as exc:
+            raise HTTPException(404, f"no quick track {name!r}") from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.put("/api/v1/tracks/quick/{name}")
+    def quick_track_save(name: str, q: QuickTrack) -> QuickTrackPreview:
+        try:
+            return quick_tracks.save(name, q)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.delete("/api/v1/tracks/quick/{name}")
+    def quick_track_delete(name: str) -> None:
+        try:
+            quick_tracks.delete(name)
+        except KeyError as exc:
+            raise HTTPException(404, f"no quick track {name!r}") from exc
+
     # ------------------------------------------------------------ training (spec 0013)
     @app.post("/api/v1/train/benchmark")
     def train_benchmark(req: TrainBenchRequest) -> TrainJob:

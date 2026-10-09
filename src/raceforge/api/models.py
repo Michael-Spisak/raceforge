@@ -126,6 +126,7 @@ class SimStart(ApiModel):
     speed: float = Field(default=1.0, gt=0)  # 0 < speed; values >= 100 mean "as fast as possible"
     quickstart: QuickStartParams | None = None
     record_path: str | None = None
+    quick_track: str | None = None  # name of a saved quick track (spec 0014) instead of `corridor`
 
 
 class SimControl(ApiModel):
@@ -436,3 +437,33 @@ class TrainJob(ApiModel):
     out: str | None = None  # tune: written params YAML
     best_params: dict[str, Any] | None = None
     error: str = ""
+
+
+# ------------------------------------------------------------------ quick tracks (spec 0014)
+class QuickTrackInfo(ApiModel):
+    name: str
+    length_m: float | None = None
+    loop: bool
+    error: str | None = None
+
+
+class QuickTrackObject(ApiModel):
+    kind: str
+    x: float
+    y: float
+    yaw: float
+    size_x: float
+    size_y: float
+
+
+class QuickTrackPreview(ApiModel):
+    """2D view of a drawn track as the simulator will build it (or why it cannot)."""
+
+    ok: bool
+    error: str | None = None
+    length_m: float = 0.0
+    centreline: list[tuple[float, float]] = []
+    walls: list[list[tuple[float, float]]] = []
+    start_line: tuple[tuple[float, float], tuple[float, float]] | None = None
+    direction: tuple[float, float] | None = None
+    objects: list[QuickTrackObject] = []

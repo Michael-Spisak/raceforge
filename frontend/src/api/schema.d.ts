@@ -308,6 +308,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tracks/quick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quick Track List */
+        get: operations["quick_track_list_api_v1_tracks_quick_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tracks/quick/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Quick Track Preview
+         * @description 2D preview of a drawn track as the simulator builds it (``ok: false`` + reason).
+         */
+        post: operations["quick_track_preview_api_v1_tracks_quick_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tracks/quick/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quick Track Get */
+        get: operations["quick_track_get_api_v1_tracks_quick__name__get"];
+        /** Quick Track Save */
+        put: operations["quick_track_save_api_v1_tracks_quick__name__put"];
+        post?: never;
+        /** Quick Track Delete */
+        delete: operations["quick_track_delete_api_v1_tracks_quick__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/train/benchmark": {
         parameters: {
             query?: never;
@@ -1327,6 +1383,23 @@ export interface components {
              */
             surface: string;
         };
+        /** QuickObstacle */
+        QuickObstacle: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bin" | "pillar" | "bench";
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /**
+             * Yaw Deg
+             * @default 0
+             */
+            yaw_deg: number;
+        };
         /**
          * QuickStartParams
          * @description Inputs of the quick-start generator (spec 0002); invalid values list valid ones.
@@ -1405,6 +1478,129 @@ export interface components {
              * @default 15
              */
             wheelbase_studs: number;
+        };
+        /**
+         * QuickTrack
+         * @description What the user draws: centreline points (m), one corridor width, loop or point-to-point.
+         */
+        QuickTrack: {
+            /** Corner Radius M */
+            corner_radius_m?: number | null;
+            /**
+             * Friction
+             * @default 0.75
+             */
+            friction: number;
+            /**
+             * Laps
+             * @default 3
+             */
+            laps: number;
+            /**
+             * Loop
+             * @default true
+             */
+            loop: boolean;
+            /**
+             * Name
+             * @default quick track
+             */
+            name: string;
+            /** Obstacles */
+            obstacles?: components["schemas"]["QuickObstacle"][];
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+            /**
+             * Wall Height M
+             * @default 2.5
+             */
+            wall_height_m: number;
+            /**
+             * Width M
+             * @default 1.6
+             */
+            width_m: number;
+        };
+        /** QuickTrackInfo */
+        QuickTrackInfo: {
+            /** Error */
+            error?: string | null;
+            /** Length M */
+            length_m?: number | null;
+            /** Loop */
+            loop: boolean;
+            /** Name */
+            name: string;
+        };
+        /** QuickTrackObject */
+        QuickTrackObject: {
+            /** Kind */
+            kind: string;
+            /** Size X */
+            size_x: number;
+            /** Size Y */
+            size_y: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Yaw */
+            yaw: number;
+        };
+        /**
+         * QuickTrackPreview
+         * @description 2D view of a drawn track as the simulator will build it (or why it cannot).
+         */
+        QuickTrackPreview: {
+            /**
+             * Centreline
+             * @default []
+             */
+            centreline: [
+                number,
+                number
+            ][];
+            /** Direction */
+            direction?: [
+                number,
+                number
+            ] | null;
+            /** Error */
+            error?: string | null;
+            /**
+             * Length M
+             * @default 0
+             */
+            length_m: number;
+            /**
+             * Objects
+             * @default []
+             */
+            objects: components["schemas"]["QuickTrackObject"][];
+            /** Ok */
+            ok: boolean;
+            /** Start Line */
+            start_line?: [
+                [
+                    number,
+                    number
+                ],
+                [
+                    number,
+                    number
+                ]
+            ] | null;
+            /**
+             * Walls
+             * @default []
+             */
+            walls: [
+                number,
+                number
+            ][][];
         };
         /** QuickstartResponse */
         QuickstartResponse: {
@@ -1792,6 +1988,8 @@ export interface components {
             opponents: number;
             /** Params Path */
             params_path?: string | null;
+            /** Quick Track */
+            quick_track?: string | null;
             quickstart?: components["schemas"]["QuickStartParams"] | null;
             /** Record Path */
             record_path?: string | null;
@@ -2659,6 +2857,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimProtocol"];
+                };
+            };
+        };
+    };
+    quick_track_list_api_v1_tracks_quick_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuickTrackInfo"][];
+                };
+            };
+        };
+    };
+    quick_track_preview_api_v1_tracks_quick_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuickTrack"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuickTrackPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quick_track_get_api_v1_tracks_quick__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuickTrack"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quick_track_save_api_v1_tracks_quick__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuickTrack"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuickTrackPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quick_track_delete_api_v1_tracks_quick__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
