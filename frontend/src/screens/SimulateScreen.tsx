@@ -99,7 +99,7 @@ export function SimulateScreen() {
   const { t } = useTranslation();
   const sim = useSimulation();
   const [controllers, setControllers] = useState<ControllerInfo[]>([]);
-  const [form, setForm] = useState({ controller: "", track: "", seed: 0, loop: true, length: 40, laps: 1, opponents: 0, record: false });
+  const [form, setForm] = useState({ controller: "", track: "", seed: 0, loop: true, length: 40, laps: 1, opponents: 0, record: false, battery: false });
   const [quickTracks, setQuickTracks] = useState<QuickTrackInfo[]>([]);
   const edited = useEditedCar();
   const [useEdited, setUseEdited] = useState(false);
@@ -126,6 +126,7 @@ export function SimulateScreen() {
       corridor: { seed: form.seed, loop: form.loop, length_m: form.length } as SimStart["corridor"],
       laps: form.laps,
       opponents: form.opponents,
+      battery: form.battery,
       seed: form.seed,
       speed,
       record_path: form.record ? `runs/run-${Date.now()}.mcap` : null,
@@ -182,6 +183,7 @@ export function SimulateScreen() {
           <input id="opp" type="number" min={0} max={5} value={form.opponents} onChange={(e) => setForm({ ...form, opponents: Number(e.target.value) })} />
         </div>
         <div className="field"><label><input type="checkbox" data-testid="sim-record" checked={form.record} onChange={(e) => setForm({ ...form, record: e.target.checked })} /> {t("simulate.record")}</label></div>
+        <div className="field"><label><input type="checkbox" checked={form.battery} onChange={(e) => setForm({ ...form, battery: e.target.checked })} /> {t("simulate.battery")}</label></div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
           {!running && <button className="primary" data-testid="sim-start" onClick={startRun} disabled={!form.controller}>{t("simulate.start")}</button>}
           {sim.status === "running" && <button onClick={sim.pause}>{t("simulate.pause")}</button>}
