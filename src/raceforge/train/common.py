@@ -9,6 +9,7 @@ from raceforge.sim.engine import Simulation
 from raceforge.sim.runner import SIM_SENSORS
 from raceforge.sim.world import CarEntry, build_world
 from raceforge.track.procedural import CorridorParams, GenerationError, generate_corridor
+from raceforge.track.quick import QuickTrack, build_quick_track
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class TrackConfig:
     laps: int = 1
     opponents: int = 0
     loop: bool = True
+    quick: QuickTrack | None = None  # a drawn track (spec 0014) instead of the procedural corridor
 
 
 @cache
@@ -32,9 +34,13 @@ def make_sim(cfg: TrackConfig) -> Simulation:
     cat = _catalogue()
     car = generate(QuickStartParams(drive_gears="20-28", sensors=SIM_SENSORS), cat)
     spec = vehicle_spec(car, cat)
-    track = generate_corridor(
-        CorridorParams(seed=cfg.seed, loop=cfg.loop, length_m=cfg.length_m)
-    ).track
+    if cfg.quick is not None:
+        # Same track every run; the seed varies sensor noise and object placement.
+        track = build_quick_track(cfg.quick).track
+    else:
+        track = generate_corridor(
+            CorridorParams(seed=cfg.seed, loop=cfg.loop, length_m=cfg.length_m)
+        ).track
     setup = track.race_setups[0]
     if setup.start_line == setup.finish_line and setup.laps != cfg.laps:
         track = track.model_copy(

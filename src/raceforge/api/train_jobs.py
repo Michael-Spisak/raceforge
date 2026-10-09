@@ -30,7 +30,18 @@ class CancelledError(Exception):
 
 
 def _bench(race: TrainRace) -> BenchConfig:
+    quick = None
+    if race.quick_track:
+        from raceforge.api.tracks import QuickTracks
+
+        try:
+            quick = QuickTracks().get(race.quick_track)
+        except KeyError as e:
+            raise ValueError(f"no quick track {race.quick_track!r}") from e
+        if quick.loop:
+            quick = quick.model_copy(update={"laps": race.laps})
     return BenchConfig(
+        quick=quick,
         tracks=race.tracks,
         length_m=race.length_m,
         laps=race.laps,
@@ -117,6 +128,7 @@ class TrainJobs:
     def start_benchmark(self, req: TrainBenchRequest) -> TrainJob:
         controller = Path(req.controller).expanduser()
         load_controller_class(controller)  # a broken file fails the request, not the job
+        bench = _bench(req.race)  # a missing quick track too
         job = self._start("benchmark", str(controller), req.race.tracks)
         runs: list[TrainRun] = []
 
@@ -126,7 +138,7 @@ class TrainJobs:
 
         def work() -> None:
             params = Path(req.params).expanduser() if req.params else None
-            res = benchmark(controller, params, _bench(req.race), progress)
+            res = benchmark(controller, params, bench, progress)
             self._finish(job.id, "done", score=res.score, finished_rate=res.finished_rate)
 
         self._thread(job.id, work)
@@ -141,6 +153,7 @@ class TrainJobs:
             if req.out
             else controller.with_name(f"{controller.stem}.tuned.yaml")
         )
+        bench = _bench(req.race)
         job = self._start("tune", str(controller), req.trials)
         trials: list[TrainTrial] = []
 
@@ -155,7 +168,7 @@ class TrainJobs:
                 trials=req.trials,
                 timeout_s=req.timeout_s,
                 train_tracks=req.train_tracks,
-                bench=_bench(req.race),
+                bench=bench,
                 out=out,
             )
             res = tune(controller, cfg, progress)

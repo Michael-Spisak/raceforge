@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, type ControllerInfo, type TrainJob, type TrainRace } from "../api/client";
+import { ApiError, api, type ControllerInfo, type QuickTrackInfo, type TrainJob, type TrainRace } from "../api/client";
 
 const fmt = (v: number | null | undefined, digits = 1) => (v == null ? "–" : v.toFixed(digits));
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
@@ -14,7 +14,8 @@ export function TrainScreen() {
   const [params, setParams] = useState("");
   const [trials, setTrials] = useState(30);
   const [trainTracks, setTrainTracks] = useState(3);
-  const [race, setRace] = useState<TrainRace>({ tracks: 5, length_m: 25, laps: 1, opponents: 0, max_time_s: 240 });
+  const [race, setRace] = useState<TrainRace>({ tracks: 5, length_m: 25, laps: 1, opponents: 0, max_time_s: 240, quick_track: null });
+  const [quickTracks, setQuickTracks] = useState<QuickTrackInfo[]>([]);
   const [jobs, setJobs] = useState<TrainJob[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -25,6 +26,7 @@ export function TrainScreen() {
       setControllers(cs);
       setController((c) => c || cs.find((x) => x.name === "centering")?.path || cs[0]?.path || "");
     }).catch(() => undefined);
+    void api.quickTracks().then((qs) => setQuickTracks(qs.filter((q) => !q.error))).catch(() => undefined);
     void load();
   }, [load]);
   const running = jobs.some((j) => j.state === "running");
@@ -43,7 +45,7 @@ export function TrainScreen() {
     req.then((job) => { setSelected(job.id); return load(); }).catch((err: unknown) => setError(message(err)));
   };
 
-  const num = (key: keyof TrainRace, label: string, min: number, max: number, step = 1) => (
+  const num = (key: Exclude<keyof TrainRace, "quick_track">, label: string, min: number, max: number, step = 1) => (
     <div className="field">
       <label htmlFor={`train-${key}`}>{label}</label>
       <input id={`train-${key}`} type="number" min={min} max={max} step={step} value={race[key] ?? ""}
@@ -88,8 +90,16 @@ export function TrainScreen() {
               </div>
             </>
           )}
-          {num("tracks", t("train.tracks"), 1, 100)}
-          {num("length_m", t("train.length"), 20, 120, 5)}
+          <div className="field">
+            <label htmlFor="train-track">{t("simulate.track")}</label>
+            <select id="train-track" data-testid="train-track" value={race.quick_track ?? ""}
+                    onChange={(e) => setRace({ ...race, quick_track: e.target.value || null })}>
+              <option value="">{t("train.procedural")}</option>
+              {quickTracks.map((q) => <option key={q.name} value={q.name}>{q.name}</option>)}
+            </select>
+          </div>
+          {num("tracks", race.quick_track ? t("train.runs") : t("train.tracks"), 1, 100)}
+          {!race.quick_track && num("length_m", t("train.length"), 20, 120, 5)}
           {num("laps", t("train.laps"), 1, 10)}
           {num("opponents", t("train.opponents"), 0, 5)}
           {num("max_time_s", t("train.max_time"), 10, 3600, 10)}

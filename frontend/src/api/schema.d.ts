@@ -2167,6 +2167,8 @@ export interface components {
              * @default 0
              */
             opponents: number;
+            /** Quick Track */
+            quick_track?: string | null;
             /**
              * Tracks
              * @default 5
