@@ -276,6 +276,66 @@ class Engine:
             return "car.xml", build_mjcf(res.assembly, self.cat, vehicle_spec(res, self.cat))[0]
         raise ValueError(f"unknown export kind {kind!r}")
 
+    def export_assembly(
+        self, assembly_json: dict[str, Any], params: QuickStartParams, kind: str
+    ) -> tuple[str, str]:
+        """Export an edited assembly (spec 0015): assembly JSON, LDraw MPD, MJCF or a BOM CSV."""
+        import csv
+        import io
+
+        from raceforge.construct.rules import is_lego
+
+        assembly = load_as(Assembly, assembly_json)
+        if kind == "assembly":
+            return "assembly.json", dump(assembly) + "\n"
+        if kind == "mpd":
+            return "car.mpd", export_mpd(assembly, self.cat)
+        if kind == "mjcf":
+            spec = vehicle_spec(generate(params, self.cat), self.cat)
+            return "car.xml", build_mjcf(assembly, self.cat, spec)[0]
+        if kind == "bom":
+            from collections import Counter
+
+            from raceforge.api.construct_settings import load_settings
+            from raceforge.construct.derive import placed_parts
+
+            prices = load_settings().prices
+            counts = Counter(p.key for p in placed_parts(assembly, self.cat))
+            out = io.StringIO()
+            w = csv.writer(out)
+            w.writerow(
+                [
+                    "key",
+                    "ldraw_id",
+                    "name",
+                    "category",
+                    "count",
+                    "lego",
+                    "unit_eur",
+                    "total_eur",
+                    "link",
+                ]
+            )
+            for key, n in sorted(counts.items()):
+                e = self.cat.entry(key)
+                price = prices.get(key)
+                unit = price.eur if price else (0.0 if is_lego(self.cat, key) else None)
+                w.writerow(
+                    [
+                        key,
+                        e.ldraw_id or "",
+                        self.cat.part(key).name,
+                        e.category.value,
+                        n,
+                        "yes" if is_lego(self.cat, key) else "no",
+                        "" if unit is None else f"{unit:.2f}",
+                        "" if unit is None else f"{unit * n:.2f}",
+                        price.link if price else "",
+                    ]
+                )
+            return "bom.csv", out.getvalue()
+        raise ValueError(f"unknown export kind {kind!r}")
+
     def car_scene(
         self,
         name: str,

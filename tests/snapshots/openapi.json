@@ -241,6 +241,24 @@
         "title": "AssemblyEditResponse",
         "type": "object"
       },
+      "AssemblyExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assembly": {
+            "additionalProperties": true,
+            "title": "Assembly",
+            "type": "object"
+          },
+          "quickstart": {
+            "$ref": "#/components/schemas/QuickStartParams"
+          }
+        },
+        "required": [
+          "assembly"
+        ],
+        "title": "AssemblyExportRequest",
+        "type": "object"
+      },
       "BudgetLine": {
         "additionalProperties": false,
         "properties": {
@@ -4714,6 +4732,56 @@
           }
         },
         "summary": "Assembly Edit"
+      }
+    },
+    "/api/v1/assembly/export/{kind}": {
+      "post": {
+        "description": "Export the edited car: assembly | mpd | mjcf | bom (spec 0015).",
+        "operationId": "assembly_export_api_v1_assembly_export__kind__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssemblyExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assembly Export"
       }
     },
     "/api/v1/car/bundle": {

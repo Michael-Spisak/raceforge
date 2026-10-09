@@ -118,6 +118,8 @@ export const api = {
   scan: (sha: string) => request<ScanDetail>(`/api/v1/scans/${sha}`),
   scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
   /** QR code for TrackScout's drive mode (spec 0010 C): the phone connects to the car directly. */
+  exportAssembly: (kind: "assembly" | "mpd" | "mjcf" | "bom", assembly: Record<string, unknown>, params: Partial<QuickStartParams>) =>
+    request<string>(`/api/v1/assembly/export/${kind}`, { method: "POST", body: JSON.stringify({ assembly, quickstart: params }) }),
   /** Construct editor (spec 0015): one operation on an assembly, evaluated by the engine. */
   editAssembly: (req: Schemas["AssemblyEditRequest"]) =>
     request<Schemas["AssemblyEditResponse"]>("/api/v1/assembly/edit", { method: "POST", body: JSON.stringify(req) }),
