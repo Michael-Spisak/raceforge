@@ -86,6 +86,117 @@
         "title": "ApiTokenInfo",
         "type": "object"
       },
+      "AssemblyEditRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assembly": {
+            "additionalProperties": true,
+            "title": "Assembly",
+            "type": "object"
+          },
+          "op": {
+            "$ref": "#/components/schemas/EditOp",
+            "default": {
+              "axis": "z",
+              "delta": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "kind": "none",
+              "path": [],
+              "position": [
+                0.0,
+                0.0,
+                0.05
+              ],
+              "turns": 1
+            }
+          },
+          "quickstart": {
+            "$ref": "#/components/schemas/QuickStartParams"
+          },
+          "snap": {
+            "default": true,
+            "title": "Snap",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "assembly"
+        ],
+        "title": "AssemblyEditRequest",
+        "type": "object"
+      },
+      "AssemblyEditResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "assembly": {
+            "additionalProperties": true,
+            "title": "Assembly",
+            "type": "object"
+          },
+          "derived": {
+            "additionalProperties": true,
+            "title": "Derived",
+            "type": "object"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/EditorPartView"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected"
+          },
+          "snapped": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SnapInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/Warning"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "assembly",
+          "parts",
+          "derived",
+          "warnings",
+          "problems"
+        ],
+        "title": "AssemblyEditResponse",
+        "type": "object"
+      },
       "BundleInfo": {
         "additionalProperties": false,
         "properties": {
@@ -532,6 +643,304 @@
           }
         },
         "title": "DeployResponse",
+        "type": "object"
+      },
+      "EditOp": {
+        "additionalProperties": false,
+        "description": "One edit; ``none`` only evaluates. Moves and turns use world axes (m, quarter turns).",
+        "properties": {
+          "axis": {
+            "default": "z",
+            "enum": [
+              "x",
+              "y",
+              "z"
+            ],
+            "title": "Axis",
+            "type": "string"
+          },
+          "delta": {
+            "default": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Delta",
+            "type": "array"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "kind": {
+            "default": "none",
+            "enum": [
+              "none",
+              "move",
+              "rotate",
+              "delete",
+              "add",
+              "snap"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "path": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Path",
+            "type": "array"
+          },
+          "position": {
+            "default": [
+              0.0,
+              0.0,
+              0.05
+            ],
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Position",
+            "type": "array"
+          },
+          "turns": {
+            "default": 1,
+            "maximum": 3.0,
+            "minimum": -3.0,
+            "title": "Turns",
+            "type": "integer"
+          }
+        },
+        "title": "EditOp",
+        "type": "object"
+      },
+      "EditorConnector": {
+        "additionalProperties": false,
+        "properties": {
+          "axis": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Axis",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "pos": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Pos",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "pos",
+          "axis"
+        ],
+        "title": "EditorConnector",
+        "type": "object"
+      },
+      "EditorPartView": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox_hi": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Bbox Hi",
+            "type": "array"
+          },
+          "bbox_lo": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Bbox Lo",
+            "type": "array"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "color": {
+            "title": "Color",
+            "type": "integer"
+          },
+          "connectors": {
+            "items": {
+              "$ref": "#/components/schemas/EditorConnector"
+            },
+            "title": "Connectors",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "ldraw_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldraw Id"
+          },
+          "linked": {
+            "title": "Linked",
+            "type": "boolean"
+          },
+          "mirrored": {
+            "title": "Mirrored",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Path",
+            "type": "array"
+          },
+          "pos": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Pos",
+            "type": "array"
+          },
+          "quat": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Quat",
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "key",
+          "name",
+          "ldraw_id",
+          "category",
+          "color",
+          "pos",
+          "quat",
+          "bbox_lo",
+          "bbox_hi",
+          "mirrored",
+          "linked",
+          "connectors"
+        ],
+        "title": "EditorPartView",
         "type": "object"
       },
       "EgoView": {
@@ -2171,6 +2580,44 @@
         "title": "Role",
         "type": "string"
       },
+      "SaveAssembly": {
+        "additionalProperties": false,
+        "description": "An edited assembly (Construct editor, spec 0015) as a new version of an `assembly` object.",
+        "properties": {
+          "assembly": {
+            "additionalProperties": true,
+            "title": "Assembly",
+            "type": "object"
+          },
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "assembly"
+        ],
+        "title": "SaveAssembly",
+        "type": "object"
+      },
       "SaveFiles": {
         "additionalProperties": false,
         "properties": {
@@ -3018,6 +3465,38 @@
           "controller"
         ],
         "title": "SimStart",
+        "type": "object"
+      },
+      "SnapInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "connector": {
+            "title": "Connector",
+            "type": "string"
+          },
+          "distance_m": {
+            "title": "Distance M",
+            "type": "number"
+          },
+          "target": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Target",
+            "type": "array"
+          },
+          "target_connector": {
+            "title": "Target Connector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector",
+          "target",
+          "target_connector",
+          "distance_m"
+        ],
+        "title": "SnapInfo",
         "type": "object"
       },
       "SyncResult": {
@@ -3895,6 +4374,45 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/assembly/edit": {
+      "post": {
+        "description": "Apply one edit (move/rotate/delete/add/snap) and return the evaluated assembly.",
+        "operationId": "assembly_edit_api_v1_assembly_edit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssemblyEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssemblyEditResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assembly Edit"
+      }
+    },
     "/api/v1/car/bundle": {
       "post": {
         "description": "Build a test-mode deploy bundle (spec 0012).",
@@ -5178,6 +5696,44 @@
           }
         },
         "summary": "Ws Register"
+      }
+    },
+    "/api/v1/workspace/save/assembly": {
+      "post": {
+        "operationId": "ws_save_assembly_api_v1_workspace_save_assembly_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAssembly"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalVersion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Save Assembly"
       }
     },
     "/api/v1/workspace/save/files": {

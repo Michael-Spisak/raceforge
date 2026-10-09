@@ -9,9 +9,13 @@ import numpy as np
 
 from raceforge import __version__
 from raceforge.api.models import (
+    AssemblyEditRequest,
+    AssemblyEditResponse,
     CarScene,
     ControllerInfo,
     CorridorResponse,
+    EditorConnector,
+    EditorPartView,
     Health,
     PartSummary,
     Primitive,
@@ -20,6 +24,7 @@ from raceforge.api.models import (
     ReplaySummary,
     SceneBody,
     ScenePart,
+    SnapInfo,
     Warning,
 )
 from raceforge.construct.derive import derive
@@ -33,9 +38,9 @@ from raceforge.construct.quickstart import (
     generate,
     vehicle_spec,
 )
-from raceforge.core.assembly import Assembly
+from raceforge.core.assembly import Assembly, AssemblyError
 from raceforge.core.frames import iter_part_placements
-from raceforge.core.io import dump, to_jsonable
+from raceforge.core.io import dump, load_as, to_jsonable
 from raceforge.parts.catalogue import Catalogue
 from raceforge.parts.ldraw import library_dir
 from raceforge.sim.mjcf import build_mjcf
@@ -112,6 +117,75 @@ class Engine:
             derived=d,
             warnings=warnings,
             car=self.car_scene("car", res.assembly),
+        )
+
+    def edit_assembly(self, req: AssemblyEditRequest) -> AssemblyEditResponse:
+        """Apply one editor operation and evaluate the result (spec 0015)."""
+        from raceforge.construct import editor as ed
+
+        assembly = load_as(Assembly, req.assembly)
+        op = req.op
+        selected: list[str] | None = op.path or None
+        snapped: SnapInfo | None = None
+        if op.kind == "move":
+            assembly = ed.move(assembly, op.path, op.delta)
+        elif op.kind == "rotate":
+            assembly = ed.rotate(assembly, op.path, op.axis, op.turns)
+        elif op.kind == "delete":
+            assembly, selected = ed.delete(assembly, op.path), None
+        elif op.kind == "add":
+            if not op.key:
+                raise ValueError("key: which catalogue part to add")
+            assembly, selected = ed.add(assembly, self.cat, op.key, op.position)
+        if selected and (op.kind == "snap" or (req.snap and op.kind in ("move", "add"))):
+            res = ed.snap(assembly, self.cat, selected)
+            assembly = res.assembly
+            if res.snapped and res.connector and res.target and res.target_connector:
+                snapped = SnapInfo(
+                    connector=res.connector,
+                    target=list(res.target),
+                    target_connector=res.target_connector,
+                    distance_m=res.distance_m,
+                )
+        problems: list[str] = []
+        try:
+            assembly.validate_against_parts(self.cat.parts_by_hash())
+        except AssemblyError as e:
+            problems = [line for line in str(e).splitlines() if line.strip()]
+        spec = vehicle_spec(generate(req.quickstart, self.cat), self.cat)
+        d = dataclasses.asdict(derive(assembly, self.cat, spec))
+        warnings = [Warning(code=w["code"], message=w["message"]) for w in d.pop("warnings")]
+        parts = [
+            EditorPartView(
+                path=list(p.path),
+                key=p.key,
+                name=p.name,
+                ldraw_id=self.cat.entry(p.key).ldraw_id,
+                category=p.category,
+                color=COLOURS.get(self.cat.entry(p.key).category, 16),
+                pos=_v3(p.position),
+                quat=_mat_to_quat(p.rotation),
+                bbox_lo=_v3(p.bbox_lo),
+                bbox_hi=_v3(p.bbox_hi),
+                mirrored=p.mirrored,
+                linked=p.linked,
+                connectors=[
+                    EditorConnector(
+                        id=c.id, type=c.type.value, pos=_v3(c.position), axis=_v3(c.axis)
+                    )
+                    for c in p.connectors
+                ],
+            )
+            for p in ed.view(assembly, self.cat)
+        ]
+        return AssemblyEditResponse(
+            assembly=to_jsonable(assembly),
+            parts=parts,
+            derived=d,
+            warnings=warnings,
+            problems=problems,
+            selected=selected,
+            snapped=snapped,
         )
 
     def export(self, params: QuickStartParams, kind: str) -> tuple[str, str]:

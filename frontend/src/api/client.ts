@@ -118,6 +118,9 @@ export const api = {
   scan: (sha: string) => request<ScanDetail>(`/api/v1/scans/${sha}`),
   scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
   /** QR code for TrackScout's drive mode (spec 0010 C): the phone connects to the car directly. */
+  /** Construct editor (spec 0015): one operation on an assembly, evaluated by the engine. */
+  editAssembly: (req: Schemas["AssemblyEditRequest"]) =>
+    request<Schemas["AssemblyEditResponse"]>("/api/v1/assembly/edit", { method: "POST", body: JSON.stringify(req) }),
   /** Quick tracks (spec 0014): drawn corridors, saved in the engine. */
   quickTrackPreview: (q: QuickTrack) => request<QuickTrackPreview>("/api/v1/tracks/quick/preview", { method: "POST", body: JSON.stringify(q) }),
   quickTracks: () => request<QuickTrackInfo[]>("/api/v1/tracks/quick"),
@@ -156,6 +159,8 @@ export const workspace = {
   conflicts: () => request<Conflict[]>(`${W}/conflicts`),
   saveQuickstart: (slug: string, params: Partial<QuickStartParams>, message: string) =>
     request<LocalVersion>(`${W}/save/quickstart`, post({ slug, params, message })),
+  saveAssembly: (slug: string, assembly: Record<string, unknown>, message: string) =>
+    request<LocalVersion>(`${W}/save/assembly`, post({ slug, assembly, message })),
   saveFiles: (slug: string, paths: string[], message: string) =>
     request<LocalVersion>(`${W}/save/files`, post({ kind: "controller", slug, paths, message })),
   totpSetup: () => request<TotpSetup>(`${W}/totp/setup`, { method: "POST" }),
