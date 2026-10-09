@@ -233,20 +233,28 @@ class WorkspaceApi:
         """Queue a benchmark/tune for the team's workers; controller source travels inline."""
         from raceforge.api.tracks import QuickTracks
 
-        spec = req.bench or req.tune
-        if spec is None or (req.bench and req.tune):
-            raise ValueError("give exactly one of bench or tune")
-        controller = Path(spec.controller).expanduser()
+        if sum(x is not None for x in (req.bench, req.tune, req.rl)) != 1:
+            raise ValueError("give exactly one of bench, tune or rl")
+        if req.rl is not None:
+            from raceforge.api.train import ONNX_TEMPLATE
+
+            controller, race = ONNX_TEMPLATE, req.rl.race
+        else:
+            spec = req.bench or req.tune
+            assert spec is not None
+            controller, race = Path(spec.controller).expanduser(), spec.race
         if not controller.is_file():
             raise ValueError(f"controller not found: {controller}")
-        request: dict[str, Any] = {"race": spec.race.model_dump(mode="json")}
-        if spec.race.quick_track:  # drawn tracks live on this laptop: send the drawing along
-            q = QuickTracks().get(spec.race.quick_track)
+        request: dict[str, Any] = {"race": race.model_dump(mode="json")}
+        if race.quick_track:  # drawn tracks live on this laptop: send the drawing along
+            q = QuickTracks().get(race.quick_track)
             if q.loop:
-                q = q.model_copy(update={"laps": spec.race.laps})
+                q = q.model_copy(update={"laps": race.laps})
             request["race"]["quick"] = q.model_dump(mode="json")
         params_yaml = None
-        if req.tune is not None:
+        if req.rl is not None:
+            request.update(steps=req.rl.steps, train_tracks=req.rl.train_tracks)
+        elif req.tune is not None:
             request.update(
                 trials=req.tune.trials,
                 train_tracks=req.tune.train_tracks,
@@ -257,7 +265,7 @@ class WorkspaceApi:
         elif controller.with_suffix(".yaml").is_file():
             params_yaml = controller.with_suffix(".yaml").read_text(encoding="utf-8")
         job = JobCreate(
-            kind="tune" if req.tune else "benchmark",
+            kind="rl" if req.rl else "tune" if req.tune else "benchmark",
             request=request,
             controller_name=controller.name,
             controller_source=controller.read_text(encoding="utf-8"),
@@ -270,7 +278,7 @@ class WorkspaceApi:
         job = self.ws.client().job(job_id)
         text = (job.result or {}).get("params_yaml")
         if job.status != "done" or not isinstance(text, str):
-            raise ValueError("only a finished tune job has parameters")
+            raise ValueError("only a finished tune or RL job has parameters")
         out = Path(path).expanduser()
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")

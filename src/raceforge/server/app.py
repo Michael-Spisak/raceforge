@@ -64,6 +64,7 @@ from raceforge.api.models import (
     TrackScoutPairing,
     TrainBenchRequest,
     TrainJob,
+    TrainRLRequest,
     TrainTuneRequest,
     WorkspaceLogin,
     WorkspaceName,
@@ -538,6 +539,16 @@ def create_app(
             raise HTTPException(409, str(exc)) from exc
         except (ImportError, OSError, ValueError, SyntaxError) as exc:
             raise HTTPException(422, f"{type(exc).__name__}: {exc}") from exc
+
+    @app.post("/api/v1/train/rl")
+    def train_rl(req: TrainRLRequest) -> TrainJob:
+        """Start PPO training (spec 0022); needs the optional extra ``rl``."""
+        try:
+            return train_jobs.start_rl(req)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get("/api/v1/train/jobs")
     def train_job_list() -> list[TrainJob]:

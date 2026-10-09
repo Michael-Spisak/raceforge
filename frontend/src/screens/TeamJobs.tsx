@@ -66,7 +66,7 @@ export function TeamJobs({ refresh, controllerPath }: { refresh: number; control
                   {(j.status === "queued" || j.status === "running") && !j.cancel_requested && (
                     <button type="button" onClick={() => void workspace.cancelTeamJob(j.id).then(load)}>{t("train.cancel")}</button>
                   )}
-                  {j.status === "done" && j.kind === "tune" && <button type="button" onClick={() => saveParams(j)}>{t("train.save_params")}</button>}
+                  {j.status === "done" && (j.kind === "tune" || j.kind === "rl") && <button type="button" onClick={() => saveParams(j)}>{t("train.save_params")}</button>}
                 </td>
               </tr>
             );

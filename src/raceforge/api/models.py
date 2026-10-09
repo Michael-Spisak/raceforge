@@ -465,11 +465,21 @@ class TrainTuneRequest(ApiModel):
     race: TrainRace = TrainRace()
 
 
+class TrainRLRequest(ApiModel):
+    """PPO training (spec 0022); the policy goes into a params YAML for onnx_policy.py."""
+
+    steps: int = Field(default=200_000, ge=256, le=50_000_000)
+    train_tracks: int = Field(default=8, ge=1, le=200)
+    out: str | None = None  # params YAML (default: engine data folder / policies)
+    race: "TrainRace" = Field(default_factory=lambda: TrainRace())
+
+
 class TeamJobRequest(ApiModel):
-    """Run a training job on a team worker (spec 0020): exactly one of bench/tune."""
+    """Run a training job on a team worker (spec 0020): exactly one of bench/tune/rl."""
 
     bench: "TrainBenchRequest | None" = None
     tune: "TrainTuneRequest | None" = None
+    rl: "TrainRLRequest | None" = None
 
 
 class TrainRun(ApiModel):
@@ -490,12 +500,14 @@ class TrainTrial(ApiModel):
 
 class TrainJob(ApiModel):
     id: str
-    kind: Literal["benchmark", "tune"]
+    kind: Literal["benchmark", "tune", "rl"]
     controller: str
     state: Literal["running", "done", "error", "cancelled"]
     started_at: float
     finished_at: float | None = None
-    total: int  # runs (benchmark) or trials (tune)
+    total: int  # runs (benchmark), trials (tune) or environment steps (rl)
+    steps_done: int = 0  # rl
+    mean_reward: float | None = None  # rl: mean episode reward of the last rollout
     runs: list[TrainRun] = []
     trials: list[TrainTrial] = []
     score: float | None = None  # benchmark score / held-out score of the tuned params

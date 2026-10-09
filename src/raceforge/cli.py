@@ -279,6 +279,42 @@ def _bench_config(args: argparse.Namespace) -> "BenchConfig":
     )
 
 
+def _cmd_train_rl(args: argparse.Namespace) -> int:
+    """Spec 0022: PPO in the simulator → ONNX policy in a params YAML for onnx_policy.py."""
+    from raceforge.api.train import ONNX_TEMPLATE, EnvConfig, RLConfig, RLProgress, train_ppo
+
+    try:
+        bench = _bench_config(args)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    out = Path(args.out)
+    env = EnvConfig(
+        length_m=args.length, laps=args.laps, opponents=args.opponents, max_time_s=args.max_time
+    )
+
+    def line(p: RLProgress) -> None:
+        mean = "-" if p.mean_reward is None else f"{p.mean_reward:.1f}"
+        print(f"  {p.steps}/{p.total} steps · mean episode reward {mean}", flush=True)
+
+    try:
+        res = train_ppo(
+            RLConfig(
+                steps=args.steps, train_tracks=args.train_tracks, env=env, bench=bench, out=out
+            ),
+            line,
+        )
+    except ImportError as e:
+        print(f"error: {e}: install the extra: uv sync --extra rl", file=sys.stderr)
+        return 1
+    v = res.validation
+    if v is not None:
+        print(f"held-out score {v.score:.1f} · finished {v.finished_rate:.0%}")
+    print(f"policy written to {out}")
+    print(f"deploy it with: raceforge bundle {ONNX_TEMPLATE} --params {out} ...")
+    return 0
+
+
 def _cmd_train(args: argparse.Namespace) -> int:
     from raceforge.api.train import RunResult, Trial, TuneConfig, benchmark, tune
 
@@ -618,7 +654,11 @@ def main(argv: list[str] | None = None) -> int:
     ttune.add_argument("--timeout", type=float, help="stop after this many seconds")
     ttune.add_argument("--train-tracks", type=int, default=3, help="training corridors per trial")
     ttune.add_argument("--out", help="params YAML (default: <controller>.tuned.yaml)")
-    for p in (tbench, ttune):
+    trl = tsub.add_parser("rl", help="train a driving policy with PPO (needs the 'rl' extra)")
+    trl.add_argument("--steps", type=int, default=200_000, help="environment steps")
+    trl.add_argument("--train-tracks", type=int, default=8, help="training corridors")
+    trl.add_argument("--out", default="policy.yaml", help="params YAML for onnx_policy.py")
+    for p in (tbench, ttune, trl):
         p.add_argument("--tracks", type=int, default=5, help="held-out benchmark corridors")
         p.add_argument("--length", type=float, default=25.0, help="corridor length in m (20-120)")
         p.add_argument("--laps", type=int, default=1)
@@ -626,6 +666,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--max-time", type=float, default=240.0, help="seconds per race")
         p.add_argument("--workers", type=int, default=0, help="processes (0: CPUs - 1)")
         p.set_defaults(func=_cmd_train)
+    trl.set_defaults(func=_cmd_train_rl)
 
     cap = sub.add_parser("capture", help="TrackScout scans (.tscan, spec 0007)")
     csub = cap.add_subparsers(dest="capture_command", required=True)
