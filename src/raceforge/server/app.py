@@ -26,6 +26,7 @@ from raceforge.api.models import (
     BundleRequest,
     CarPairingCode,
     CarPairingRequest,
+    ConnectorDef,
     ConstructSettings,
     ControllerInfo,
     CorridorResponse,
@@ -198,6 +199,24 @@ def create_app(
         """Add an LDraw part to the team's local catalogue (unverified)."""
         try:
             return eng.add_local_part(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/parts/{key}/connectors")
+    def part_connectors(key: str) -> list[ConnectorDef]:
+        """Connectors of a part in its own frame (spec 0021)."""
+        try:
+            return eng.part_connectors(key)
+        except KeyError as exc:
+            raise HTTPException(404, f"no part {key!r}") from exc
+
+    @app.put("/api/v1/parts/{key}/connectors")
+    def part_set_connectors(key: str, defs: list[ConnectorDef]) -> list[ConnectorDef]:
+        """Replace the connectors of a 3D-printed part (clicked on its mesh, spec 0021)."""
+        try:
+            return eng.set_printed_connectors(key, defs)
+        except KeyError as exc:
+            raise HTTPException(404, f"no part {key!r}") from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
