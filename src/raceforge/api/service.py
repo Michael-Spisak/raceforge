@@ -11,6 +11,8 @@ from raceforge import __version__
 from raceforge.api.models import (
     AssemblyEditRequest,
     AssemblyEditResponse,
+    BudgetLine,
+    BudgetView,
     CarScene,
     ControllerInfo,
     CorridorResponse,
@@ -22,6 +24,7 @@ from raceforge.api.models import (
     QuickstartResponse,
     QuickstartSchema,
     ReplaySummary,
+    RuleCheck,
     SceneBody,
     ScenePart,
     SnapInfo,
@@ -178,6 +181,7 @@ class Engine:
             )
             for p in ed.view(assembly, self.cat)
         ]
+        rules, overlap_pairs, budget = self._rules(assembly, float(d["mass_kg"]))
         return AssemblyEditResponse(
             assembly=to_jsonable(assembly),
             parts=parts,
@@ -186,7 +190,60 @@ class Engine:
             problems=problems,
             selected=selected,
             snapped=snapped,
+            rules=rules,
+            overlaps=overlap_pairs,
+            budget=budget,
         )
+
+    def _rules(
+        self, assembly: Assembly, mass_kg: float
+    ) -> tuple[list[RuleCheck], list[list[list[str]]], BudgetView]:
+        """Rule checker, overlaps and budget (spec 0016) with the local Construct settings."""
+        from datetime import date
+
+        from raceforge.api.construct_settings import load_settings
+        from raceforge.construct import rules as r
+
+        cfg = load_settings()
+        shop = r.budget(
+            assembly, self.cat, {k: v.eur for k, v in cfg.prices.items()}, cfg.budget_eur
+        )
+        lim = cfg.limits
+        checks = r.check_rules(
+            assembly,
+            self.cat,
+            mass_kg,
+            shop,
+            r.Limits(lim.max_length_m, lim.max_width_m, lim.max_height_m, lim.max_mass_kg),
+        )
+        pairs = r.overlaps(assembly, self.cat)
+        rules = [
+            RuleCheck(id=c.id, ok=c.ok, params=c.params, paths=[list(p) for p in c.paths])
+            for c in checks
+        ]
+        rules.append(RuleCheck(id="overlaps", ok=not pairs, params={"count": len(pairs)}))
+
+        def stale(key: str) -> bool:
+            entry = cfg.prices.get(key)
+            if entry is None or not entry.date:
+                return False
+            try:
+                return (date.today() - date.fromisoformat(entry.date)).days > 30
+            except ValueError:
+                return False
+
+        view = BudgetView(
+            total_eur=round(shop.total_eur, 2),
+            limit_eur=shop.limit_eur,
+            missing=shop.missing,
+            items=[
+                BudgetLine(
+                    key=i.key, name=i.name, count=i.count, unit_eur=i.unit_eur, stale=stale(i.key)
+                )
+                for i in shop.items
+            ],
+        )
+        return rules, [[list(a), list(b)] for a, b in pairs], view
 
     def export(self, params: QuickStartParams, kind: str) -> tuple[str, str]:
         """Returns (filename, text)."""

@@ -5,6 +5,7 @@ import { formatLength, useSettings } from "../store/settings";
 import { useEditedCar } from "../store/editedCar";
 import { useWorkspace } from "../store/workspace";
 import { EditorParts } from "../three/EditorParts";
+import { RulesPanel } from "./RulesPanel";
 import { Viewport } from "../three/Viewport";
 
 type EditResponse = Schemas["AssemblyEditResponse"];
@@ -35,6 +36,7 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
   const [snapOn, setSnapOn] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
+  const [showOverlaps, setShowOverlaps] = useState(false);
   const [found, setFound] = useState<PartSummary[]>([]);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -111,6 +113,10 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
   }, [query]);
 
   const part = view?.parts.find((p) => same(p.path, selected));
+  const flagged = new Set<string>([
+    ...(view?.rules ?? []).flatMap((r) => r.paths.map((p) => p.join("/"))),
+    ...(showOverlaps ? (view?.overlaps ?? []).flatMap((pair) => pair.map((p) => p.join("/"))) : []),
+  ]);
   const derived = view?.derived as Record<string, number | null> | undefined;
   const addAt = (): [number, number, number] => {
     if (!part) return [0.06, 0, 0.12];
@@ -168,11 +174,15 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
           ))}
         </ul>
         <p className="muted">{t("editor.help")}</p>
+        {view && (
+          <RulesPanel rules={view.rules ?? []} budget={view.budget} showOverlaps={showOverlaps} onShowOverlaps={setShowOverlaps}
+                      onSelect={setSelected} onSettingsSaved={() => run(view.assembly, { kind: "none" }, false)} />
+        )}
         {view && <SaveAssembly assembly={view.assembly} disabled={view.problems.length > 0} />}
       </aside>
       <section className="main">
         <Viewport testId="editor-viewport">
-          {view && <EditorParts parts={view.parts} selected={selected} onSelect={setSelected} />}
+          {view && <EditorParts parts={view.parts} selected={selected} flagged={flagged} onSelect={setSelected} />}
           <gridHelper args={[1, 125, "#9aa1ab", "#c4c9d0"]} rotation-x={Math.PI / 2} />
         </Viewport>
         <div className="statusbar" data-testid="editor-status">

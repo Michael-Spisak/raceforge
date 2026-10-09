@@ -104,6 +104,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/construct/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Construct Settings Get
+         * @description Part prices, size/weight limits and budget for the rule checker (spec 0016).
+         */
+        get: operations["construct_settings_get_api_v1_construct_settings_get"];
+        /** Construct Settings Put */
+        put: operations["construct_settings_put_api_v1_construct_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/controllers": {
         parameters: {
             query?: never;
@@ -937,19 +958,57 @@ export interface components {
             assembly: {
                 [key: string]: unknown;
             };
+            budget?: components["schemas"]["BudgetView"] | null;
             /** Derived */
             derived: {
                 [key: string]: unknown;
             };
+            /**
+             * Overlaps
+             * @default []
+             */
+            overlaps: string[][][];
             /** Parts */
             parts: components["schemas"]["EditorPartView"][];
             /** Problems */
             problems: string[];
+            /**
+             * Rules
+             * @default []
+             */
+            rules: components["schemas"]["RuleCheck"][];
             /** Selected */
             selected?: string[] | null;
             snapped?: components["schemas"]["SnapInfo"] | null;
             /** Warnings */
             warnings: components["schemas"]["Warning"][];
+        };
+        /** BudgetLine */
+        BudgetLine: {
+            /** Count */
+            count: number;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
+            /** Unit Eur */
+            unit_eur: number | null;
+        };
+        /** BudgetView */
+        BudgetView: {
+            /** Items */
+            items: components["schemas"]["BudgetLine"][];
+            /** Limit Eur */
+            limit_eur: number;
+            /** Missing */
+            missing: string[];
+            /** Total Eur */
+            total_eur: number;
         };
         /** BundleInfo */
         BundleInfo: {
@@ -1023,6 +1082,37 @@ export interface components {
             slug: string;
             /** Versions */
             versions: components["schemas"]["LocalVersion"][];
+        };
+        /**
+         * ConstructLimits
+         * @description Size/weight limits from the race rules; empty until the teacher defines them.
+         */
+        ConstructLimits: {
+            /** Max Height M */
+            max_height_m?: number | null;
+            /** Max Length M */
+            max_length_m?: number | null;
+            /** Max Mass Kg */
+            max_mass_kg?: number | null;
+            /** Max Width M */
+            max_width_m?: number | null;
+        };
+        /** ConstructSettings */
+        ConstructSettings: {
+            /**
+             * Budget Eur
+             * @default 200
+             */
+            budget_eur: number;
+            /** @default {} */
+            limits: components["schemas"]["ConstructLimits"];
+            /**
+             * Prices
+             * @default {}
+             */
+            prices: {
+                [key: string]: components["schemas"]["PriceEntry"];
+            };
         };
         /** ControllerInfo */
         ControllerInfo: {
@@ -1554,6 +1644,21 @@ export interface components {
             /** Verified */
             verified: boolean;
         };
+        /** PriceEntry */
+        PriceEntry: {
+            /**
+             * Date
+             * @default
+             */
+            date: string;
+            /** Eur */
+            eur: number;
+            /**
+             * Link
+             * @default
+             */
+            link: string;
+        };
         /** Primitive */
         Primitive: {
             /** Color */
@@ -1911,6 +2016,25 @@ export interface components {
          * @enum {string}
          */
         Role: "admin" | "member";
+        /** RuleCheck */
+        RuleCheck: {
+            /** Id */
+            id: string;
+            /** Ok */
+            ok: boolean | null;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: string | number;
+            };
+            /**
+             * Paths
+             * @default []
+             */
+            paths: string[][];
+        };
         /**
          * SaveAssembly
          * @description An edited assembly (Construct editor, spec 0015) as a new version of an `assembly` object.
@@ -2753,6 +2877,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CarPairingCode"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    construct_settings_get_api_v1_construct_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConstructSettings"];
+                };
+            };
+        };
+    };
+    construct_settings_put_api_v1_construct_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConstructSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConstructSettings"];
                 };
             };
             /** @description Validation Error */

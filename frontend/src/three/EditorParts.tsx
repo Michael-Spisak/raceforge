@@ -9,7 +9,7 @@ type EditorPartView = Schemas["EditorPartView"];
 
 const pathKey = (p: readonly string[]) => p.join("/");
 
-function EditorPart({ part, selected, onSelect }: { part: EditorPartView; selected: boolean; onSelect: (path: string[]) => void }) {
+function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartView; selected: boolean; flagged: boolean; onSelect: (path: string[]) => void }) {
   const [object, setObject] = useState<Group | null>(null);
   useEffect(() => {
     let alive = true;
@@ -36,10 +36,10 @@ function EditorPart({ part, selected, onSelect }: { part: EditorPartView; select
           <meshStandardMaterial color={LDRAW_COLOURS[part.color] ?? "#8a8f99"} transparent opacity={0.85} />
         </mesh>
       )}
-      {selected && (
+      {(selected || flagged) && (
         <mesh position={centre}>
           <boxGeometry args={[size[0] + 0.002, size[1] + 0.002, size[2] + 0.002]} />
-          <meshBasicMaterial color="#ff9f1c" wireframe />
+          <meshBasicMaterial color={selected ? "#ff9f1c" : "#e63946"} wireframe />
         </mesh>
       )}
     </group>
@@ -47,13 +47,18 @@ function EditorPart({ part, selected, onSelect }: { part: EditorPartView; select
 }
 
 /** Parts of the edited assembly; click selects (spec 0015). Connectors of the selection are dots. */
-export function EditorParts({ parts, selected, onSelect }: { parts: EditorPartView[]; selected: string[] | null; onSelect: (path: string[]) => void }) {
+export function EditorParts({ parts, selected, flagged, onSelect }: {
+  parts: EditorPartView[];
+  selected: string[] | null;
+  flagged?: ReadonlySet<string>; // path keys drawn in red (overlaps, rule violations)
+  onSelect: (path: string[]) => void;
+}) {
   const sel = selected ? pathKey(selected) : "";
   const current = parts.find((p) => pathKey(p.path) === sel);
   return (
     <group>
       {parts.map((p) => (
-        <EditorPart key={pathKey(p.path)} part={p} selected={pathKey(p.path) === sel} onSelect={onSelect} />
+        <EditorPart key={pathKey(p.path)} part={p} selected={pathKey(p.path) === sel} flagged={!!flagged?.has(pathKey(p.path))} onSelect={onSelect} />
       ))}
       {current?.connectors.map((c) => (
         <mesh key={c.id} position={c.pos}>

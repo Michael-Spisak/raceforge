@@ -121,6 +121,10 @@ export const api = {
   /** Construct editor (spec 0015): one operation on an assembly, evaluated by the engine. */
   editAssembly: (req: Schemas["AssemblyEditRequest"]) =>
     request<Schemas["AssemblyEditResponse"]>("/api/v1/assembly/edit", { method: "POST", body: JSON.stringify(req) }),
+  /** Construct rule checker settings (spec 0016): prices, limits, budget. */
+  constructSettings: () => request<Schemas["ConstructSettings"]>("/api/v1/construct/settings"),
+  saveConstructSettings: (s: Schemas["ConstructSettings"]) =>
+    request<Schemas["ConstructSettings"]>("/api/v1/construct/settings", { method: "PUT", body: JSON.stringify(s) }),
   /** Quick tracks (spec 0014): drawn corridors, saved in the engine. */
   quickTrackPreview: (q: QuickTrack) => request<QuickTrackPreview>("/api/v1/tracks/quick/preview", { method: "POST", body: JSON.stringify(q) }),
   quickTracks: () => request<QuickTrackInfo[]>("/api/v1/tracks/quick"),
