@@ -33,3 +33,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0028 | MCP server v1 (parts, construction, sim, training, tracks, run logs) | 10–11 | implemented |
 | 0029 | Localisation v1: map, particle filter, racing line, localised controller | 8–9 | implemented |
 | 0030 | Race day v1: race bundles from the app, radio pre-check, checklist | 6–7 | implemented |
+| 0031 | Race start v1 (button, start cable) + Race Control (lights, timing, laps) | 10–11 | implemented |

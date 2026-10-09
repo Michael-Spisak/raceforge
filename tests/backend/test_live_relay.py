@@ -135,3 +135,27 @@ def test_share_throttles_frames_and_recorder_saves_a_run(
     blob = next(f for f in files if f.path == "telemetry.jsonl.gz")
     lines = gzip.decompress(ws.blob_path(blob.sha256).read_bytes()).decode().splitlines()
     assert len(lines) == 50  # the run log keeps the full rate
+
+
+def test_race_control_result_is_saved_as_a_run(env: Env, team: Team, tmp_path: Path) -> None:
+    """Spec 0031 AC4."""
+    from raceforge.api.models import RaceResult
+    from raceforge.api.race_control import save_result
+    from raceforge.backend.models import FileSetContent
+    from raceforge.workspace.sync import Workspace
+    from tests.backend.test_sync import Net, factory
+
+    ws = Workspace(tmp_path / "ws2", factory(env.client.app, Net()))
+    ws.login("http://b", "anna", MEMBER_PW, None)
+    ws.select(team.ws)
+    result = RaceResult(
+        laps=2,
+        started_at_ms=1_760_000_000_000,
+        cars=[{"name": "car-a", "laps": [9000, 18000], "dnf": False, "incidents": []}],
+        standings=[{"name": "car-a", "status": "finished", "time_ms": 18000}],
+    )
+    saved = save_result(ws, result)
+    run = next(o for o in ws.objects("run") if o.slug == saved.run)
+    assert run.latest is not None and "winner car-a" in run.latest.message
+    files = FileSetContent.model_validate(ws.version_content(run.latest.id)).files
+    assert [f.path for f in files] == ["race.json"]

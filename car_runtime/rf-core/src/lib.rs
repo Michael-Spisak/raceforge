@@ -4,8 +4,10 @@
 //! - [`safety`]: speed limit and teleop dead-man, enforced regardless of controller output.
 //! - [`link`]: connection to the Python controller host process (ADR-0014) with per-step deadline.
 //! - [`runtime`]: the fixed-rate control loop, fault latching and the supervisor watchdog.
+//! - [`start`]: race start gate (button + countdown, pull-away start cable; spec 0031).
 
 pub mod hw;
 pub mod link;
 pub mod runtime;
 pub mod safety;
+pub mod start;

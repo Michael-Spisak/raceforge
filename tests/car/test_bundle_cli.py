@@ -59,6 +59,21 @@ def test_race_flag_and_name(tmp_path: Path) -> None:
     assert cli([*args, "--race", "--name", "quali-1"]) == 0
     m = load_manifest(out)
     assert m.runtime.mode == "race" and m.name == "quali-1"
+    # spec 0031: a race bundle never drives off at boot; it waits for the start button
+    assert m.runtime.start is not None and m.runtime.start.methods == ["button"]
+
+
+def test_wire_start_needs_a_start_cable_port(tmp_path: Path) -> None:
+    raw = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    raw["runtime"]["start"] = {"methods": ["wire"], "countdown_s": 0}
+    path = tmp_path / "car.yaml"
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    out = tmp_path / "bundle"
+    assert cli(["bundle", str(CONTROLLER), "--car", str(path), "--out", str(out)]) == 1
+    raw["ev3"]["start_touch_port"] = "3"
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    assert cli(["bundle", str(CONTROLLER), "--car", str(path), "--out", str(out)]) == 0
+    assert load_manifest(out).runtime.start is not None
 
 
 def test_invalid_car_config_names_the_problem(

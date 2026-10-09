@@ -186,6 +186,9 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
     }
     let mut rt = Runtime::new(cfg, sensors, ev3.clone(), link, opts.setup_timeout)?;
     rt.set_restart(Box::new(spawn_host));
+    if let Some(start) = manifest.start_config()? {
+        rt.set_start(start);
+    }
     rt.add_sink(logger.clone());
     // Faults, resume and notes also go to stderr (the journal under systemd).
     let printer = Arc::new(journal::EventPrinter::start(Box::new(std::io::stderr())));

@@ -3900,6 +3900,62 @@
         "title": "QuickstartSchema",
         "type": "object"
       },
+      "RaceResult": {
+        "additionalProperties": false,
+        "description": "One race timed in Race Control: start signal time, laps per car, incidents, standings.",
+        "properties": {
+          "cars": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Cars",
+            "type": "array"
+          },
+          "laps": {
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Laps",
+            "type": "integer"
+          },
+          "standings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Standings",
+            "type": "array"
+          },
+          "started_at_ms": {
+            "exclusiveMinimum": 0.0,
+            "title": "Started At Ms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "laps",
+          "started_at_ms",
+          "cars"
+        ],
+        "title": "RaceResult",
+        "type": "object"
+      },
+      "RaceSaved": {
+        "additionalProperties": false,
+        "properties": {
+          "run": {
+            "title": "Run",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run"
+        ],
+        "title": "RaceSaved",
+        "type": "object"
+      },
       "RaceSetupEdit": {
         "additionalProperties": false,
         "description": "Missing fields fall back to the automatic values of spec 0014.",
@@ -7580,6 +7636,45 @@
           }
         },
         "summary": "Quickstart Schema"
+      }
+    },
+    "/api/v1/race-control/results": {
+      "post": {
+        "description": "Save a timed race as a `run` object (race.json) in the team workspace (spec 0031).",
+        "operationId": "race_control_save_api_v1_race_control_results_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaceResult"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RaceSaved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Race Control Save"
       }
     },
     "/api/v1/replays": {

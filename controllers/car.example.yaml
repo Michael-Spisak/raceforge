@@ -25,6 +25,7 @@ ev3:  # wiring and motor units (the EV3 program: ev3_side/)
   gyro: true
   estop_touch_port: "4"  # touch sensor used as emergency stop (null: none)
   resume_button: enter  # held 1 s after a fault: restart the controller
+  # start_touch_port: "3"  # pull-away start cable (touch contact; spec 0031)
 
 # lidar:  # LD06/LD19 on the board's UART (omit when the car has none)
 #   device: /dev/ttyUSB0
@@ -34,6 +35,9 @@ ev3:  # wiring and motor units (the EV3 program: ev3_side/)
 runtime:
   mode: test  # `raceforge bundle --race` switches to race mode
   test_speed_limit_m_s: 0.8  # test mode only; omit for the car's maximum
+  # start:  # wait in READY until a start signal (race bundles default to: button, 3 s)
+  #   methods: [button, wire]  # button + countdown and/or pulling the start cable
+  #   countdown_s: 3.0
 
 # telemetry:  # live telemetry + teleop in test mode (ws://<car>:8765/?token=...)
 #   bind: 0.0.0.0:8765

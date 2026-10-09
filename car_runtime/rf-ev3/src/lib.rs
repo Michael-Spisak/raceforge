@@ -67,6 +67,10 @@ pub struct Ev3Config {
     pub estop_touch_port: Option<usize>,
     /// EV3 button(s) that resume after a fault when held (default: centre button "enter").
     pub resume_buttons: u8,
+    /// EV3 button(s) that start the race (spec 0031; default: centre button "enter").
+    pub start_buttons: u8,
+    /// Sensor port index of the pull-away start cable (touch-sensor contact; spec 0031).
+    pub start_touch_port: Option<usize>,
     /// No valid frame for this long -> `link_lost` (the runtime then stops; spec: EV3 itself
     /// stops after 150 ms).
     pub link_timeout: Duration,
@@ -85,6 +89,8 @@ impl Default for Ev3Config {
             gyro: true,
             estop_touch_port: None,
             resume_buttons: 1 << 4,
+            start_buttons: 1 << 4,
+            start_touch_port: None,
             link_timeout: Duration::from_millis(100),
             keepalive: Duration::from_millis(10),
         }
@@ -150,6 +156,8 @@ impl Ev3Config {
                 || self.estop_touch_port.is_some_and(touch),
             link_lost: None,
             resume: f.buttons & self.resume_buttons != 0,
+            start_button: f.buttons & self.start_buttons != 0,
+            start_wire: self.start_touch_port.map(touch),
             ..SensorSnapshot::default()
         }
     }

@@ -49,6 +49,9 @@ pub struct Ev3Spec {
     /// EV3 button that resumes after a fault when held (`rf_ev3::BUTTONS` names).
     #[serde(default = "default_resume_button")]
     pub resume_button: String,
+    /// Sensor port of the pull-away start cable (spec 0031).
+    #[serde(default)]
+    pub start_touch_port: Option<String>,
 }
 
 fn default_resume_button() -> String {
@@ -100,6 +103,20 @@ pub struct RuntimeSpec {
     /// advertise the wireless USB class).
     #[serde(default)]
     pub radio_usb_ids: Vec<String>,
+    /// Wait for a start signal before driving (spec 0031); absent: drive at once.
+    #[serde(default)]
+    pub start: Option<StartSpec>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StartSpec {
+    /// `button` (start button + countdown) and/or `wire` (pull-away start cable).
+    pub methods: Vec<String>,
+    pub countdown_s: f64,
+    /// EV3 button that starts the countdown (`rf_ev3::BUTTONS` names).
+    #[serde(default = "default_resume_button")]
+    pub button: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -226,8 +243,43 @@ impl Manifest {
             resume_buttons: rf_ev3::button_mask(&e.resume_button).ok_or_else(|| {
                 BundleError::Invalid(format!("resume button {:?}", e.resume_button))
             })?,
+            start_buttons: match &self.runtime.start {
+                Some(st) => rf_ev3::button_mask(&st.button)
+                    .ok_or_else(|| BundleError::Invalid(format!("start button {:?}", st.button)))?,
+                None => Ev3Config::default().start_buttons,
+            },
+            start_touch_port: e.start_touch_port.as_deref().map(sensor_port).transpose()?,
             ..Ev3Config::default()
         })
+    }
+
+    /// The race start gate (spec 0031), if the bundle asks for one.
+    pub fn start_config(&self) -> Result<Option<rf_core::start::StartConfig>, BundleError> {
+        use rf_core::start::{StartConfig, StartMethod};
+        let Some(st) = &self.runtime.start else {
+            return Ok(None);
+        };
+        let methods = st
+            .methods
+            .iter()
+            .map(|m| match m.as_str() {
+                "button" => Ok(StartMethod::Button),
+                "wire" if self.ev3.start_touch_port.is_some() => Ok(StartMethod::Wire),
+                "wire" => Err(BundleError::Invalid(
+                    "start method wire needs ev3.start_touch_port".into(),
+                )),
+                other => Err(BundleError::Invalid(format!("start method {other:?}"))),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if methods.is_empty() || !(0.0..=30.0).contains(&st.countdown_s) {
+            return Err(BundleError::Invalid(
+                "start: at least one method and a countdown of 0-30 s".into(),
+            ));
+        }
+        Ok(Some(StartConfig {
+            methods,
+            countdown: Duration::from_secs_f64(st.countdown_s),
+        }))
     }
 
     /// (local bind address, EV3 address).

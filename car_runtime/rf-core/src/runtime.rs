@@ -222,6 +222,7 @@ pub struct Runtime<S: Sensors, A: Actuators + 'static> {
     degraded: Vec<String>,
     stalled: Arc<AtomicBool>,
     resume: Resume,
+    start_gate: Option<crate::start::StartGate>,
 }
 
 impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
@@ -258,6 +259,7 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
             degraded: Vec::new(),
             stalled: Arc::new(AtomicBool::new(false)),
             resume: Resume::default(),
+            start_gate: None,
         })
     }
 
@@ -270,6 +272,12 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
     /// controller is restarted only by the resume button or a new deploy).
     pub fn set_restart(&mut self, factory: ControllerFactory) {
         self.resume.factory = Some(Arc::new(Mutex::new(factory)));
+    }
+
+    /// Wait for a start signal before the controller drives (spec 0031). Without this the car
+    /// drives from the first tick.
+    pub fn set_start(&mut self, cfg: crate::start::StartConfig) {
+        self.start_gate = Some(crate::start::StartGate::new(cfg));
     }
 
     /// Add a consumer of tick records and events (MCAP logger, telemetry server).
@@ -522,6 +530,32 @@ impl<S: Sensors, A: Actuators + 'static> Runtime<S, A> {
         if let Some(what) = snap.link_lost {
             self.trip(Fault::LinkLost(what), false);
             return fault_stop(None);
+        }
+        if let Some(gate) = self.start_gate.as_mut() {
+            use crate::start::Gate;
+            match gate.update(Instant::now(), snap.start_button, snap.start_wire) {
+                Gate::Ready { wire_ready } => {
+                    self.act.send(DriveOutput::STOP);
+                    let state = if wire_ready { "ready_wire" } else { "ready" };
+                    return Outcome {
+                        obs: None,
+                        out: DriveOutput::STOP,
+                        state,
+                    };
+                }
+                Gate::Countdown(_) => {
+                    self.act.send(DriveOutput::STOP);
+                    return Outcome {
+                        obs: None,
+                        out: DriveOutput::STOP,
+                        state: "countdown",
+                    };
+                }
+                Gate::Go(Some(method)) => {
+                    self.event("start", format!("{method:?}").to_lowercase());
+                }
+                Gate::Go(None) => {}
+            }
         }
         if snap.degraded != self.degraded {
             let detail = if snap.degraded.is_empty() {

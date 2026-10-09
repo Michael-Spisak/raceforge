@@ -786,3 +786,17 @@ class CorridorWidth(ApiModel):
     median_m: float | None  # None: no closed cross-section along the line
     min_m: float | None
     samples: int
+
+
+# ------------------------------------------------------------------ race control (spec 0031)
+class RaceResult(ApiModel):
+    """One race timed in Race Control: start signal time, laps per car, incidents, standings."""
+
+    laps: int = Field(ge=1, le=50)
+    started_at_ms: float = Field(gt=0)  # epoch ms of the start signal (lights out)
+    cars: list[dict[str, Any]] = Field(min_length=1, max_length=20)
+    standings: list[dict[str, Any]] = Field(default_factory=list[dict[str, Any]])
+
+
+class RaceSaved(ApiModel):
+    run: str  # slug of the `run` object in the workspace
