@@ -15,7 +15,7 @@ race setup with the same rules as the procedural corridors, so every sim/benchma
   2D preview, a Tracks tab (draw, drag, delete, obstacles: bin/pillar/bench, loop/laps/width/corner radius),
   `SimStart.quick_track` to race on a saved quick track.
 - Out of scope: per-segment widths, doors/niches, team sync of quick tracks (workspace object later),
-  track editor on scans (weeks 8–9), using quick tracks in the Train tab (later).
+  track editor on scans (weeks 8–9).
 
 ## Interfaces (additive)
 - `QuickTrack {name, points: [(x, y)] (m, driving order), width_m 0.6–4, loop, laps, corner_radius_m?,
@@ -24,6 +24,8 @@ race setup with the same rules as the procedural corridors, so every sim/benchma
   direction, objects}` (never 4xx for an undrivable drawing: `ok: false` + reason).
 - `GET /api/v1/tracks/quick` → `[QuickTrackInfo]`; `GET|PUT|DELETE /api/v1/tracks/quick/{name}`.
 - `SimStart.quick_track: str | null` (name) replaces the procedural corridor.
+- `TrainRace.quick_track: str | null`: benchmark/tune on the drawn track; `tracks` = runs with other sim seeds
+  (sensor noise, object placement); training seeds from 0, held-out from 1000 as for corridors.
 - `raceforge.track.procedural.assemble_corridor(...)`: the shared wall/checkpoint/start-grid builder
   (the procedural generator's output is unchanged; verified against a 80-corridor golden hash).
 

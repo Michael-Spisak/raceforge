@@ -3382,6 +3382,17 @@
             "title": "Opponents",
             "type": "integer"
           },
+          "quick_track": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quick Track"
+          },
           "tracks": {
             "default": 5,
             "maximum": 100.0,

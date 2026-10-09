@@ -14,6 +14,7 @@ from typing import Any
 from raceforge.control.controller import load_controller, load_controller_class
 from raceforge.sim.simio import run_race
 from raceforge.track.procedural import CorridorParams
+from raceforge.track.quick import QuickTrack, build_quick_track
 from raceforge.train.common import TrackConfig, corridor_seeds, make_sim, race_distance_m
 
 HELD_OUT_SEED0 = 1000  # tuning uses seeds from 0; the benchmark corridors start here
@@ -28,6 +29,7 @@ class BenchConfig:
     opponents: int = 0
     max_time_s: float = 240.0
     workers: int = 0  # 0: CPU count - 1
+    quick: QuickTrack | None = None  # race on this drawn track; ``tracks`` = runs with other seeds
 
 
 @dataclass(frozen=True)
@@ -107,10 +109,21 @@ def benchmark(
     progress: Callable[[RunResult], None] | None = None,
 ) -> BenchResult:
     cfg = cfg or BenchConfig()
-    CorridorParams(length_m=cfg.length_m)  # bad settings fail here, not as silent DNFs
+    if cfg.quick is not None:
+        build_quick_track(cfg.quick)  # an undrivable track fails here, not as silent DNFs
+        seeds: tuple[int, ...] = tuple(range(cfg.seed0, cfg.seed0 + cfg.tracks))
+    else:
+        CorridorParams(length_m=cfg.length_m)  # bad settings fail here, not as silent DNFs
+        seeds = corridor_seeds(cfg.seed0, cfg.tracks, cfg.length_m)
     tracks = [
-        TrackConfig(seed=seed, length_m=cfg.length_m, laps=cfg.laps, opponents=cfg.opponents)
-        for seed in corridor_seeds(cfg.seed0, cfg.tracks, cfg.length_m)
+        TrackConfig(
+            seed=seed,
+            length_m=cfg.length_m,
+            laps=cfg.laps,
+            opponents=cfg.opponents,
+            quick=cfg.quick,
+        )
+        for seed in seeds
     ]
     p: Mapping[str, Any] | str | None = str(params) if isinstance(params, Path) else params
     workers = _workers(cfg.workers, len(tracks))

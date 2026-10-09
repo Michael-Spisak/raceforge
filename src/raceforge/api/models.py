@@ -388,6 +388,7 @@ class TrainRace(ApiModel):
     laps: int = Field(default=1, ge=1, le=10)
     opponents: int = Field(default=0, ge=0, le=5)
     max_time_s: float = Field(default=240.0, ge=10.0, le=3600.0)
+    quick_track: str | None = None  # race on this saved quick track (spec 0014): `tracks` = runs
 
 
 class TrainBenchRequest(ApiModel):

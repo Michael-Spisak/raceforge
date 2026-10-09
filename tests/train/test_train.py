@@ -52,3 +52,11 @@ def test_tune_writes_loadable_params_not_worse_on_training(tmp_path: Path) -> No
     assert res.train_score <= res.default_train_score
     params = load_controller_class(CENTERING).Params.from_yaml(out)
     assert params.model_dump() == res.best_params
+
+
+def test_benchmark_on_a_drawn_track() -> None:
+    from raceforge.track.quick import QuickTrack
+
+    rect = QuickTrack(points=[(0, 0), (10, 0), (10, 5), (0, 5)], width_m=1.6, laps=1)
+    res = benchmark(CENTERING, None, BenchConfig(tracks=2, max_time_s=150.0, workers=2, quick=rect))
+    assert [r.seed for r in res.runs] == [1000, 1001] and res.finished_rate == 1.0
