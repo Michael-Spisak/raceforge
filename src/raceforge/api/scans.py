@@ -21,6 +21,7 @@ from raceforge.api.models import (
 from raceforge.api.workspace import WorkspaceApi
 from raceforge.capture.floorplan import Floorplan
 from raceforge.capture.tscan import ARKIT_CLASSES, TscanError, TscanPass
+from raceforge.track.scan_walls import ScanGrid, encode_grid
 from raceforge.workspace.client import BackendError, OfflineError
 from raceforge.workspace.sync import file_sha256
 
@@ -215,6 +216,11 @@ class ScanApi:
                 (round(x, 3), round(y, 3)) for x, y, _ in traj[:: max(1, len(traj) // 400)]
             ],
         )
+
+    def grid(self, sha: str) -> ScanGrid:
+        """The car-height grid to embed in a quick track with walls from the scan (spec 0032)."""
+        fp = self._floorplan(sha, 0.05, 0.05, 0.5)
+        return encode_grid(fp.occupied, fp.origin, fp.resolution, sha)
 
     def corridor_width(self, sha: str, points: list[tuple[float, float]]) -> CorridorWidth:
         from raceforge.capture.floorplan import corridor_widths

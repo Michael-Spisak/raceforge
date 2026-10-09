@@ -122,3 +122,5 @@ def test_floorplan_and_width_endpoints(tmp_path: Path, cat: Catalogue) -> None:
     assert len(fp["trajectory"]) > 0
     w = engine.post(f"/api/v1/scans/{sha}/corridor-width", json={"points": [[0, 1], [2, 1]]}).json()
     assert w["median_m"] is None and w["samples"] == 0  # one wall only: no closed cross-section
+    g = engine.get(f"/api/v1/scans/{sha}/grid").json()  # spec 0032
+    assert g["source_sha256"] == sha and (g["width"], g["height"]) == (fp["width"], fp["height"])

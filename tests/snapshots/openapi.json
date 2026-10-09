@@ -3427,6 +3427,16 @@
             "title": "Points",
             "type": "array"
           },
+          "scan_walls": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanGrid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "underlay_sha256": {
             "anyOf": [
               {
@@ -4707,6 +4717,67 @@
           "bounds"
         ],
         "title": "ScanDetail",
+        "type": "object"
+      },
+      "ScanGrid": {
+        "additionalProperties": false,
+        "description": "Occupancy grid in world metres: bit ``row * width + col`` set = blocked (row = y).",
+        "properties": {
+          "bits_b64": {
+            "title": "Bits B64",
+            "type": "string"
+          },
+          "height": {
+            "minimum": 1.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "origin": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Origin",
+            "type": "array"
+          },
+          "resolution": {
+            "maximum": 0.5,
+            "minimum": 0.01,
+            "title": "Resolution",
+            "type": "number"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sha256"
+          },
+          "width": {
+            "minimum": 1.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "origin",
+          "resolution",
+          "width",
+          "height",
+          "bits_b64"
+        ],
+        "title": "ScanGrid",
         "type": "object"
       },
       "ScanMesh": {
@@ -7640,7 +7711,7 @@
     },
     "/api/v1/race-control/results": {
       "post": {
-        "description": "Save a timed race as a `run` object (race.json) in the team workspace (spec 0031).",
+        "description": "Save a timed race as a `run` object (race.json) in the team workspace (spec 0032).",
         "operationId": "race_control_save_api_v1_race_control_results_post",
         "requestBody": {
           "content": {
@@ -7940,6 +8011,46 @@
         "summary": "Scan Floorplan"
       }
     },
+    "/api/v1/scans/{sha256}/grid": {
+      "get": {
+        "description": "Car-height occupancy grid for quick-track walls from the scan (spec 0032).",
+        "operationId": "scan_grid_api_v1_scans__sha256__grid_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sha256",
+            "required": true,
+            "schema": {
+              "title": "Sha256",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanGrid"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scan Grid"
+      }
+    },
     "/api/v1/scans/{sha256}/mesh": {
       "get": {
         "operationId": "scan_mesh_api_v1_scans__sha256__mesh_get",
@@ -8232,7 +8343,7 @@
     },
     "/api/v1/tracks/quick/{name}/localisation": {
       "post": {
-        "description": "Params for the `localised` controller (map + racing line, spec 0029) to ``path``.",
+        "description": "Params for the `localised` controller (map + racing line, spec 0032) to ``path``.",
         "operationId": "quick_track_localisation_api_v1_tracks_quick__name__localisation_post",
         "parameters": [
           {

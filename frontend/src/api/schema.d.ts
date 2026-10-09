@@ -396,7 +396,7 @@ export interface paths {
         put?: never;
         /**
          * Race Control Save
-         * @description Save a timed race as a `run` object (race.json) in the team workspace (spec 0031).
+         * @description Save a timed race as a `run` object (race.json) in the team workspace (spec 0032).
          */
         post: operations["race_control_save_api_v1_race_control_results_post"];
         delete?: never;
@@ -505,6 +505,26 @@ export interface paths {
          * @description Car-height floor plan of a pass (spec 0024): underlay for drawing quick tracks.
          */
         get: operations["scan_floorplan_api_v1_scans__sha256__floorplan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans/{sha256}/grid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Scan Grid
+         * @description Car-height occupancy grid for quick-track walls from the scan (spec 0032).
+         */
+        get: operations["scan_grid_api_v1_scans__sha256__grid_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -634,7 +654,7 @@ export interface paths {
         put?: never;
         /**
          * Quick Track Localisation
-         * @description Params for the `localised` controller (map + racing line, spec 0029) to ``path``.
+         * @description Params for the `localised` controller (map + racing line, spec 0032) to ``path``.
          */
         post: operations["quick_track_localisation_api_v1_tracks_quick__name__localisation_post"];
         delete?: never;
@@ -2697,6 +2717,7 @@ export interface components {
                 number,
                 number
             ][];
+            scan_walls?: components["schemas"]["ScanGrid"] | null;
             /** Underlay Sha256 */
             underlay_sha256?: string | null;
             /**
@@ -3153,6 +3174,27 @@ export interface components {
             trajectory_kept: boolean[];
             /** Trajectory Segment */
             trajectory_segment: number[];
+        };
+        /**
+         * ScanGrid
+         * @description Occupancy grid in world metres: bit ``row * width + col`` set = blocked (row = y).
+         */
+        ScanGrid: {
+            /** Bits B64 */
+            bits_b64: string;
+            /** Height */
+            height: number;
+            /** Origin */
+            origin: [
+                number,
+                number
+            ];
+            /** Resolution */
+            resolution: number;
+            /** Source Sha256 */
+            source_sha256?: string | null;
+            /** Width */
+            width: number;
         };
         /**
          * ScanMesh
@@ -4840,6 +4882,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FloorplanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_grid_api_v1_scans__sha256__grid_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanGrid"];
                 };
             };
             /** @description Validation Error */
