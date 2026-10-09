@@ -521,6 +521,59 @@
         "title": "CarScene",
         "type": "object"
       },
+      "CheckResult": {
+        "properties": {
+          "a": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "A",
+            "type": "array"
+          },
+          "b": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "B",
+            "type": "array"
+          },
+          "error_m": {
+            "title": "Error M",
+            "type": "number"
+          },
+          "measured_m": {
+            "title": "Measured M",
+            "type": "number"
+          },
+          "model_m": {
+            "title": "Model M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "measured_m",
+          "model_m",
+          "error_m"
+        ],
+        "title": "CheckResult",
+        "type": "object"
+      },
       "Conflict": {
         "properties": {
           "object_id": {
@@ -947,6 +1000,135 @@
         "title": "DeployResponse",
         "type": "object"
       },
+      "EditCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "A",
+            "type": "array"
+          },
+          "b": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "B",
+            "type": "array"
+          },
+          "measured_m": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 500.0,
+            "title": "Measured M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "measured_m"
+        ],
+        "title": "EditCheck",
+        "type": "object"
+      },
+      "EditObject": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "box",
+              "cone",
+              "bin",
+              "pillar",
+              "bench",
+              "opponent"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "randomisation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EditRandom"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "static": {
+            "default": true,
+            "title": "Static",
+            "type": "boolean"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          },
+          "yaw_deg": {
+            "default": 0.0,
+            "title": "Yaw Deg",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "x",
+          "y"
+        ],
+        "title": "EditObject",
+        "type": "object"
+      },
       "EditOp": {
         "additionalProperties": false,
         "description": "One edit; ``none`` only evaluates. Moves and turns use world axes (m, quarter turns).",
@@ -1066,6 +1248,84 @@
           }
         },
         "title": "EditOp",
+        "type": "object"
+      },
+      "EditRandom": {
+        "additionalProperties": false,
+        "properties": {
+          "position_xy_m": {
+            "default": 0.0,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Position Xy M",
+            "type": "number"
+          },
+          "presence_prob": {
+            "default": 1.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Presence Prob",
+            "type": "number"
+          },
+          "yaw_deg": {
+            "default": 0.0,
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Yaw Deg",
+            "type": "number"
+          }
+        },
+        "title": "EditRandom",
+        "type": "object"
+      },
+      "EditSurface": {
+        "additionalProperties": false,
+        "properties": {
+          "friction": {
+            "default": 0.5,
+            "exclusiveMinimum": 0.0,
+            "maximum": 2.0,
+            "title": "Friction",
+            "type": "number"
+          },
+          "lidar_reflectivity": {
+            "default": 0.8,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Lidar Reflectivity",
+            "type": "number"
+          },
+          "material": {
+            "default": "floor",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Material",
+            "type": "string"
+          },
+          "polygon": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 100,
+            "minItems": 3,
+            "title": "Polygon",
+            "type": "array"
+          }
+        },
+        "required": [
+          "polygon"
+        ],
+        "title": "EditSurface",
         "type": "object"
       },
       "EditorConnector": {
@@ -2913,6 +3173,16 @@
             ],
             "title": "Corner Radius M"
           },
+          "edit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "friction": {
             "default": 0.75,
             "exclusiveMinimum": 0.0,
@@ -3089,6 +3359,52 @@
             "title": "Centreline",
             "type": "array"
           },
+          "checkpoints": {
+            "default": [],
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Checkpoints",
+            "type": "array"
+          },
+          "checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
           "direction": {
             "anyOf": [
               {
@@ -3121,10 +3437,72 @@
             ],
             "title": "Error"
           },
+          "finish_line": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finish Line"
+          },
           "length_m": {
             "default": 0.0,
             "title": "Length M",
             "type": "number"
+          },
+          "no_go_zones": {
+            "default": [],
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "No Go Zones",
+            "type": "array"
           },
           "objects": {
             "default": [],
@@ -3137,6 +3515,27 @@
           "ok": {
             "title": "Ok",
             "type": "boolean"
+          },
+          "start_grid": {
+            "default": [],
+            "items": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Start Grid",
+            "type": "array"
           },
           "start_line": {
             "anyOf": [
@@ -3178,6 +3577,34 @@
               }
             ],
             "title": "Start Line"
+          },
+          "surfaces": {
+            "default": [],
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Surfaces",
+            "type": "array"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ValidationReport",
+            "default": {
+              "items": [],
+              "ok": true
+            }
           },
           "walls": {
             "default": [],
@@ -3268,6 +3695,237 @@
           "options"
         ],
         "title": "QuickstartSchema",
+        "type": "object"
+      },
+      "RaceSetupEdit": {
+        "additionalProperties": false,
+        "description": "Missing fields fall back to the automatic values of spec 0014.",
+        "properties": {
+          "checkpoints": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    },
+                    {
+                      "maxItems": 2,
+                      "minItems": 2,
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "type": "array"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 1000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoints"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "finish_line": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finish Line"
+          },
+          "grid_cars": {
+            "anyOf": [
+              {
+                "maximum": 8.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grid Cars"
+          },
+          "grid_poses": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 3,
+                  "minItems": 3,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grid Poses"
+          },
+          "laps": {
+            "anyOf": [
+              {
+                "maximum": 20.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Laps"
+          },
+          "no_go_zones": {
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "maxItems": 50,
+            "title": "No Go Zones",
+            "type": "array"
+          },
+          "start_line": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "type": "array"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Line"
+          }
+        },
+        "title": "RaceSetupEdit",
         "type": "object"
       },
       "ReceiveRequest": {
@@ -4440,6 +5098,11 @@
             ],
             "title": "Assembly"
           },
+          "battery": {
+            "default": false,
+            "title": "Battery",
+            "type": "boolean"
+          },
           "controller": {
             "title": "Controller",
             "type": "string"
@@ -4720,6 +5383,61 @@
           "uri"
         ],
         "title": "TotpSetup",
+        "type": "object"
+      },
+      "TrackEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/EditCheck"
+            },
+            "maxItems": 100,
+            "title": "Checks",
+            "type": "array"
+          },
+          "max_car_width_m": {
+            "default": 0.35,
+            "exclusiveMinimum": 0.05,
+            "maximum": 1.5,
+            "title": "Max Car Width M",
+            "type": "number"
+          },
+          "objects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EditObject"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objects"
+          },
+          "race_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RaceSetupEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "surfaces": {
+            "items": {
+              "$ref": "#/components/schemas/EditSurface"
+            },
+            "maxItems": 50,
+            "title": "Surfaces",
+            "type": "array"
+          }
+        },
+        "title": "TrackEdit",
         "type": "object"
       },
       "TrackScoutPairing": {
@@ -5369,6 +6087,74 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "ValidationItem": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "where": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Where"
+          }
+        },
+        "required": [
+          "severity",
+          "code",
+          "message"
+        ],
+        "title": "ValidationItem",
+        "type": "object"
+      },
+      "ValidationReport": {
+        "properties": {
+          "items": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ValidationItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "ValidationReport",
         "type": "object"
       },
       "Warning": {
@@ -6859,6 +7645,44 @@
           }
         },
         "summary": "Quick Track Preview"
+      }
+    },
+    "/api/v1/tracks/quick/validate": {
+      "post": {
+        "operationId": "quick_track_validate_api_v1_tracks_quick_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickTrack"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quick Track Validate"
       }
     },
     "/api/v1/tracks/quick/{name}": {

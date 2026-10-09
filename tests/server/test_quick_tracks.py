@@ -53,3 +53,41 @@ def test_laps_and_obstacles() -> None:
     )
     c = build_quick_track(q)
     assert c.track.race_setups[0].laps == 2 and c.track.objects[0].class_id == "bin"
+
+
+def test_edited_track_roundtrip_and_race(client: TestClient) -> None:
+    """Spec 0025: edited setup is saved, validated and raced on."""
+    edit = {
+        "race_setup": {"grid_cars": 2},
+        "checks": [{"a": [0, 0], "b": [10, 0], "measured_m": 10}],
+    }
+    body = {**RECT, "edit": edit}
+    pv = client.put("/api/v1/tracks/quick/edited", json=body).json()
+    assert pv["ok"] and len(pv["start_grid"]) == 2 and pv["checks"][0]["error_m"] == 0
+    assert client.get("/api/v1/tracks/quick/edited").json()["edit"]["race_setup"]["grid_cars"] == 2
+    val = client.post("/api/v1/tracks/quick/validate", json=body).json()
+    assert val["ok"]
+    start = {
+        "controller": str(TEMPLATES_DIR / "centering.py"),
+        "quick_track": "edited",
+        "speed": 1000,
+    }
+    with client.websocket_connect("/api/v1/sim") as ws:
+        ws.send_json(start)
+        msg = ws.receive_json()
+        while msg["type"] != "result":
+            msg = ws.receive_json()
+    assert msg["finished"], msg
+
+
+def test_sim_start_with_battery(client: TestClient) -> None:
+    """Spec 0026: the battery option reaches the sim and the car still finishes."""
+    start = {"controller": str(TEMPLATES_DIR / "centering.py"), "battery": True, "speed": 1000}
+    client.put("/api/v1/tracks/quick/b", json=RECT)
+    start["quick_track"] = "b"
+    with client.websocket_connect("/api/v1/sim") as ws:
+        ws.send_json(start)
+        msg = ws.receive_json()
+        while msg["type"] != "result":
+            msg = ws.receive_json()
+    assert msg["finished"], msg

@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from raceforge.car.deploy import InstallResult
 from raceforge.construct.quickstart import QuickStartParams
+from raceforge.track.edit import CheckResult, ValidationReport
 from raceforge.track.procedural import CorridorParams
 
 V3 = tuple[float, float, float]
@@ -176,6 +177,7 @@ class SimStart(ApiModel):
     quickstart: QuickStartParams | None = None
     record_path: str | None = None
     quick_track: str | None = None  # name of a saved quick track (spec 0014) instead of `corridor`
+    battery: bool = False  # model the motor battery: sag, charge, brownout (spec 0026)
     assembly: dict[str, Any] | None = None  # edited car (Construct editor, spec 0015) for "ego"
 
 
@@ -608,6 +610,14 @@ class QuickTrackPreview(ApiModel):
     start_line: tuple[tuple[float, float], tuple[float, float]] | None = None
     direction: tuple[float, float] | None = None
     objects: list[QuickTrackObject] = []
+    # Track editor (spec 0025).
+    finish_line: tuple[tuple[float, float], tuple[float, float]] | None = None
+    start_grid: list[tuple[float, float, float]] = []  # x, y, yaw (rad)
+    checkpoints: list[tuple[tuple[float, float], tuple[float, float]]] = []
+    no_go_zones: list[list[tuple[float, float]]] = []
+    surfaces: list[list[tuple[float, float]]] = []  # drawn regions (not the base floor)
+    checks: list[CheckResult] = []
+    validation: ValidationReport = ValidationReport()
 
 
 # ------------------------------------------------------------------ assembly editor (spec 0015)

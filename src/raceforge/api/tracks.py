@@ -8,6 +8,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from raceforge.api.models import QuickTrackInfo, QuickTrackObject, QuickTrackPreview
+from raceforge.track.edit import ValidationReport, check_results, validate
 from raceforge.track.procedural import Corridor, GenerationError
 from raceforge.track.quick import QuickTrack, build_quick_track
 
@@ -30,7 +31,7 @@ def _r(v: float) -> float:
     return round(float(v), 3)
 
 
-def preview_of(corridor: Corridor) -> QuickTrackPreview:
+def preview_of(corridor: Corridor, q: QuickTrack | None = None) -> QuickTrackPreview:
     track = corridor.track
     setup = track.race_setups[0]
     return QuickTrackPreview(
@@ -46,6 +47,18 @@ def preview_of(corridor: Corridor) -> QuickTrackPreview:
             (_r(setup.start_line.b.x), _r(setup.start_line.b.y)),
         ),
         direction=(_r(setup.direction.x), _r(setup.direction.y)),
+        finish_line=(
+            (_r(setup.finish_line.a.x), _r(setup.finish_line.a.y)),
+            (_r(setup.finish_line.b.x), _r(setup.finish_line.b.y)),
+        ),
+        start_grid=[(_r(g.x), _r(g.y), _r(g.theta)) for g in setup.start_grid],
+        checkpoints=[
+            ((_r(c.a.x), _r(c.a.y)), (_r(c.b.x), _r(c.b.y))) for c in setup.checkpoints[::2]
+        ],
+        no_go_zones=[[(_r(p.x), _r(p.y)) for p in z.points] for z in setup.no_go_zones],
+        surfaces=[[(_r(p.x), _r(p.y)) for p in s.polygon.points] for s in track.surfaces[1:]],
+        checks=check_results(corridor),
+        validation=validate(corridor, q.edit if q else None),
         objects=[
             QuickTrackObject(
                 kind=o.class_id,
@@ -60,9 +73,20 @@ def preview_of(corridor: Corridor) -> QuickTrackPreview:
     )
 
 
+def validation(q: QuickTrack) -> ValidationReport:
+    try:
+        return validate(build_quick_track(q), q.edit)
+    except GenerationError as e:
+        from raceforge.track.edit import ValidationItem
+
+        return ValidationReport(
+            ok=False, items=[ValidationItem(severity="error", code="undrivable", message=str(e))]
+        )
+
+
 def preview(q: QuickTrack) -> QuickTrackPreview:
     try:
-        return preview_of(build_quick_track(q))
+        return preview_of(build_quick_track(q), q)
     except GenerationError as e:
         return QuickTrackPreview(ok=False, error=str(e))
 

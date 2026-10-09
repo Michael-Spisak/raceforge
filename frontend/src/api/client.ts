@@ -28,6 +28,8 @@ export type InstallResult = Schemas["InstallResult"];
 export type TrainRace = Schemas["TrainRace"];
 export type QuickTrack = Schemas["QuickTrack"];
 export type QuickObstacle = Schemas["QuickObstacle"];
+export type TrackEdit = Schemas["TrackEdit"];
+export type EditObject = Schemas["EditObject"];
 export type QuickTrackInfo = Schemas["QuickTrackInfo"];
 export type QuickTrackPreview = Schemas["QuickTrackPreview"];
 export type TrainJob = Schemas["TrainJob"];
@@ -141,6 +143,7 @@ export const api = {
     request<Schemas["ConstructSettings"]>("/api/v1/construct/settings", { method: "PUT", body: JSON.stringify(s) }),
   /** Quick tracks (spec 0014): drawn corridors, saved in the engine. */
   quickTrackPreview: (q: QuickTrack) => request<QuickTrackPreview>("/api/v1/tracks/quick/preview", { method: "POST", body: JSON.stringify(q) }),
+  quickTrackValidate: (q: QuickTrack) => request<Schemas["ValidationReport"]>("/api/v1/tracks/quick/validate", { method: "POST", body: JSON.stringify(q) }),
   quickTracks: () => request<QuickTrackInfo[]>("/api/v1/tracks/quick"),
   quickTrack: (name: string) => request<QuickTrack>(`/api/v1/tracks/quick/${encodeURIComponent(name)}`),
   saveQuickTrack: (name: string, q: QuickTrack) =>

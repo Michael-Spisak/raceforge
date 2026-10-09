@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 from raceforge.core.primitives import Vec3
 from raceforge.core.track import SurfaceRegion, TrackObject
+from raceforge.track.edit import TrackEdit, apply_edit
 from raceforge.track.procedural import (
     BUILTIN_CLASSES,
     SAMPLE_M,
@@ -58,6 +59,7 @@ class QuickTrack(BaseModel):
     obstacles: list[QuickObstacle] = Field(default_factory=list[QuickObstacle], max_length=200)
     wall_height_m: float = Field(default=2.5, gt=0, le=10.0)
     friction: float = Field(default=0.75, gt=0, le=2.0)
+    edit: TrackEdit | None = None  # track editor layer (spec 0025)
 
     @model_validator(mode="after")
     def _check(self) -> "QuickTrack":
@@ -124,8 +126,9 @@ def build_quick_track(q: QuickTrack) -> Corridor:
             "classes": BUILTIN_CLASSES,
         }
     )
-    return Corridor(
-        track=track, centreline=corridor.centreline, widths=corridor.widths, s=corridor.s
+    return apply_edit(
+        Corridor(track=track, centreline=corridor.centreline, widths=corridor.widths, s=corridor.s),
+        q.edit,
     )
 
 
