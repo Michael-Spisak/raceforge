@@ -111,6 +111,8 @@ def run_job(job: WorkerJob, report: Callable[[dict[str, Any], list[str]], bool])
                 "finished_rate": res.finished_rate,
                 "runs": [asdict(r) for r in res.runs],
             }
+        if job.kind == "rl":
+            return _run_rl(job, bench, Path(tmp), report)
         trials = int(job.request.get("trials", 30))
 
         def on_trial(t: Trial, best: Trial) -> None:
@@ -135,6 +137,48 @@ def run_job(job: WorkerJob, report: Callable[[dict[str, Any], list[str]], bool])
             "params_yaml": out.read_text(encoding="utf-8"),
             "trials": [{"number": t.number, "score": t.score} for t in res.trials],
         }
+
+
+def _run_rl(
+    job: WorkerJob,
+    bench: BenchConfig,
+    tmp: Path,
+    report: Callable[[dict[str, Any], list[str]], bool],
+) -> dict[str, Any]:
+    from raceforge.api.train import EnvConfig, RLConfig, RLProgress, train_ppo
+
+    steps = int(job.request.get("steps", 200_000))
+
+    def on_progress(p: RLProgress) -> None:
+        mean = "-" if p.mean_reward is None else f"{p.mean_reward:.1f}"
+        progress = {"done": p.steps, "total": steps, "mean_reward": p.mean_reward}
+        if report(progress, [f"{p.steps}/{steps} steps, mean reward {mean}"]):
+            raise JobCancelledError
+
+    out = tmp / "ppo-policy.yaml"
+    env = EnvConfig(
+        length_m=bench.length_m,
+        laps=bench.laps,
+        opponents=bench.opponents,
+        max_time_s=min(bench.max_time_s, 120.0),
+        quick=bench.quick,
+    )
+    cfg = RLConfig(
+        steps=steps,
+        train_tracks=int(job.request.get("train_tracks", 8)),
+        env=env,
+        bench=bench,
+        out=out,
+    )
+    res = train_ppo(cfg, on_progress)
+    v = res.validation
+    return {
+        "score": v.score if v else None,
+        "finished_rate": v.finished_rate if v else None,
+        "steps": res.steps,
+        "params_yaml": out.read_text(encoding="utf-8"),
+        "runs": [asdict(r) for r in v.runs] if v else [],
+    }
 
 
 def _idle() -> bool:

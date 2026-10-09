@@ -1900,7 +1900,8 @@
           "kind": {
             "enum": [
               "benchmark",
-              "tune"
+              "tune",
+              "rl"
             ],
             "title": "Kind",
             "type": "string"
@@ -4429,12 +4430,22 @@
       },
       "TeamJobRequest": {
         "additionalProperties": false,
-        "description": "Run a training job on a team worker (spec 0020): exactly one of bench/tune.",
+        "description": "Run a training job on a team worker (spec 0020): exactly one of bench/tune/rl.",
         "properties": {
           "bench": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/TrainBenchRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rl": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainRLRequest"
               },
               {
                 "type": "null"
@@ -4680,10 +4691,22 @@
           "kind": {
             "enum": [
               "benchmark",
-              "tune"
+              "tune",
+              "rl"
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "mean_reward": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Reward"
           },
           "out": {
             "anyOf": [
@@ -4729,6 +4752,11 @@
             "title": "State",
             "type": "string"
           },
+          "steps_done": {
+            "default": 0,
+            "title": "Steps Done",
+            "type": "integer"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
@@ -4751,6 +4779,42 @@
           "total"
         ],
         "title": "TrainJob",
+        "type": "object"
+      },
+      "TrainRLRequest": {
+        "additionalProperties": false,
+        "description": "PPO training (spec 0022); the policy goes into a params YAML for onnx_policy.py.",
+        "properties": {
+          "out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Out"
+          },
+          "race": {
+            "$ref": "#/components/schemas/TrainRace"
+          },
+          "steps": {
+            "default": 200000,
+            "maximum": 50000000.0,
+            "minimum": 256.0,
+            "title": "Steps",
+            "type": "integer"
+          },
+          "train_tracks": {
+            "default": 8,
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Train Tracks",
+            "type": "integer"
+          }
+        },
+        "title": "TrainRLRequest",
         "type": "object"
       },
       "TrainRace": {
@@ -6776,6 +6840,45 @@
           }
         },
         "summary": "Train Job Cancel"
+      }
+    },
+    "/api/v1/train/rl": {
+      "post": {
+        "description": "Start PPO training (spec 0022); needs the optional extra ``rl``.",
+        "operationId": "train_rl_api_v1_train_rl_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainRLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Train Rl"
       }
     },
     "/api/v1/train/tune": {

@@ -348,7 +348,8 @@
           "kind": {
             "enum": [
               "benchmark",
-              "tune"
+              "tune",
+              "rl"
             ],
             "title": "Kind",
             "type": "string"
@@ -499,7 +500,8 @@
           "kind": {
             "enum": [
               "benchmark",
-              "tune"
+              "tune",
+              "rl"
             ],
             "title": "Kind",
             "type": "string"
@@ -1535,7 +1537,8 @@
           "kind": {
             "enum": [
               "benchmark",
-              "tune"
+              "tune",
+              "rl"
             ],
             "title": "Kind",
             "type": "string"

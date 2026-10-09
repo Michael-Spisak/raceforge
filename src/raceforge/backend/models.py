@@ -243,7 +243,7 @@ class Problem(Model):
 
 
 # ------------------------------------------------------------------ workers & jobs (spec 0020)
-JobKind = Literal["benchmark", "tune"]
+JobKind = Literal["benchmark", "tune", "rl"]
 JobStatus = Literal["queued", "running", "done", "error", "cancelled"]
 JobPriority = Literal["normal", "high", "critical"]  # part C: critical is admin only
 MAX_SOURCE_BYTES = 512 * 1024

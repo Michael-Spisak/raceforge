@@ -617,6 +617,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/train/rl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Train Rl
+         * @description Start PPO training (spec 0022); needs the optional extra ``rl``.
+         */
+        post: operations["train_rl_api_v1_train_rl_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/train/tune": {
         parameters: {
             query?: never;
@@ -1892,7 +1912,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "benchmark" | "tune";
+            kind: "benchmark" | "tune" | "rl";
             /** Log Tail */
             log_tail: string[];
             /**
@@ -2865,10 +2885,11 @@ export interface components {
         };
         /**
          * TeamJobRequest
-         * @description Run a training job on a team worker (spec 0020): exactly one of bench/tune.
+         * @description Run a training job on a team worker (spec 0020): exactly one of bench/tune/rl.
          */
         TeamJobRequest: {
             bench?: components["schemas"]["TrainBenchRequest"] | null;
+            rl?: components["schemas"]["TrainRLRequest"] | null;
             tune?: components["schemas"]["TrainTuneRequest"] | null;
         };
         /** TokenRequest */
@@ -2955,7 +2976,9 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "benchmark" | "tune";
+            kind: "benchmark" | "tune" | "rl";
+            /** Mean Reward */
+            mean_reward?: number | null;
             /** Out */
             out?: string | null;
             /**
@@ -2972,6 +2995,11 @@ export interface components {
              * @enum {string}
              */
             state: "running" | "done" | "error" | "cancelled";
+            /**
+             * Steps Done
+             * @default 0
+             */
+            steps_done: number;
             /** Total */
             total: number;
             /**
@@ -2979,6 +3007,25 @@ export interface components {
              * @default []
              */
             trials: components["schemas"]["TrainTrial"][];
+        };
+        /**
+         * TrainRLRequest
+         * @description PPO training (spec 0022); the policy goes into a params YAML for onnx_policy.py.
+         */
+        TrainRLRequest: {
+            /** Out */
+            out?: string | null;
+            race?: components["schemas"]["TrainRace"];
+            /**
+             * Steps
+             * @default 200000
+             */
+            steps: number;
+            /**
+             * Train Tracks
+             * @default 8
+             */
+            train_tracks: number;
         };
         /**
          * TrainRace
@@ -4320,6 +4367,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    train_rl_api_v1_train_rl_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainRLRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
