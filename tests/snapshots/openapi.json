@@ -2303,6 +2303,86 @@
         "title": "LocalVersion",
         "type": "object"
       },
+      "LocalWorkerStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Log",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/WorkerPolicy"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "registered": {
+            "title": "Registered",
+            "type": "boolean"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          }
+        },
+        "required": [
+          "enabled",
+          "registered",
+          "policy",
+          "available"
+        ],
+        "title": "LocalWorkerStatus",
+        "type": "object"
+      },
+      "LocalWorkerUpdate": {
+        "additionalProperties": false,
+        "description": "Switch this computer's team worker on/off and set when it takes jobs (spec 0020 C).",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/WorkerPolicy"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "LocalWorkerUpdate",
+        "type": "object"
+      },
       "PartSummary": {
         "additionalProperties": false,
         "properties": {
@@ -4081,6 +4161,46 @@
         "title": "ScenePart",
         "type": "object"
       },
+      "ScheduleWindow": {
+        "additionalProperties": false,
+        "description": "A weekly time window; ``end`` before ``start`` crosses midnight (days = start days).",
+        "properties": {
+          "days": {
+            "items": {
+              "enum": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          },
+          "end": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "start",
+          "end"
+        ],
+        "title": "ScheduleWindow",
+        "type": "object"
+      },
       "Scope": {
         "enum": [
           "read",
@@ -4442,6 +4562,16 @@
               }
             ]
           },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "high",
+              "critical"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
           "rl": {
             "anyOf": [
               {
@@ -4451,6 +4581,17 @@
                 "type": "null"
               }
             ]
+          },
+          "target_worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Worker Id"
           },
           "tune": {
             "anyOf": [
@@ -5213,6 +5354,46 @@
           "info"
         ],
         "title": "WorkerInfo",
+        "type": "object"
+      },
+      "WorkerPolicy": {
+        "additionalProperties": false,
+        "description": "When this computer takes team jobs (spec 0020 part C).",
+        "properties": {
+          "idle_minutes": {
+            "default": 10.0,
+            "maximum": 240.0,
+            "minimum": 1.0,
+            "title": "Idle Minutes",
+            "type": "number"
+          },
+          "mode": {
+            "default": "idle",
+            "enum": [
+              "always",
+              "idle",
+              "schedule",
+              "paused"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "processes": {
+            "default": 0,
+            "maximum": 256.0,
+            "minimum": 0.0,
+            "title": "Processes",
+            "type": "integer"
+          },
+          "schedule": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleWindow"
+            },
+            "title": "Schedule",
+            "type": "array"
+          }
+        },
+        "title": "WorkerPolicy",
         "type": "object"
       },
       "WorkspaceInfo": {
@@ -7861,6 +8042,62 @@
           }
         },
         "summary": "Ws Version"
+      }
+    },
+    "/api/v1/workspace/worker/local": {
+      "get": {
+        "description": "This computer as a team worker (spec 0020 part C).",
+        "operationId": "ws_local_worker_api_v1_workspace_worker_local_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalWorkerStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Local Worker"
+      },
+      "put": {
+        "description": "Switch this computer's worker on/off (registers it once) and set its policy.",
+        "operationId": "ws_set_local_worker_api_v1_workspace_worker_local_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalWorkerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalWorkerStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Set Local Worker"
       }
     },
     "/api/v1/workspace/workers": {

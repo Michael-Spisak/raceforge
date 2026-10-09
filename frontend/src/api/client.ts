@@ -169,6 +169,8 @@ export const workspace = {
   /** Team workers and jobs (spec 0020). */
   teamWorkers: () => request<Schemas["WorkerInfo"][]>(`${W}/workers`),
   teamJobs: () => request<Schemas["JobInfo"][]>(`${W}/jobs`),
+  localWorker: () => request<Schemas["LocalWorkerStatus"]>(`${W}/worker/local`),
+  setLocalWorker: (body: Schemas["LocalWorkerUpdate"]) => request<Schemas["LocalWorkerStatus"]>(`${W}/worker/local`, { method: "PUT", body: JSON.stringify(body) }),
   submitTeamJob: (req: Schemas["TeamJobRequest"]) => request<Schemas["JobInfo"]>(`${W}/jobs`, post(req)),
   cancelTeamJob: (id: string) => request<Schemas["JobInfo"]>(`${W}/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   saveJobParams: (id: string, path: string) => request<{ path: string }>(`${W}/jobs/${encodeURIComponent(id)}/save-params`, post({ path })),

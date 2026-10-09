@@ -229,3 +229,46 @@ def test_paused_benchmark_is_finished_by_another_worker_with_the_same_runs(
     assert [{**r, "error": ""} for r in done.result["runs"]] == [
         {**asdict(r), "error": ""} for r in local.runs
     ]
+
+
+def test_engine_switch_runs_this_computer_as_a_worker(env: Env, team: Team, tmp_path: Path) -> None:
+    """Spec 0020 part C AC9: switch on → registered → runs a queued job → switch off."""
+    import time
+
+    from raceforge.api.local_worker import LocalWorker
+    from raceforge.api.models import LocalWorkerUpdate, WorkerPolicy
+    from raceforge.api.service import TEMPLATES_DIR
+    from raceforge.backend.models import JobCreate
+    from raceforge.workspace.client import BackendClient
+    from raceforge.workspace.sync import Workspace
+    from tests.backend.conftest import MEMBER_PW
+    from tests.backend.test_sync import Net, factory
+
+    fac = factory(env.client.app, Net())
+    ws = Workspace(tmp_path / "ws", fac)
+    ws.login("http://b", "anna", MEMBER_PW, None)
+    ws.select(team.ws)
+    local = LocalWorker(ws, fac)
+    st = local.update(LocalWorkerUpdate(enabled=True, policy=WorkerPolicy(mode="always")))
+    assert st.enabled and st.registered and st.available
+    assert (tmp_path / "worker.json").stat().st_mode & 0o077 == 0  # token file owner-only
+
+    member = BackendClient("http://b", access=team.member["Authorization"][7:], factory=fac)
+    job = member.create_job(
+        team.ws,
+        JobCreate(
+            kind="benchmark",
+            request={"race": {"tracks": 1, "length_m": 20, "max_time_s": 120}},
+            controller_name="centering.py",
+            controller_source=(TEMPLATES_DIR / "centering.py").read_text(encoding="utf-8"),
+        ),
+    )
+    deadline = time.monotonic() + 120
+    while member.job(job.id).status != "done" and time.monotonic() < deadline:
+        time.sleep(0.5)
+    assert member.job(job.id).status == "done", local.status().log
+    assert member.workers(team.ws)[0].id == st.worker_id
+
+    off = local.update(LocalWorkerUpdate(enabled=False, policy=WorkerPolicy(mode="always")))
+    local.stop(wait_s=30)
+    assert not local.status().enabled and off.registered
