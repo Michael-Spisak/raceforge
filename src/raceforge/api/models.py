@@ -465,6 +465,13 @@ class TrainTuneRequest(ApiModel):
     race: TrainRace = TrainRace()
 
 
+class TeamJobRequest(ApiModel):
+    """Run a training job on a team worker (spec 0020): exactly one of bench/tune."""
+
+    bench: "TrainBenchRequest | None" = None
+    tune: "TrainTuneRequest | None" = None
+
+
 class TrainRun(ApiModel):
     seed: int
     finished: bool

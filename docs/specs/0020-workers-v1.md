@@ -44,4 +44,11 @@ laptop of the person who starts them.
   finish cancelled; a second job finishes with its result; the worker is listed online; removing it revokes the
   token (401).
 - [ ] AC3: `run_worker(once)` runs a real benchmark job from the queue and reports `done` with a result.
-- Part B (separate PR): Train tab "run on a team worker", worker and job lists.
+- [ ] AC4 (part B): The engine queues a tune job (controller sent inline, drawn tracks embedded), a worker runs it,
+  the engine lists it as done and saves the tuned parameters to a YAML file; the worker list shows it.
+
+## Part B — engine and Train tab
+- Engine: `GET /api/v1/workspace/workers`, `GET|POST /api/v1/workspace/jobs` (`TeamJobRequest {bench|tune}`),
+  `POST /api/v1/workspace/jobs/{id}/cancel`, `POST /api/v1/workspace/jobs/{id}/save-params {path}`.
+- Train tab (when logged in): "Run on: this computer / team workers"; team workers (online/busy) and team jobs
+  (status, progress, worker, score, cancel, save tuned parameters next to the controller).

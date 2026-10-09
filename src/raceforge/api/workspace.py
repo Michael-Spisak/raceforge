@@ -21,6 +21,7 @@ from raceforge.api.models import (
     SaveAssembly,
     SaveFiles,
     SaveQuickstart,
+    TeamJobRequest,
     TrackScoutPairing,
     WorkspaceLogin,
     WorkspaceRegister,
@@ -28,8 +29,11 @@ from raceforge.api.models import (
 from raceforge.backend.models import (
     ApiTokenInfo,
     InviteInfo,
+    JobCreate,
+    JobInfo,
     TotpSetup,
     UserInfo,
+    WorkerInfo,
     WorkspaceInfo,
 )
 from raceforge.capture import rftx
@@ -209,6 +213,68 @@ class WorkspaceApi:
             workspace_id=self.ws.workspace_id,
             warning=warning,
         )
+
+    # ------------------------------------------------- team workers & jobs (spec 0020)
+    def _ws_id(self) -> str:
+        if self.ws.workspace_id is None:
+            raise BackendError(409, "log in and pick a workspace first")
+        return self.ws.workspace_id
+
+    def workers(self) -> list[WorkerInfo]:
+        return self.ws.client().workers(self._ws_id())
+
+    def jobs(self) -> list[JobInfo]:
+        return self.ws.client().jobs(self._ws_id())
+
+    def cancel_job(self, job_id: str) -> JobInfo:
+        return self.ws.client().cancel_job(job_id)
+
+    def submit_job(self, req: TeamJobRequest) -> JobInfo:
+        """Queue a benchmark/tune for the team's workers; controller source travels inline."""
+        from raceforge.api.tracks import QuickTracks
+
+        spec = req.bench or req.tune
+        if spec is None or (req.bench and req.tune):
+            raise ValueError("give exactly one of bench or tune")
+        controller = Path(spec.controller).expanduser()
+        if not controller.is_file():
+            raise ValueError(f"controller not found: {controller}")
+        request: dict[str, Any] = {"race": spec.race.model_dump(mode="json")}
+        if spec.race.quick_track:  # drawn tracks live on this laptop: send the drawing along
+            q = QuickTracks().get(spec.race.quick_track)
+            if q.loop:
+                q = q.model_copy(update={"laps": spec.race.laps})
+            request["race"]["quick"] = q.model_dump(mode="json")
+        params_yaml = None
+        if req.tune is not None:
+            request.update(
+                trials=req.tune.trials,
+                train_tracks=req.tune.train_tracks,
+                timeout_s=req.tune.timeout_s,
+            )
+        elif req.bench is not None and req.bench.params:
+            params_yaml = Path(req.bench.params).expanduser().read_text(encoding="utf-8")
+        elif controller.with_suffix(".yaml").is_file():
+            params_yaml = controller.with_suffix(".yaml").read_text(encoding="utf-8")
+        job = JobCreate(
+            kind="tune" if req.tune else "benchmark",
+            request=request,
+            controller_name=controller.name,
+            controller_source=controller.read_text(encoding="utf-8"),
+            params_yaml=params_yaml,
+        )
+        return self.ws.client().create_job(self._ws_id(), job)
+
+    def save_job_params(self, job_id: str, path: str) -> str:
+        """Write the tuned params of a finished tune job to ``path`` (YAML for Deploy)."""
+        job = self.ws.client().job(job_id)
+        text = (job.result or {}).get("params_yaml")
+        if job.status != "done" or not isinstance(text, str):
+            raise ValueError("only a finished tune job has parameters")
+        out = Path(path).expanduser()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        return str(out)
 
     def invites(self) -> list[InviteInfo]:
         return self.ws.client().invites()

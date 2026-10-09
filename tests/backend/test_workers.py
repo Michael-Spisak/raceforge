@@ -1,5 +1,7 @@
 """Spec 0020: worker registration, job queue, and the worker token's limits (security gate)."""
 
+from pathlib import Path
+
 from tests.backend.conftest import Env, Team
 
 SOURCE = "from raceforge.control.controller import Controller\n"
@@ -122,3 +124,53 @@ def test_worker_runs_a_benchmark_job_end_to_end(env: Env, team: Team) -> None:
     assert done.status == "done", (done.error, lines)
     assert done.result is not None and done.result["finished_rate"] == 1.0
     assert any("corridor" in line for line in done.log_tail)
+
+
+def test_engine_queues_a_team_job_and_saves_tuned_params(
+    env: Env, team: Team, tmp_path: Path
+) -> None:
+    from fastapi.testclient import TestClient
+
+    from raceforge.api.service import TEMPLATES_DIR, Engine
+    from raceforge.api.workspace import WorkspaceApi
+    from raceforge.parts.catalogue import Catalogue
+    from raceforge.server.app import create_app
+    from raceforge.workspace.client import BackendClient
+    from tests.backend.conftest import MEMBER_PW
+    from tests.backend.test_sync import Net, factory
+
+    cat = Catalogue.load()
+    wsapi = WorkspaceApi(cat, tmp_path / "ws", factory(env.client.app, Net()))
+    engine = TestClient(create_app(Engine(cat), frontend_dist=None, workspace=wsapi))
+    w = "/api/v1/workspace"
+    engine.post(
+        f"{w}/login", json={"server_url": "http://b", "username": "anna", "password": MEMBER_PW}
+    )
+    race = {"tracks": 1, "length_m": 20, "max_time_s": 120}
+    req = {
+        "tune": {
+            "controller": str(TEMPLATES_DIR / "centering.py"),
+            "trials": 1,
+            "train_tracks": 1,
+            "race": race,
+        }
+    }
+    job = engine.post(f"{w}/jobs", json=req)
+    assert job.status_code == 200, job.text
+    assert engine.get(f"{w}/jobs").json()[0]["status"] == "queued"
+
+    reg = BackendClient(
+        "http://t", access=team.member["Authorization"][7:], factory=lambda _: env.client
+    )
+    worker = BackendClient(
+        "http://t", access=reg.register_worker(team.ws, "pc").token, factory=lambda _: env.client
+    )
+    from raceforge.api.worker_runner import run_worker
+
+    assert run_worker(worker, once=True, out=lambda _: None) == 1
+    done = engine.get(f"{w}/jobs").json()[0]
+    assert done["status"] == "done", done["error"]
+    assert [x["name"] for x in engine.get(f"{w}/workers").json()] == ["pc"]
+    out = tmp_path / "centering.tuned.yaml"
+    saved = engine.post(f"{w}/jobs/{done['id']}/save-params", json={"path": str(out)})
+    assert saved.status_code == 200 and "speed_m_s" in out.read_text(encoding="utf-8")
