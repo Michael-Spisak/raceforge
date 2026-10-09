@@ -72,10 +72,9 @@ class DistanceMap:
     def drivable_cells(self) -> tuple[F, F]:
         """Centres of all drivable cells (for global re-initialisation)."""
         rows, cols = np.nonzero(self.cells & DRIVABLE)
-        return (
-            self.origin_x + (cols + 0.5) * self.resolution_m,
-            self.origin_y + (rows + 0.5) * self.resolution_m,
-        )
+        xs = self.origin_x + (cols + 0.5) * self.resolution_m
+        ys = self.origin_y + (rows + 0.5) * self.resolution_m
+        return xs.astype(np.float64), ys.astype(np.float64)
 
 
 @dataclass(frozen=True)
