@@ -20,6 +20,11 @@ export type ScanPassRef = Schemas["ScanPassRef"];
 export type ScanDetail = Schemas["ScanDetail"];
 export type ScanMesh = Schemas["ScanMesh"];
 export type CarPairingCode = Schemas["CarPairingCode"];
+export type BundleRequest = Schemas["BundleRequest"];
+export type BundleInfo = Schemas["BundleInfo"];
+export type DeployRequest = Schemas["DeployRequest"];
+export type DeployResponse = Schemas["DeployResponse"];
+export type InstallResult = Schemas["InstallResult"];
 export type WorkspaceStatus = Schemas["WorkspaceStatus"];
 export type WorkspaceInfo = Schemas["WorkspaceInfo"];
 export type LocalObject = Schemas["LocalObject"];
@@ -105,6 +110,10 @@ export const api = {
   scan: (sha: string) => request<ScanDetail>(`/api/v1/scans/${sha}`),
   scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
   /** QR code for TrackScout's drive mode (spec 0010 C): the phone connects to the car directly. */
+  /** Deploy (spec 0012): build a test-mode bundle, install it over SSH or write it to a USB stick. */
+  buildBundle: (req: BundleRequest) => request<BundleInfo>("/api/v1/car/bundle", { method: "POST", body: JSON.stringify(req) }),
+  deploy: (req: DeployRequest) => request<DeployResponse>("/api/v1/car/deploy", { method: "POST", body: JSON.stringify(req) }),
+  usbResult: (stick: string) => request<InstallResult | null>(`/api/v1/car/deploy/usb-result?stick=${encodeURIComponent(stick)}`),
   carPairingCode: (url: string, token: string) =>
     request<CarPairingCode>("/api/v1/car/pairing-code", { method: "POST", body: JSON.stringify({ url, token: token || null }) }),
 };

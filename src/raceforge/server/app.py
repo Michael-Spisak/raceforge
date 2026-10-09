@@ -13,13 +13,18 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from raceforge import __version__
+from raceforge.api import deploy as car_deploy
 from raceforge.api.car_link import pairing_code
 from raceforge.api.car_link import relay as car_relay
 from raceforge.api.models import (
+    BundleInfo,
+    BundleRequest,
     CarPairingCode,
     CarPairingRequest,
     ControllerInfo,
     CorridorResponse,
+    DeployRequest,
+    DeployResponse,
     ErrorMessage,
     Health,
     InboxAction,
@@ -168,6 +173,32 @@ def create_app(
             return pairing_code(req)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/car/bundle")
+    def car_bundle(req: BundleRequest) -> BundleInfo:
+        """Build a test-mode deploy bundle (spec 0012)."""
+        try:
+            return car_deploy.build_from_request(req)
+        except car_deploy.BundleError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/car/deploy")
+    def car_deploy_bundle(req: DeployRequest) -> DeployResponse:
+        """Install a bundle over SSH or write it to a USB stick (spec 0012)."""
+        try:
+            return car_deploy.deploy_from_request(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except car_deploy.DeployError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @app.get("/api/v1/car/deploy/usb-result")
+    def car_usb_result(stick: str) -> car_deploy.InstallResult | None:
+        """What the car wrote back to the stick (null: not plugged into a car yet)."""
+        try:
+            return car_deploy.usb_result(Path(stick).expanduser())
+        except ValueError as exc:
+            raise HTTPException(422, f"result.json on the stick is damaged: {exc}") from exc
 
     @app.websocket("/api/v1/car/live")
     async def car_live(ws: WebSocket) -> None:

@@ -15,3 +15,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0008 | Frontend shell v1 (engine API, Electron, parts, construct, simulate, replay) | 2–3 | implemented (PR) |
 | 0009 | Scan viewer v1 (TrackScout passes in the desktop app) | 4–5 | implemented (PR) |
 | 0010 | Teleop v1 (gamepad/keyboard/touch; sim + real car; demonstrations) | 4–5 | implemented (PR) |
+| 0012 | Deploy from the app (bundle + SSH/USB install, Live tab) | 4–5 | approved |

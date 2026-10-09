@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from raceforge.car.deploy import InstallResult
 from raceforge.construct.quickstart import QuickStartParams
 from raceforge.track.procedural import CorridorParams
 
@@ -341,3 +342,37 @@ class CarPairingRequest(ApiModel):
 class CarPairingCode(ApiModel):
     code: str  # raceforge://car?v=1&d=<base64url(JSON)>
     qr_svg: str
+
+
+# ------------------------------------------------------------------ deploy (spec 0012)
+class BundleRequest(ApiModel):
+    """Build a test-mode bundle: controller file + optional params + car config (spec 0012)."""
+
+    controller: str = Field(min_length=1)
+    params: str | None = None
+    car_config: str = Field(min_length=1)
+    name: str | None = None
+
+
+class BundleInfo(ApiModel):
+    path: str
+    name: str
+    digest: str
+    controller: str
+    params: str | None = None
+    car_name: str
+    mode: str
+    speed_limit_m_s: float | None = None
+    warnings: list[str] = []
+
+
+class DeployRequest(ApiModel):
+    bundle: str = Field(min_length=1)
+    target: Literal["ssh", "usb"]
+    host: str | None = None  # [user@]host, "ssh"
+    stick: str | None = None  # mounted stick folder, "usb"
+
+
+class DeployResponse(ApiModel):
+    result: InstallResult | None = None  # what the board reported ("ssh")
+    usb_path: str | None = None  # where the bundle was written ("usb")
