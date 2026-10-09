@@ -11,6 +11,7 @@ from raceforge import __version__
 
 if TYPE_CHECKING:
     from raceforge.api.deploy import InstallResult
+    from raceforge.api.train import BenchConfig
     from raceforge.backend.service import Backend
     from raceforge.backend.settings import Settings
 
@@ -265,6 +266,70 @@ def _cmd_backend(args: argparse.Namespace) -> int:
     return 0
 
 
+def _bench_config(args: argparse.Namespace) -> "BenchConfig":
+    from raceforge.api.train import BenchConfig
+
+    return BenchConfig(
+        tracks=args.tracks,
+        length_m=args.length,
+        laps=args.laps,
+        opponents=args.opponents,
+        max_time_s=args.max_time,
+        workers=args.workers,
+    )
+
+
+def _cmd_train(args: argparse.Namespace) -> int:
+    from raceforge.api.train import RunResult, Trial, TuneConfig, benchmark, tune
+
+    controller = Path(args.controller)
+    try:
+        bench = _bench_config(args)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+    def run_line(r: RunResult) -> None:
+        state = f"finished in {r.time_s:.1f} s" if r.finished else f"DNF ({r.fraction:.0%})"
+        extra = f" · {r.error}" if r.error else ""
+        print(f"  corridor {r.seed}: {state} · walls {r.wall_contacts}{extra}", flush=True)
+
+    if args.train_command == "benchmark":
+        res = benchmark(controller, Path(args.params) if args.params else None, bench, run_line)
+        print(f"score {res.score:.1f} (lower is better) · finished {res.finished_rate:.0%}")
+        return 0
+
+    def trial_line(t: Trial, best: Trial) -> None:
+        print(f"  trial {t.number}: {t.score:.1f} (best {best.score:.1f})", flush=True)
+
+    out = Path(args.out) if args.out else controller.with_name(f"{controller.stem}.tuned.yaml")
+    try:
+        res = tune(
+            controller,
+            TuneConfig(
+                trials=args.trials,
+                timeout_s=args.timeout,
+                train_tracks=args.train_tracks,
+                bench=bench,
+                out=out,
+            ),
+            trial_line,
+        )
+    except (ValueError, ImportError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(
+        f"train score {res.default_train_score:.1f} -> {res.train_score:.1f}; held-out "
+        f"{res.default_validation.score:.1f} -> {res.validation.score:.1f}\nparams written to {out}"
+    )
+    if res.validation.score > res.default_validation.score:
+        print(
+            "warning: the tuned params are worse on the held-out corridors (overfitting): "
+            "use more --train-tracks or --trials"
+        )
+    return 0
+
+
 def _cmd_capture(args: argparse.Namespace) -> int:
     from raceforge.capture.tscan import TscanError, TscanPass
 
@@ -463,6 +528,26 @@ def main(argv: list[str] | None = None) -> int:
     ui.add_argument("--port", type=int, default=8765, help="port (0 = pick a free one)")
     ui.add_argument("--browser", action="store_true", help="open the UI in the default browser")
     ui.set_defaults(func=_cmd_ui)
+
+    tr = sub.add_parser("train", help="benchmark and tune controllers in the sim (spec 0013)")
+    tsub = tr.add_subparsers(dest="train_command", required=True)
+    tbench = tsub.add_parser("benchmark", help="score a controller on held-out corridors")
+    tbench.add_argument("controller")
+    tbench.add_argument("--params", help="params YAML (default: next to the controller)")
+    ttune = tsub.add_parser("tune", help="Optuna search over the controller's Tunable params")
+    ttune.add_argument("controller")
+    ttune.add_argument("--trials", type=int, default=30)
+    ttune.add_argument("--timeout", type=float, help="stop after this many seconds")
+    ttune.add_argument("--train-tracks", type=int, default=3, help="training corridors per trial")
+    ttune.add_argument("--out", help="params YAML (default: <controller>.tuned.yaml)")
+    for p in (tbench, ttune):
+        p.add_argument("--tracks", type=int, default=5, help="held-out benchmark corridors")
+        p.add_argument("--length", type=float, default=25.0, help="corridor length in m (20-120)")
+        p.add_argument("--laps", type=int, default=1)
+        p.add_argument("--opponents", type=int, default=0)
+        p.add_argument("--max-time", type=float, default=240.0, help="seconds per race")
+        p.add_argument("--workers", type=int, default=0, help="processes (0: CPUs - 1)")
+        p.set_defaults(func=_cmd_train)
 
     cap = sub.add_parser("capture", help="TrackScout scans (.tscan, spec 0007)")
     csub = cap.add_subparsers(dest="capture_command", required=True)
