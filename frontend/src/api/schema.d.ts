@@ -503,6 +503,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tracks/quick/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Quick Track Validate */
+        post: operations["quick_track_validate_api_v1_tracks_quick_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tracks/quick/{name}": {
         parameters: {
             query?: never;
@@ -1209,6 +1226,25 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** CheckResult */
+        CheckResult: {
+            /** A */
+            a: [
+                number,
+                number
+            ];
+            /** B */
+            b: [
+                number,
+                number
+            ];
+            /** Error M */
+            error_m: number;
+            /** Measured M */
+            measured_m: number;
+            /** Model M */
+            model_m: number;
+        };
         /** Conflict */
         Conflict: {
             /** Object Id */
@@ -1372,6 +1408,52 @@ export interface components {
             /** Usb Path */
             usb_path?: string | null;
         };
+        /** EditCheck */
+        EditCheck: {
+            /** A */
+            a: [
+                number,
+                number
+            ];
+            /** B */
+            b: [
+                number,
+                number
+            ];
+            /** Measured M */
+            measured_m: number;
+        };
+        /** EditObject */
+        EditObject: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "box" | "cone" | "bin" | "pillar" | "bench" | "opponent";
+            randomisation?: components["schemas"]["EditRandom"] | null;
+            /** Size */
+            size?: [
+                number,
+                number,
+                number
+            ] | null;
+            /**
+             * Static
+             * @default true
+             */
+            static: boolean;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /**
+             * Yaw Deg
+             * @default 0
+             */
+            yaw_deg: number;
+        };
         /**
          * EditOp
          * @description One edit; ``none`` only evaluates. Moves and turns use world axes (m, quarter turns).
@@ -1437,6 +1519,47 @@ export interface components {
              * @default 1
              */
             turns: number;
+        };
+        /** EditRandom */
+        EditRandom: {
+            /**
+             * Position Xy M
+             * @default 0
+             */
+            position_xy_m: number;
+            /**
+             * Presence Prob
+             * @default 1
+             */
+            presence_prob: number;
+            /**
+             * Yaw Deg
+             * @default 0
+             */
+            yaw_deg: number;
+        };
+        /** EditSurface */
+        EditSurface: {
+            /**
+             * Friction
+             * @default 0.5
+             */
+            friction: number;
+            /**
+             * Lidar Reflectivity
+             * @default 0.8
+             */
+            lidar_reflectivity: number;
+            /**
+             * Material
+             * @default floor
+             */
+            material: string;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][];
         };
         /** EditorConnector */
         EditorConnector: {
@@ -2062,6 +2185,7 @@ export interface components {
         QuickTrack: {
             /** Corner Radius M */
             corner_radius_m?: number | null;
+            edit?: components["schemas"]["TrackEdit"] | null;
             /**
              * Friction
              * @default 0.75
@@ -2139,6 +2263,25 @@ export interface components {
                 number,
                 number
             ][];
+            /**
+             * Checkpoints
+             * @default []
+             */
+            checkpoints: [
+                [
+                    number,
+                    number
+                ],
+                [
+                    number,
+                    number
+                ]
+            ][];
+            /**
+             * Checks
+             * @default []
+             */
+            checks: components["schemas"]["CheckResult"][];
             /** Direction */
             direction?: [
                 number,
@@ -2146,11 +2289,30 @@ export interface components {
             ] | null;
             /** Error */
             error?: string | null;
+            /** Finish Line */
+            finish_line?: [
+                [
+                    number,
+                    number
+                ],
+                [
+                    number,
+                    number
+                ]
+            ] | null;
             /**
              * Length M
              * @default 0
              */
             length_m: number;
+            /**
+             * No Go Zones
+             * @default []
+             */
+            no_go_zones: [
+                number,
+                number
+            ][][];
             /**
              * Objects
              * @default []
@@ -2158,6 +2320,15 @@ export interface components {
             objects: components["schemas"]["QuickTrackObject"][];
             /** Ok */
             ok: boolean;
+            /**
+             * Start Grid
+             * @default []
+             */
+            start_grid: [
+                number,
+                number,
+                number
+            ][];
             /** Start Line */
             start_line?: [
                 [
@@ -2169,6 +2340,21 @@ export interface components {
                     number
                 ]
             ] | null;
+            /**
+             * Surfaces
+             * @default []
+             */
+            surfaces: [
+                number,
+                number
+            ][][];
+            /**
+             * @default {
+             *       "items": [],
+             *       "ok": true
+             *     }
+             */
+            validation: components["schemas"]["ValidationReport"];
             /**
              * Walls
              * @default []
@@ -2206,6 +2392,65 @@ export interface components {
             options: {
                 [key: string]: unknown[];
             };
+        };
+        /**
+         * RaceSetupEdit
+         * @description Missing fields fall back to the automatic values of spec 0014.
+         */
+        RaceSetupEdit: {
+            /** Checkpoints */
+            checkpoints?: [
+                [
+                    number,
+                    number
+                ],
+                [
+                    number,
+                    number
+                ]
+            ][] | null;
+            /** Direction */
+            direction?: [
+                number,
+                number
+            ] | null;
+            /** Finish Line */
+            finish_line?: [
+                [
+                    number,
+                    number
+                ],
+                [
+                    number,
+                    number
+                ]
+            ] | null;
+            /** Grid Cars */
+            grid_cars?: number | null;
+            /** Grid Poses */
+            grid_poses?: [
+                number,
+                number,
+                number
+            ][] | null;
+            /** Laps */
+            laps?: number | null;
+            /** No Go Zones */
+            no_go_zones?: [
+                number,
+                number
+            ][][];
+            /** Start Line */
+            start_line?: [
+                [
+                    number,
+                    number
+                ],
+                [
+                    number,
+                    number
+                ]
+            ] | null;
         };
         /**
          * ReceiveRequest
@@ -2693,6 +2938,21 @@ export interface components {
             /** Uri */
             uri: string;
         };
+        /** TrackEdit */
+        TrackEdit: {
+            /** Checks */
+            checks?: components["schemas"]["EditCheck"][];
+            /**
+             * Max Car Width M
+             * @default 0.35
+             */
+            max_car_width_m: number;
+            /** Objects */
+            objects?: components["schemas"]["EditObject"][] | null;
+            race_setup?: components["schemas"]["RaceSetupEdit"] | null;
+            /** Surfaces */
+            surfaces?: components["schemas"]["EditSurface"][];
+        };
         /**
          * TrackScoutPairing
          * @description TrackScout pairing QR (spec 0007): server, new `trackscout` API token + laptop key.
@@ -2912,6 +3172,36 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** ValidationItem */
+        ValidationItem: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "error" | "warning" | "info";
+            /** Where */
+            where?: [
+                number,
+                number
+            ] | null;
+        };
+        /** ValidationReport */
+        ValidationReport: {
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["ValidationItem"][];
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
         };
         /** Warning */
         Warning: {
@@ -3822,6 +4112,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuickTrackPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quick_track_validate_api_v1_tracks_quick_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuickTrack"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationReport"];
                 };
             };
             /** @description Validation Error */

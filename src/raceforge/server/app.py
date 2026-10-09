@@ -73,6 +73,7 @@ from raceforge.api.service import Engine
 from raceforge.api.sim_session import SimSession
 from raceforge.api.tracks import QuickTracks
 from raceforge.api.tracks import preview as quick_preview
+from raceforge.api.tracks import validation as quick_validate
 from raceforge.api.train_jobs import TrainJobs
 from raceforge.api.workspace import WorkspaceApi
 from raceforge.backend.models import (
@@ -88,6 +89,7 @@ from raceforge.capture.rftx import TransferError
 from raceforge.capture.tscan import TscanError
 from raceforge.construct.quickstart import QuickStartParams
 from raceforge.parts.ldraw import library_dir
+from raceforge.track.edit import ValidationReport
 from raceforge.track.procedural import CorridorParams
 from raceforge.track.quick import QuickTrack
 from raceforge.workspace.client import BackendError, OfflineError
@@ -439,6 +441,10 @@ def create_app(
     def quick_track_preview(q: QuickTrack) -> QuickTrackPreview:
         """2D preview of a drawn track as the simulator builds it (``ok: false`` + reason)."""
         return quick_preview(q)
+
+    @app.post("/api/v1/tracks/quick/validate")
+    def quick_track_validate(q: QuickTrack) -> ValidationReport:
+        return quick_validate(q)
 
     @app.get("/api/v1/tracks/quick")
     def quick_track_list() -> list[QuickTrackInfo]:
