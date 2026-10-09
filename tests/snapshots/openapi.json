@@ -136,10 +136,34 @@
             "title": "Assembly",
             "type": "object"
           },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "derived": {
             "additionalProperties": true,
             "title": "Derived",
             "type": "object"
+          },
+          "overlaps": {
+            "default": [],
+            "items": {
+              "items": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Overlaps",
+            "type": "array"
           },
           "parts": {
             "items": {
@@ -153,6 +177,14 @@
               "type": "string"
             },
             "title": "Problems",
+            "type": "array"
+          },
+          "rules": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleCheck"
+            },
+            "title": "Rules",
             "type": "array"
           },
           "selected": {
@@ -195,6 +227,82 @@
           "problems"
         ],
         "title": "AssemblyEditResponse",
+        "type": "object"
+      },
+      "BudgetLine": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "stale": {
+            "default": false,
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "unit_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Eur"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "count",
+          "unit_eur"
+        ],
+        "title": "BudgetLine",
+        "type": "object"
+      },
+      "BudgetView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetLine"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit_eur": {
+            "title": "Limit Eur",
+            "type": "number"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "total_eur": {
+            "title": "Total Eur",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total_eur",
+          "limit_eur",
+          "missing",
+          "items"
+        ],
+        "title": "BudgetView",
         "type": "object"
       },
       "BundleInfo": {
@@ -413,6 +521,87 @@
           "versions"
         ],
         "title": "Conflict",
+        "type": "object"
+      },
+      "ConstructLimits": {
+        "additionalProperties": false,
+        "description": "Size/weight limits from the race rules; empty until the teacher defines them.",
+        "properties": {
+          "max_height_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Height M"
+          },
+          "max_length_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length M"
+          },
+          "max_mass_kg": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Mass Kg"
+          },
+          "max_width_m": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Width M"
+          }
+        },
+        "title": "ConstructLimits",
+        "type": "object"
+      },
+      "ConstructSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_eur": {
+            "default": 200.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Budget Eur",
+            "type": "number"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/ConstructLimits",
+            "default": {}
+          },
+          "prices": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PriceEntry"
+            },
+            "default": {},
+            "title": "Prices",
+            "type": "object"
+          }
+        },
+        "title": "ConstructSettings",
         "type": "object"
       },
       "ControllerInfo": {
@@ -1730,6 +1919,31 @@
         "title": "PartSummary",
         "type": "object"
       },
+      "PriceEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "default": "",
+            "title": "Date",
+            "type": "string"
+          },
+          "eur": {
+            "minimum": 0.0,
+            "title": "Eur",
+            "type": "number"
+          },
+          "link": {
+            "default": "",
+            "title": "Link",
+            "type": "string"
+          }
+        },
+        "required": [
+          "eur"
+        ],
+        "title": "PriceEntry",
+        "type": "object"
+      },
       "Primitive": {
         "additionalProperties": false,
         "properties": {
@@ -2579,6 +2793,58 @@
         ],
         "title": "Role",
         "type": "string"
+      },
+      "RuleCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ok"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "default": {},
+            "title": "Params",
+            "type": "object"
+          },
+          "paths": {
+            "default": [],
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Paths",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "ok"
+        ],
+        "title": "RuleCheck",
+        "type": "object"
       },
       "SaveAssembly": {
         "additionalProperties": false,
@@ -4588,6 +4854,61 @@
           }
         },
         "summary": "Car Pairing Code"
+      }
+    },
+    "/api/v1/construct/settings": {
+      "get": {
+        "description": "Part prices, size/weight limits and budget for the rule checker (spec 0016).",
+        "operationId": "construct_settings_get_api_v1_construct_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConstructSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Construct Settings Get"
+      },
+      "put": {
+        "operationId": "construct_settings_put_api_v1_construct_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConstructSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConstructSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Construct Settings Put"
       }
     },
     "/api/v1/controllers": {

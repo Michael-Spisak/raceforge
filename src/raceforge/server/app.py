@@ -16,6 +16,8 @@ from raceforge import __version__
 from raceforge.api import deploy as car_deploy
 from raceforge.api.car_link import pairing_code
 from raceforge.api.car_link import relay as car_relay
+from raceforge.api.construct_settings import load_settings as load_construct_settings
+from raceforge.api.construct_settings import save_settings as save_construct_settings
 from raceforge.api.models import (
     AssemblyEditRequest,
     AssemblyEditResponse,
@@ -23,6 +25,7 @@ from raceforge.api.models import (
     BundleRequest,
     CarPairingCode,
     CarPairingRequest,
+    ConstructSettings,
     ControllerInfo,
     CorridorResponse,
     DeployRequest,
@@ -357,6 +360,18 @@ def create_app(
             return eng.edit_assembly(req)
         except (ValueError, KeyError) as exc:
             raise HTTPException(422, str(exc).strip("'")) from exc
+
+    @app.get("/api/v1/construct/settings")
+    def construct_settings_get() -> ConstructSettings:
+        """Part prices, size/weight limits and budget for the rule checker (spec 0016)."""
+        return load_construct_settings()
+
+    @app.put("/api/v1/construct/settings")
+    def construct_settings_put(s: ConstructSettings) -> ConstructSettings:
+        unknown = [k for k in s.prices if k not in eng.cat.entries]
+        if unknown:
+            raise HTTPException(422, f"unknown parts: {', '.join(unknown)}")
+        return save_construct_settings(s)
 
     # ------------------------------------------------------------ quick tracks (spec 0014)
     @app.post("/api/v1/tracks/quick/preview")

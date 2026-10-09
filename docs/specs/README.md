@@ -19,3 +19,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0013 | Training v1: RaceForgeEnv, benchmark, Optuna tuning (+ Train tab) | 4–5 | approved |
 | 0014 | Quick tracks: draw a 2D corridor, race on it (Tracks tab) | 4–5 | approved |
 | 0015 | Construct editor v1 part A: edit the assembly (move, turn, add, delete, snap, undo) | 4–5 | approved |
+| 0016 | Rule checker, budget and overlaps in the Construct editor | 4–5 | approved |

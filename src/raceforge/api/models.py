@@ -538,3 +538,55 @@ class AssemblyEditResponse(ApiModel):
     problems: list[str]
     selected: list[str] | None = None
     snapped: SnapInfo | None = None
+    rules: list["RuleCheck"] = []
+    overlaps: list[list[list[str]]] = []  # pairs of part paths (spec 0016)
+    budget: "BudgetView | None" = None
+
+
+# ------------------------------------------------------------------ rules & budget (spec 0016)
+class PriceEntry(ApiModel):
+    eur: float = Field(ge=0)
+    link: str = ""  # eBay/Willhaben/shop link
+    date: str = ""  # ISO date the price was checked
+
+
+class ConstructLimits(ApiModel):
+    """Size/weight limits from the race rules; empty until the teacher defines them."""
+
+    max_length_m: float | None = Field(default=None, gt=0)
+    max_width_m: float | None = Field(default=None, gt=0)
+    max_height_m: float | None = Field(default=None, gt=0)
+    max_mass_kg: float | None = Field(default=None, gt=0)
+
+
+class ConstructSettings(ApiModel):
+    prices: dict[
+        str, PriceEntry
+    ] = {}  # catalogue key -> price (LEGO school-kit parts default to 0)
+    limits: ConstructLimits = ConstructLimits()
+    budget_eur: float = Field(default=200.0, gt=0)
+
+
+class RuleCheck(ApiModel):
+    id: str  # wheels_steering_lego, steering_submodel_lego, ev3_drives, budget, max_*, overlaps
+    ok: bool | None  # None: not checked (no limit set)
+    params: dict[str, str | float] = {}
+    paths: list[list[str]] = []
+
+
+class BudgetLine(ApiModel):
+    key: str
+    name: str
+    count: int
+    unit_eur: float | None  # None: price unknown
+    stale: bool = False  # price older than 30 days
+
+
+class BudgetView(ApiModel):
+    total_eur: float
+    limit_eur: float
+    missing: list[str]
+    items: list[BudgetLine]
+
+
+AssemblyEditResponse.model_rebuild()
