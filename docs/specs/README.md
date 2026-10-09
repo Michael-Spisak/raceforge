@@ -16,3 +16,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0009 | Scan viewer v1 (TrackScout passes in the desktop app) | 4–5 | implemented (PR) |
 | 0010 | Teleop v1 (gamepad/keyboard/touch; sim + real car; demonstrations) | 4–5 | implemented (PR) |
 | 0012 | Deploy from the app (bundle + SSH/USB install, Live tab) | 4–5 | approved |
+| 0013 | Training v1: RaceForgeEnv, benchmark, Optuna tuning (+ Train tab) | 4–5 | approved |
