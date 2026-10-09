@@ -162,6 +162,12 @@ const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.strin
 /** Team workspace (spec 0006): the engine talks to the backend and keeps a local copy for offline use. */
 export const workspace = {
   status: (probe = false) => request<WorkspaceStatus>(`${W}/status?probe=${probe}`),
+  /** Team workers and jobs (spec 0020). */
+  teamWorkers: () => request<Schemas["WorkerInfo"][]>(`${W}/workers`),
+  teamJobs: () => request<Schemas["JobInfo"][]>(`${W}/jobs`),
+  submitTeamJob: (req: Schemas["TeamJobRequest"]) => request<Schemas["JobInfo"]>(`${W}/jobs`, post(req)),
+  cancelTeamJob: (id: string) => request<Schemas["JobInfo"]>(`${W}/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  saveJobParams: (id: string, path: string) => request<{ path: string }>(`${W}/jobs/${encodeURIComponent(id)}/save-params`, post({ path })),
   login: (body: WorkspaceLogin) => request<WorkspaceStatus>(`${W}/login`, post(body)),
   register: (body: WorkspaceRegister) => request<UserInfo>(`${W}/register`, post(body)),
   logout: () => request<WorkspaceStatus>(`${W}/logout`, { method: "POST" }),

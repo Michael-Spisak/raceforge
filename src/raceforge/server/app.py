@@ -58,6 +58,7 @@ from raceforge.api.models import (
     SimControl,
     SimProtocol,
     SimStart,
+    TeamJobRequest,
     TokenRequest,
     TrackScoutPairing,
     TrainBenchRequest,
@@ -78,9 +79,11 @@ from raceforge.api.workspace import WorkspaceApi
 from raceforge.backend.models import (
     ApiTokenInfo,
     InviteInfo,
+    JobInfo,
     TotpCode,
     TotpSetup,
     UserInfo,
+    WorkerInfo,
     WorkspaceInfo,
 )
 from raceforge.capture.inbox import InboxPass
@@ -333,6 +336,35 @@ def create_app(
 
     # ---- team workspace (spec 0006)
     w = "/api/v1/workspace"
+
+    # ---------------------------------------------------- team workers & jobs (spec 0020)
+    @app.get(f"{w}/workers")
+    def ws_workers() -> list[WorkerInfo]:
+        return ws().workers()
+
+    @app.get(f"{w}/jobs")
+    def ws_jobs() -> list[JobInfo]:
+        return ws().jobs()
+
+    @app.post(f"{w}/jobs")
+    def ws_submit_job(req: TeamJobRequest) -> JobInfo:
+        """Queue a benchmark/tune for the team's workers (the controller file is sent along)."""
+        try:
+            return ws().submit_job(req)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post(f"{w}/jobs/{{job_id}}/cancel")
+    def ws_cancel_job(job_id: str) -> JobInfo:
+        return ws().cancel_job(job_id)
+
+    @app.post(f"{w}/jobs/{{job_id}}/save-params")
+    def ws_save_job_params(job_id: str, req: ScanOpen) -> ScanOpen:
+        """Write a finished tune job's parameters to ``path``."""
+        try:
+            return ScanOpen(path=ws().save_job_params(job_id, req.path))
+        except (ValueError, OSError) as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get(f"{w}/status")
     def ws_status(probe: bool = False) -> WorkspaceStatus:

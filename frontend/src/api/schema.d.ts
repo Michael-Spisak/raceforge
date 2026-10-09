@@ -648,6 +648,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Jobs */
+        get: operations["ws_jobs_api_v1_workspace_jobs_get"];
+        put?: never;
+        /**
+         * Ws Submit Job
+         * @description Queue a benchmark/tune for the team's workers (the controller file is sent along).
+         */
+        post: operations["ws_submit_job_api_v1_workspace_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Cancel Job */
+        post: operations["ws_cancel_job_api_v1_workspace_jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/jobs/{job_id}/save-params": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ws Save Job Params
+         * @description Write a finished tune job's parameters to ``path``.
+         */
+        post: operations["ws_save_job_params_api_v1_workspace_jobs__job_id__save_params_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/login": {
         parameters: {
             query?: never;
@@ -981,6 +1039,23 @@ export interface paths {
         };
         /** Ws Version */
         get: operations["ws_version_api_v1_workspace_versions__version_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/workers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Workers */
+        get: operations["ws_workers_api_v1_workspace_workers_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1732,6 +1807,54 @@ export interface components {
              * @enum {string}
              */
             role: "member" | "admin";
+        };
+        /** JobInfo */
+        JobInfo: {
+            /** Cancel Requested */
+            cancel_requested: boolean;
+            /** Controller Name */
+            controller_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Error */
+            error: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "benchmark" | "tune";
+            /** Log Tail */
+            log_tail: string[];
+            /** Progress */
+            progress: {
+                [key: string]: unknown;
+            };
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Started At */
+            started_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "error" | "cancelled";
+            /** Worker Id */
+            worker_id: string | null;
+            /** Worker Name */
+            worker_name: string | null;
+            /** Workspace Id */
+            workspace_id: string;
         };
         /**
          * LDrawPart
@@ -2669,6 +2792,14 @@ export interface components {
              */
             pushed: number;
         };
+        /**
+         * TeamJobRequest
+         * @description Run a training job on a team worker (spec 0020): exactly one of bench/tune.
+         */
+        TeamJobRequest: {
+            bench?: components["schemas"]["TrainBenchRequest"] | null;
+            tune?: components["schemas"]["TrainTuneRequest"] | null;
+        };
         /** TokenRequest */
         TokenRequest: {
             /**
@@ -2919,6 +3050,32 @@ export interface components {
             code: string;
             /** Message */
             message: string;
+        };
+        /** WorkerInfo */
+        WorkerInfo: {
+            /** Busy */
+            busy: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Id */
+            id: string;
+            /** Info */
+            info: {
+                [key: string]: unknown;
+            };
+            /** Last Seen At */
+            last_seen_at: string | null;
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /** Workspace Id */
+            workspace_id: string;
         };
         /** WorkspaceInfo */
         WorkspaceInfo: {
@@ -4153,6 +4310,125 @@ export interface operations {
             };
         };
     };
+    ws_jobs_api_v1_workspace_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"][];
+                };
+            };
+        };
+    };
+    ws_submit_job_api_v1_workspace_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_cancel_job_api_v1_workspace_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_save_job_params_api_v1_workspace_jobs__job_id__save_params_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanOpen"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanOpen"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     ws_login_api_v1_workspace_login_post: {
         parameters: {
             query?: never;
@@ -4756,6 +5032,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_workers_api_v1_workspace_workers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerInfo"][];
                 };
             };
         };

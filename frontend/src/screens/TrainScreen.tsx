@@ -1,6 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, type ControllerInfo, type QuickTrackInfo, type TrainJob, type TrainRace } from "../api/client";
+import { ApiError, api, workspace, type ControllerInfo, type QuickTrackInfo, type TrainJob, type TrainRace } from "../api/client";
+import { useWorkspace } from "../store/workspace";
+import { TeamJobs } from "./TeamJobs";
 
 const fmt = (v: number | null | undefined, digits = 1) => (v == null ? "–" : v.toFixed(digits));
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
@@ -19,6 +21,9 @@ export function TrainScreen() {
   const [jobs, setJobs] = useState<TrainJob[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const loggedIn = !!useWorkspace((st) => st.status?.logged_in && st.status.workspace);
+  const [runOn, setRunOn] = useState<"local" | "team">("local");
+  const [teamRefresh, setTeamRefresh] = useState(0);
 
   const load = useCallback(() => api.trainJobs().then(setJobs).catch(() => undefined), []);
   useEffect(() => {
@@ -39,6 +44,13 @@ export function TrainScreen() {
   const start = (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    if (runOn === "team") {
+      const job = mode === "benchmark"
+        ? { bench: { controller, params: params || null, race } }
+        : { tune: { controller, trials, train_tracks: trainTracks, timeout_s: null, out: null, race } };
+      workspace.submitTeamJob(job).then(() => setTeamRefresh((n) => n + 1)).catch((err: unknown) => setError(message(err)));
+      return;
+    }
     const req = mode === "benchmark"
       ? api.trainBenchmark({ controller, params: params || null, race })
       : api.trainTune({ controller, trials, train_tracks: trainTracks, timeout_s: null, out: null, race });
@@ -103,7 +115,16 @@ export function TrainScreen() {
           {num("laps", t("train.laps"), 1, 10)}
           {num("opponents", t("train.opponents"), 0, 5)}
           {num("max_time_s", t("train.max_time"), 10, 3600, 10)}
-          <button type="submit" className="primary" disabled={running || !controller} data-testid="train-start">{t("train.start")}</button>
+          {loggedIn && (
+            <div className="field">
+              <label htmlFor="train-run-on">{t("train.run_on")}</label>
+              <select id="train-run-on" data-testid="train-run-on" value={runOn} onChange={(e) => setRunOn(e.target.value as "local" | "team")}>
+                <option value="local">{t("train.run_local")}</option>
+                <option value="team">{t("train.run_team")}</option>
+              </select>
+            </div>
+          )}
+          <button type="submit" className="primary" disabled={(runOn === "local" && running) || !controller} data-testid="train-start">{t("train.start")}</button>
           {error && <p className="error" role="alert">{error}</p>}
           <p className="muted">{t("train.help")}</p>
         </form>
@@ -122,6 +143,7 @@ export function TrainScreen() {
         </div>
       </aside>
       <section className="main" style={{ display: "block", overflow: "auto", padding: 12 }}>
+        {loggedIn && runOn === "team" && <TeamJobs refresh={teamRefresh} controllerPath={controller} />}
         {job && <JobView job={job} />}
       </section>
     </div>
