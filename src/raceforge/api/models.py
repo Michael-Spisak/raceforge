@@ -376,3 +376,63 @@ class DeployRequest(ApiModel):
 class DeployResponse(ApiModel):
     result: InstallResult | None = None  # what the board reported ("ssh")
     usb_path: str | None = None  # where the bundle was written ("usb")
+
+
+# ------------------------------------------------------------------ training (spec 0013)
+class TrainRace(ApiModel):
+    """Race settings shared by benchmark and tuning (held-out corridors from seed 1000)."""
+
+    tracks: int = Field(default=5, ge=1, le=100)
+    length_m: float = Field(default=25.0, ge=20.0, le=120.0)
+    laps: int = Field(default=1, ge=1, le=10)
+    opponents: int = Field(default=0, ge=0, le=5)
+    max_time_s: float = Field(default=240.0, ge=10.0, le=3600.0)
+
+
+class TrainBenchRequest(ApiModel):
+    controller: str = Field(min_length=1)
+    params: str | None = None
+    race: TrainRace = TrainRace()
+
+
+class TrainTuneRequest(ApiModel):
+    controller: str = Field(min_length=1)
+    trials: int = Field(default=30, ge=1, le=1000)
+    train_tracks: int = Field(default=3, ge=1, le=50)
+    timeout_s: float | None = Field(default=None, gt=0)
+    out: str | None = None  # params YAML (default: <controller>.tuned.yaml)
+    race: TrainRace = TrainRace()
+
+
+class TrainRun(ApiModel):
+    seed: int
+    finished: bool
+    time_s: float
+    fraction: float
+    wall_contacts: int
+    error: str = ""
+
+
+class TrainTrial(ApiModel):
+    number: int  # -1: the default params
+    score: float
+    best: float
+    params: dict[str, Any]
+
+
+class TrainJob(ApiModel):
+    id: str
+    kind: Literal["benchmark", "tune"]
+    controller: str
+    state: Literal["running", "done", "error", "cancelled"]
+    started_at: float
+    finished_at: float | None = None
+    total: int  # runs (benchmark) or trials (tune)
+    runs: list[TrainRun] = []
+    trials: list[TrainTrial] = []
+    score: float | None = None  # benchmark score / held-out score of the tuned params
+    default_score: float | None = None  # tune: held-out score of the defaults
+    finished_rate: float | None = None
+    out: str | None = None  # tune: written params YAML
+    best_params: dict[str, Any] | None = None
+    error: str = ""

@@ -308,6 +308,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/train/benchmark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Train Benchmark
+         * @description Start a benchmark job: the controller on held-out corridors.
+         */
+        post: operations["train_benchmark_api_v1_train_benchmark_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/train/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Train Job List */
+        get: operations["train_job_list_api_v1_train_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/train/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Train Job */
+        get: operations["train_job_api_v1_train_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/train/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Train Job Cancel */
+        post: operations["train_job_cancel_api_v1_train_jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/train/tune": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Train Tune
+         * @description Start an Optuna tuning job over the controller's Tunable params.
+         */
+        post: operations["train_tune_api_v1_train_tune_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/conflicts": {
         parameters: {
             query?: never;
@@ -1786,6 +1877,164 @@ export interface components {
             /** Workspace Id */
             workspace_id: string | null;
         };
+        /** TrainBenchRequest */
+        TrainBenchRequest: {
+            /** Controller */
+            controller: string;
+            /** Params */
+            params?: string | null;
+            /**
+             * @default {
+             *       "laps": 1,
+             *       "length_m": 25,
+             *       "max_time_s": 240,
+             *       "opponents": 0,
+             *       "tracks": 5
+             *     }
+             */
+            race: components["schemas"]["TrainRace"];
+        };
+        /** TrainJob */
+        TrainJob: {
+            /** Best Params */
+            best_params?: {
+                [key: string]: unknown;
+            } | null;
+            /** Controller */
+            controller: string;
+            /** Default Score */
+            default_score?: number | null;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /** Finished At */
+            finished_at?: number | null;
+            /** Finished Rate */
+            finished_rate?: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "benchmark" | "tune";
+            /** Out */
+            out?: string | null;
+            /**
+             * Runs
+             * @default []
+             */
+            runs: components["schemas"]["TrainRun"][];
+            /** Score */
+            score?: number | null;
+            /** Started At */
+            started_at: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "running" | "done" | "error" | "cancelled";
+            /** Total */
+            total: number;
+            /**
+             * Trials
+             * @default []
+             */
+            trials: components["schemas"]["TrainTrial"][];
+        };
+        /**
+         * TrainRace
+         * @description Race settings shared by benchmark and tuning (held-out corridors from seed 1000).
+         */
+        TrainRace: {
+            /**
+             * Laps
+             * @default 1
+             */
+            laps: number;
+            /**
+             * Length M
+             * @default 25
+             */
+            length_m: number;
+            /**
+             * Max Time S
+             * @default 240
+             */
+            max_time_s: number;
+            /**
+             * Opponents
+             * @default 0
+             */
+            opponents: number;
+            /**
+             * Tracks
+             * @default 5
+             */
+            tracks: number;
+        };
+        /** TrainRun */
+        TrainRun: {
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /** Finished */
+            finished: boolean;
+            /** Fraction */
+            fraction: number;
+            /** Seed */
+            seed: number;
+            /** Time S */
+            time_s: number;
+            /** Wall Contacts */
+            wall_contacts: number;
+        };
+        /** TrainTrial */
+        TrainTrial: {
+            /** Best */
+            best: number;
+            /** Number */
+            number: number;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Score */
+            score: number;
+        };
+        /** TrainTuneRequest */
+        TrainTuneRequest: {
+            /** Controller */
+            controller: string;
+            /** Out */
+            out?: string | null;
+            /**
+             * @default {
+             *       "laps": 1,
+             *       "length_m": 25,
+             *       "max_time_s": 240,
+             *       "opponents": 0,
+             *       "tracks": 5
+             *     }
+             */
+            race: components["schemas"]["TrainRace"];
+            /** Timeout S */
+            timeout_s?: number | null;
+            /**
+             * Train Tracks
+             * @default 3
+             */
+            train_tracks: number;
+            /**
+             * Trials
+             * @default 30
+             */
+            trials: number;
+        };
         /** UltrasonicView */
         UltrasonicView: {
             /** Direction */
@@ -2410,6 +2659,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimProtocol"];
+                };
+            };
+        };
+    };
+    train_benchmark_api_v1_train_benchmark_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainBenchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    train_job_list_api_v1_train_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"][];
+                };
+            };
+        };
+    };
+    train_job_api_v1_train_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    train_job_cancel_api_v1_train_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    train_tune_api_v1_train_tune_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainTuneRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

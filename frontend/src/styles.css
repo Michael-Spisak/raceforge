@@ -73,6 +73,9 @@ input, select {
 .badge.ok { color: var(--ok); border-color: var(--ok); }
 .badge.bad { color: var(--error); border-color: var(--error); }
 .list { list-style: none; padding: 0; margin: 0; }
+.table { border-collapse: collapse; width: 100%; max-width: 640px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.table th, .table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.table th { color: var(--muted); font-weight: 500; }
 .list li { padding: 6px 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
 .list li[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 15%, transparent); }
 .statusbar { display: flex; gap: 16px; padding: 6px 12px; border-top: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }

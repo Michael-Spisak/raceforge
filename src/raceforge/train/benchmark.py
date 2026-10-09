@@ -121,10 +121,13 @@ def benchmark(
             if progress:
                 progress(runs[-1])
     else:
-        with ProcessPoolExecutor(workers) as pool:
+        pool = ProcessPoolExecutor(workers)
+        try:
             futures = [pool.submit(run_one, str(controller), p, t, cfg.max_time_s) for t in tracks]
             for fut in futures:
                 runs.append(fut.result())
                 if progress:
-                    progress(runs[-1])
+                    progress(runs[-1])  # may raise to cancel: pending races are dropped
+        finally:
+            pool.shutdown(wait=True, cancel_futures=True)
     return BenchResult(runs=runs, max_time_s=cfg.max_time_s)
