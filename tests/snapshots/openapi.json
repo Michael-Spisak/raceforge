@@ -624,6 +624,12 @@
             "title": "Budget Eur",
             "type": "number"
           },
+          "filament_eur_per_kg": {
+            "default": 25.0,
+            "minimum": 0.0,
+            "title": "Filament Eur Per Kg",
+            "type": "number"
+          },
           "limits": {
             "$ref": "#/components/schemas/ConstructLimits",
             "default": {}
@@ -1116,6 +1122,17 @@
           "linked": {
             "title": "Linked",
             "type": "boolean"
+          },
+          "mesh_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mesh Url"
           },
           "mirrored": {
             "title": "Mirrored",
@@ -2086,6 +2103,17 @@
             "title": "Mass G",
             "type": "number"
           },
+          "mesh_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mesh Url"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2231,6 +2259,130 @@
           "color"
         ],
         "title": "Primitive",
+        "type": "object"
+      },
+      "PrintedImportRequest": {
+        "additionalProperties": false,
+        "description": "Import a 3D-printed part (spec 0019) from a mesh file on this computer.",
+        "properties": {
+          "infill_pct": {
+            "default": 20.0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Infill Pct",
+            "type": "number"
+          },
+          "material": {
+            "default": "PLA",
+            "enum": [
+              "PLA",
+              "PETG",
+              "TPU"
+            ],
+            "title": "Material",
+            "type": "string"
+          },
+          "measured_mass_g": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Mass G"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          },
+          "units": {
+            "default": "mm",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "in"
+            ],
+            "title": "Units",
+            "type": "string"
+          },
+          "up": {
+            "default": "z",
+            "enum": [
+              "z",
+              "y"
+            ],
+            "title": "Up",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "name"
+        ],
+        "title": "PrintedImportRequest",
+        "type": "object"
+      },
+      "PrintedPreview": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_eur": {
+            "title": "Cost Eur",
+            "type": "number"
+          },
+          "faces": {
+            "title": "Faces",
+            "type": "integer"
+          },
+          "mass_estimate_g": {
+            "title": "Mass Estimate G",
+            "type": "number"
+          },
+          "size_mm": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Size Mm",
+            "type": "array"
+          },
+          "volume_cm3": {
+            "title": "Volume Cm3",
+            "type": "number"
+          },
+          "watertight": {
+            "title": "Watertight",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "volume_cm3",
+          "watertight",
+          "size_mm",
+          "faces",
+          "mass_estimate_g",
+          "cost_eur"
+        ],
+        "title": "PrintedPreview",
         "type": "object"
       },
       "QuickObstacle": {
@@ -3609,6 +3761,17 @@
               }
             ],
             "title": "Ldraw Id"
+          },
+          "mesh_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mesh Url"
           },
           "pos": {
             "maxItems": 3,
@@ -5421,6 +5584,121 @@
           }
         },
         "summary": "Parts Add Local"
+      }
+    },
+    "/api/v1/parts/printed": {
+      "post": {
+        "description": "Import a 3D-printed part into the team's local catalogue (spec 0019).",
+        "operationId": "parts_printed_import_api_v1_parts_printed_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintedImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parts Printed Import"
+      }
+    },
+    "/api/v1/parts/printed/preview": {
+      "post": {
+        "description": "Volume, size, mass and cost of a mesh before it is imported (spec 0019).",
+        "operationId": "parts_printed_preview_api_v1_parts_printed_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintedImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintedPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parts Printed Preview"
+      }
+    },
+    "/api/v1/parts/printed/{key}/mesh": {
+      "get": {
+        "operationId": "parts_printed_mesh_api_v1_parts_printed__key__mesh_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parts Printed Mesh"
       }
     },
     "/api/v1/quickstart": {

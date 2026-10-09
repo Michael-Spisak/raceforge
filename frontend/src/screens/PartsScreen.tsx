@@ -5,6 +5,8 @@ import { CarModel } from "../three/CarModel";
 import { Viewport } from "../three/Viewport";
 
 type LDrawPart = Schemas["LDrawPart"];
+type PrintedRequest = Schemas["PrintedImportRequest"];
+type PrintedPreview = Schemas["PrintedPreview"];
 
 const CATEGORIES = ["", "beam", "axle", "pin", "bush", "axle_joiner", "gear", "differential", "steering_arm", "steering_link",
   "cv_joint", "wheel_rim", "tyre", "ev3_brick", "motor", "sensor", "board", "battery"];
@@ -49,6 +51,19 @@ export function PartsScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [printed, setPrinted] = useState<PrintedRequest>({ path: "", name: "", units: "mm", up: "z", material: "PLA", infill_pct: 20, measured_mass_g: null });
+  const [printedPreview, setPrintedPreview] = useState<PrintedPreview | null>(null);
+  const [printedOpen, setPrintedOpen] = useState(false);
+  const previewPrinted = () => {
+    setError("");
+    api.printedPreview(printed).then(setPrintedPreview).catch((e: unknown) => { setPrintedPreview(null); setError(message(e)); });
+  };
+  const importPrinted = () => {
+    setError("");
+    api.importPrinted(printed)
+      .then((p) => { setNote(t("parts.added", { name: p.name })); setPrintedOpen(false); setPrintedPreview(null); setLibrary(false); setReload((n) => n + 1); setSelected(p); })
+      .catch((e: unknown) => setError(message(e)));
+  };
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -99,6 +114,56 @@ export function PartsScreen() {
                 <option key={c} value={c}>{c ? t(`category.${c}`) : t("parts.all")}</option>
               ))}
             </select>
+          </div>
+        )}
+        <button type="button" onClick={() => setPrintedOpen((o) => !o)} data-testid="printed-open">{t("parts.import_printed")}</button>
+        {printedOpen && (
+          <div className="panel" data-testid="printed-form" style={{ marginTop: 8 }}>
+            <div className="field">
+              <label htmlFor="pr-path">{t("parts.printed_path")}</label>
+              <input id="pr-path" value={printed.path} placeholder="/Users/…/sensor-mount.stl" onChange={(e) => setPrinted({ ...printed, path: e.target.value })} />
+            </div>
+            <div className="field">
+              <label htmlFor="pr-name">{t("parts.printed_name")}</label>
+              <input id="pr-name" value={printed.name} onChange={(e) => setPrinted({ ...printed, name: e.target.value })} />
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <label>{t("parts.units")}{" "}
+                <select value={printed.units} onChange={(e) => setPrinted({ ...printed, units: e.target.value as PrintedRequest["units"] })}>
+                  {["mm", "cm", "m", "in"].map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </label>
+              <label>{t("parts.up_axis")}{" "}
+                <select value={printed.up} onChange={(e) => setPrinted({ ...printed, up: e.target.value as PrintedRequest["up"] })}>
+                  <option value="z">Z</option><option value="y">Y</option>
+                </select>
+              </label>
+              <label>{t("parts.material")}{" "}
+                <select value={printed.material} onChange={(e) => setPrinted({ ...printed, material: e.target.value as PrintedRequest["material"] })}>
+                  {["PLA", "PETG", "TPU"].map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </label>
+              <label>{t("parts.infill")}{" "}
+                <input type="number" min={0} max={100} style={{ width: 55 }} value={printed.infill_pct} onChange={(e) => setPrinted({ ...printed, infill_pct: Number(e.target.value) })} />
+              </label>
+              <label>{t("parts.measured_mass")}{" "}
+                <input type="number" min={0} step={0.1} style={{ width: 65 }} value={printed.measured_mass_g ?? ""}
+                       onChange={(e) => setPrinted({ ...printed, measured_mass_g: e.target.value ? Number(e.target.value) : null })} />
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <button type="button" onClick={previewPrinted} disabled={!printed.path}>{t("parts.check")}</button>
+              <button type="button" className="primary" onClick={importPrinted} disabled={!printed.path || !printed.name} data-testid="printed-import">{t("parts.import")}</button>
+            </div>
+            {printedPreview && (
+              <p data-testid="printed-preview">
+                {t("parts.printed_summary", {
+                  size: printedPreview.size_mm.map((v) => v.toFixed(1)).join(" × "),
+                  volume: printedPreview.volume_cm3.toFixed(1), mass: printedPreview.mass_estimate_g.toFixed(1), cost: printedPreview.cost_eur.toFixed(2),
+                })}
+                {!printedPreview.watertight && <span className="warning"> {t("parts.not_watertight")}</span>}
+              </p>
+            )}
           </div>
         )}
         <ul className="list" role="listbox" data-testid="parts-list">

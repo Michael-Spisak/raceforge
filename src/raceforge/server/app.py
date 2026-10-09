@@ -8,7 +8,7 @@ from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
@@ -38,6 +38,8 @@ from raceforge.api.models import (
     LDrawPart,
     LocalPartRequest,
     PartSummary,
+    PrintedImportRequest,
+    PrintedPreview,
     QuickstartResponse,
     QuickstartSchema,
     QuickTrackInfo,
@@ -195,6 +197,32 @@ def create_app(
             return eng.add_local_part(req)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/parts/printed/preview")
+    def parts_printed_preview(req: PrintedImportRequest) -> PrintedPreview:
+        """Volume, size, mass and cost of a mesh before it is imported (spec 0019)."""
+        try:
+            return eng.printed_preview(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/parts/printed")
+    def parts_printed_import(req: PrintedImportRequest) -> PartSummary:
+        """Import a 3D-printed part into the team's local catalogue (spec 0019)."""
+        try:
+            return eng.import_printed(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/parts/printed/{key}/mesh")
+    def parts_printed_mesh(key: str) -> FileResponse:
+        try:
+            path = eng.mesh_path(key)
+        except KeyError as exc:
+            raise HTTPException(404, f"no printed part {key!r}") from exc
+        if not path.is_file():
+            raise HTTPException(404, f"mesh of {key!r} is missing")
+        return FileResponse(path, media_type="model/stl")
 
     @app.get("/api/v1/controllers")
     def controllers(extra: Annotated[list[str] | None, Query()] = None) -> list[ControllerInfo]:

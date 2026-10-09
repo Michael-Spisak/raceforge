@@ -47,6 +47,27 @@ class LocalPartRequest(ApiModel):
     color: int | None = Field(default=None, ge=0)
 
 
+class PrintedImportRequest(ApiModel):
+    """Import a 3D-printed part (spec 0019) from a mesh file on this computer."""
+
+    path: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=80)
+    units: Literal["mm", "cm", "m", "in"] = "mm"
+    up: Literal["z", "y"] = "z"
+    material: Literal["PLA", "PETG", "TPU"] = "PLA"
+    infill_pct: float = Field(default=20.0, ge=0, le=100)
+    measured_mass_g: float | None = Field(default=None, gt=0)  # kitchen scale beats the estimate
+
+
+class PrintedPreview(ApiModel):
+    volume_cm3: float
+    watertight: bool  # False: volume from the convex hull (estimate too high)
+    size_mm: V3
+    faces: int
+    mass_estimate_g: float
+    cost_eur: float
+
+
 class PartSummary(ApiModel):
     key: str
     ldraw_id: str | None
@@ -58,6 +79,7 @@ class PartSummary(ApiModel):
     verified: bool
     color: int | None = None  # usual LDraw colour (approximate); None for non-LEGO parts
     origin: Literal["curated", "local"] = "curated"  # local: added by the team (spec 0018)
+    mesh_url: str | None = None  # 3D-printed part: its mesh (binary STL, metres, spec 0019)
 
 
 class Primitive(ApiModel):
@@ -77,9 +99,9 @@ class ScenePart(ApiModel):
     pos: V3  # relative to the body
     quat: Q4
     color: int  # LDraw colour code: function colour (by submodel role)
-    real_color: int = (
-        16  # LDraw colour code: the part's own colour (instance, else catalogue default)
-    )
+    # LDraw colour code: the part's own colour (instance, else catalogue default)
+    real_color: int = 16
+    mesh_url: str | None = None  # 3D-printed part: its mesh (spec 0019)
     bbox_lo: V3
     bbox_hi: V3
 
@@ -553,6 +575,7 @@ class EditorPartView(ApiModel):
     category: str
     color: int  # function colour (by submodel role)
     real_color: int = 16  # the part's own LEGO colour
+    mesh_url: str | None = None  # 3D-printed part: its mesh (spec 0019)
     pos: V3
     quat: Q4
     bbox_lo: V3
@@ -606,6 +629,7 @@ class ConstructSettings(ApiModel):
     ] = {}  # catalogue key -> price (LEGO school-kit parts default to 0)
     limits: ConstructLimits = ConstructLimits()
     budget_eur: float = Field(default=200.0, gt=0)
+    filament_eur_per_kg: float = Field(default=25.0, ge=0)  # print cost of 3D-printed parts
 
 
 class RuleCheck(ApiModel):

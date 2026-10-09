@@ -23,6 +23,8 @@ from raceforge.api.models import (
     LocalPartRequest,
     PartSummary,
     Primitive,
+    PrintedImportRequest,
+    PrintedPreview,
     QuickstartResponse,
     QuickstartSchema,
     ReplaySummary,
@@ -92,9 +94,85 @@ class Engine:
                     verified=False,
                     color=e.color,
                     origin=e.origin,
+                    mesh_url=self.mesh_url(e.key),
                 )
             )
         return out
+
+    def mesh_url(self, key: str) -> str | None:
+        return f"/api/v1/parts/printed/{key}/mesh" if self.cat.entry(key).printed else None
+
+    def mesh_path(self, key: str) -> Path:
+        from raceforge.parts.catalogue import printed_dir
+
+        printed = self.cat.entry(key).printed
+        if printed is None:
+            raise KeyError(key)
+        return printed_dir() / printed.mesh
+
+    def printed_preview(self, req: PrintedImportRequest) -> PrintedPreview:
+        from raceforge.api.construct_settings import load_settings
+        from raceforge.parts.printed import estimate_mass_g, load_mesh, print_cost_eur
+
+        m = load_mesh(Path(req.path).expanduser(), req.units, req.up)
+        mass = estimate_mass_g(m.volume_cm3, req.material, req.infill_pct)
+        eur_kg = load_settings().filament_eur_per_kg
+        return PrintedPreview(
+            volume_cm3=round(m.volume_cm3, 2),
+            watertight=m.watertight,
+            size_mm=(round(m.size_mm[0], 2), round(m.size_mm[1], 2), round(m.size_mm[2], 2)),
+            faces=len(m.mesh.faces),
+            mass_estimate_g=round(req.measured_mass_g or mass, 2),
+            cost_eur=round(print_cost_eur(m.volume_cm3, req.material, req.infill_pct, eur_kg), 2),
+        )
+
+    def import_printed(self, req: PrintedImportRequest) -> PartSummary:
+        """Add a 3D-printed part to the local catalogue (mesh stored next to it, spec 0019)."""
+        from raceforge.parts.catalogue import (
+            CatalogueEntry,
+            Category,
+            PrintedSpec,
+            printed_dir,
+            save_local_entry,
+        )
+        from raceforge.parts.printed import estimate_mass_g, load_mesh, slug_key
+
+        m = load_mesh(Path(req.path).expanduser(), req.units, req.up)
+        key, n = slug_key(req.name), 1
+        while key in self.cat.entries:  # never replace: saved assemblies keep their part
+            n += 1
+            key = f"{slug_key(req.name)}-{n}"
+        folder = printed_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        m.mesh.export(folder / f"{key}.stl")  # pyright: ignore[reportUnknownMemberType]
+        lo, hi = m.mesh.bounds * 1000
+        estimate = estimate_mass_g(m.volume_cm3, req.material, req.infill_pct)
+        entry = CatalogueEntry(
+            key=key,
+            name=req.name,
+            category=Category.PRINTED,
+            mass_g=req.measured_mass_g or round(max(estimate, 0.01), 2),
+            mass_source="measured" if req.measured_mass_g else "volume x density x fill (estimate)",
+            color=25,
+            bbox_mm=(
+                (round(float(lo[0]), 3), round(float(lo[1]), 3), round(float(lo[2]), 3)),
+                (round(float(hi[0]), 3), round(float(hi[1]), 3), round(float(hi[2]), 3)),
+            ),
+            origin="local",
+            printed=PrintedSpec(
+                mesh=f"{key}.stl",
+                material=req.material,
+                infill_pct=req.infill_pct,
+                volume_cm3=round(m.volume_cm3, 3),
+            ),
+        )
+        same = self.cat.key_for_entry(entry)
+        if same is not None:  # identical part already there: reuse it
+            (folder / f"{key}.stl").unlink(missing_ok=True)
+            return next(p for p in self.parts(same) if p.key == same)
+        save_local_entry(entry)
+        self.cat.extend(entry)
+        return next(p for p in self.parts(key) if p.key == key)
 
     def ldraw_search(self, query: str, limit: int = 50) -> list[LDrawPart]:
         """Parts of the whole LDraw library (spec 0018); every word must match."""
@@ -264,6 +342,7 @@ class Engine:
                 category=p.category,
                 color=self.colours(assembly, list(p.path), p.key, p.color)[0],
                 real_color=self.colours(assembly, list(p.path), p.key, p.color)[1],
+                mesh_url=self.mesh_url(p.key),
                 pos=_v3(p.position),
                 quat=_mat_to_quat(p.rotation),
                 bbox_lo=_v3(p.bbox_lo),
@@ -306,7 +385,11 @@ class Engine:
 
         cfg = load_settings()
         shop = r.budget(
-            assembly, self.cat, {k: v.eur for k, v in cfg.prices.items()}, cfg.budget_eur
+            assembly,
+            self.cat,
+            {k: v.eur for k, v in cfg.prices.items()},
+            cfg.budget_eur,
+            cfg.filament_eur_per_kg,
         )
         lim = cfg.limits
         checks = r.check_rules(
@@ -467,6 +550,7 @@ class Engine:
                     quat=_mat_to_quat(rot),
                     color=fc,
                     real_color=rc,
+                    mesh_url=self.mesh_url(key),
                     bbox_lo=_v3(lo),
                     bbox_hi=_v3(hi),
                 )

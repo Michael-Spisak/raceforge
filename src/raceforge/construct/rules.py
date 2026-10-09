@@ -62,8 +62,23 @@ def is_lego(cat: Catalogue, key: str) -> bool:
     return cat.entry(key).ldraw_id is not None
 
 
+def default_price(cat: Catalogue, key: str, filament_eur_per_kg: float) -> float | None:
+    """LEGO (school kit): 0 €; 3D-printed: estimated print cost; anything else: unknown."""
+    entry = cat.entry(key)
+    if entry.printed is not None:
+        from raceforge.parts.printed import print_cost_eur
+
+        p = entry.printed
+        return round(print_cost_eur(p.volume_cm3, p.material, p.infill_pct, filament_eur_per_kg), 2)
+    return 0.0 if is_lego(cat, key) else None
+
+
 def budget(
-    assembly: Assembly, cat: Catalogue, prices: Mapping[str, float], limit_eur: float
+    assembly: Assembly,
+    cat: Catalogue,
+    prices: Mapping[str, float],
+    limit_eur: float,
+    filament_eur_per_kg: float = 25.0,
 ) -> Budget:
     counts = Counter(p.key for p in placed_parts(assembly, cat))
     items = [
@@ -71,7 +86,7 @@ def budget(
             key=key,
             name=cat.part(key).name,
             count=n,
-            unit_eur=prices.get(key, 0.0 if is_lego(cat, key) else None),
+            unit_eur=prices.get(key, default_price(cat, key, filament_eur_per_kg)),
         )
         for key, n in sorted(counts.items())
     ]

@@ -5,6 +5,7 @@ import type { Schemas } from "../api/client";
 import { toThreeQuat } from "./CarModel";
 import { useSettings } from "../store/settings";
 import { LDRAW_COLOURS, loadPart } from "./ldraw";
+import { loadStl } from "./stl";
 
 type EditorPartView = Schemas["EditorPartView"];
 
@@ -15,11 +16,12 @@ function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartVie
   const colour = useSettings((st) => (st.colourMode === "real" ? part.real_color ?? part.color : part.color));
   useEffect(() => {
     let alive = true;
-    if (part.ldraw_id) void loadPart(part.ldraw_id, colour).then((g) => alive && setObject(g));
+    if (part.mesh_url) void loadStl(part.mesh_url, colour).then((g) => alive && setObject(g));
+    else if (part.ldraw_id) void loadPart(part.ldraw_id, colour).then((g) => alive && setObject(g));
     return () => {
       alive = false;
     };
-  }, [part.ldraw_id, colour]);
+  }, [part.ldraw_id, part.mesh_url, colour]);
   const lo = part.bbox_lo;
   const hi = part.bbox_hi;
   const centre: [number, number, number] = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];

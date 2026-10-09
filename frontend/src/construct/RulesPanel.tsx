@@ -81,7 +81,7 @@ export function RulesPanel({ rules, budget, showOverlaps, onShowOverlaps, onSele
                   <td title={i.key}>{i.name}</td>
                   <td>{i.count}</td>
                   <td>
-                    <input type="number" min={0} step={0.01} style={{ width: 70 }} placeholder={t("rules.price_missing")}
+                    <input type="number" min={0} step={0.01} style={{ width: 70 }} placeholder={i.unit_eur != null ? i.unit_eur.toFixed(2) : t("rules.price_missing")}
                            defaultValue={settings?.prices[i.key]?.eur ?? (i.unit_eur === 0 ? "" : i.unit_eur ?? "")}
                            className={i.unit_eur == null ? "error" : ""}
                            onBlur={(e) => setPrice(i.key, e.target.value)} />
@@ -102,6 +102,11 @@ export function RulesPanel({ rules, budget, showOverlaps, onShowOverlaps, onSele
             {limitInput("max_width_m", t("rules.max_width_mm"), 1000)}
             {limitInput("max_height_m", t("rules.max_height_mm"), 1000)}
             {limitInput("max_mass_kg", t("rules.max_mass_g"), 1000)}
+          </div>
+          <div className="field">
+            <label htmlFor="lim-filament">{t("rules.filament_price")}</label>
+            <input id="lim-filament" type="number" min={0} step={0.5} defaultValue={settings.filament_eur_per_kg}
+                   onBlur={(e) => e.target.value && save({ ...settings, filament_eur_per_kg: Number(e.target.value) })} />
           </div>
           <div className="field">
             <label htmlFor="lim-budget">{t("rules.budget_limit")}</label>
