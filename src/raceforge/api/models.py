@@ -408,12 +408,16 @@ class CarPairingCode(ApiModel):
 
 # ------------------------------------------------------------------ deploy (spec 0012)
 class BundleRequest(ApiModel):
-    """Build a test-mode bundle: controller file + optional params + car config (spec 0012)."""
+    """Build a bundle: controller file + optional params + car config (spec 0012).
+
+    ``race`` (spec 0030): a race-mode bundle — arms only when every radio is off, no live view or
+    teleop, no test speed limit."""
 
     controller: str = Field(min_length=1)
     params: str | None = None
     car_config: str = Field(min_length=1)
     name: str | None = None
+    race: bool = False
 
 
 class BundleInfo(ApiModel):

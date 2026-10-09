@@ -215,6 +215,8 @@ pub fn run(opts: &Options, stop: &AtomicBool) -> Result<Outcome, AppError> {
             rt.teleop.clone(),
             rt.remote.clone(),
         )?;
+        let (root, deny) = (opts.sys_root.clone(), manifest.runtime.radio_usb_ids.clone());
+        server.set_radio_check(Arc::new(move || radio::check(&root, &deny)));
         rt.add_sink(Arc::new(server));
     }
     let report = rt.run(stop, opts.max_ticks);

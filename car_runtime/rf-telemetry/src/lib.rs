@@ -13,6 +13,8 @@
 //!   to the controller
 //! - `{"type":"note","text":..}`: note in the run log
 //! - `{"type":"mode",..}`: refused; the mode comes from the bundle (race mode needs the radio check)
+//! - `{"type":"radio_check"}` (spec 0030): runs the race-mode radio check now, without arming, and
+//!   answers `{"type":"radio_check","ok":..,"violations":[..]}` so the team can fix radios first
 //!
 //! Access: when a token is configured, clients connect to `ws://car:port/?token=<token>`.
 //! The server refuses to start in race mode; `rf-runtime` does not even try.
@@ -60,7 +62,11 @@ impl Client {
     }
 }
 
+/// The race-mode radio check (spec 0005 AC5), injected by `rf-runtime`: one line per violation.
+pub type RadioCheck = Arc<dyn Fn() -> Vec<String> + Send + Sync>;
+
 struct Shared {
+    radio_check: Mutex<Option<RadioCheck>>,
     cfg: TelemetryConfig,
     car: String,
     mode: Mode,
@@ -133,6 +139,18 @@ impl Shared {
                 }
                 _ => Some(ack(kind, false, "text (1-2000 characters) required")),
             },
+            "radio_check" => {
+                let check = lock(&self.radio_check).clone();
+                Some(match check {
+                    Some(f) => {
+                        let violations = f();
+                        let ok = violations.is_empty();
+                        json!({ "type": "radio_check", "ok": ok, "violations": violations })
+                        .to_string()
+                    }
+                    None => ack(kind, false, "radio check not available on this runtime"),
+                })
+            }
             "mode" => Some(ack(
                 kind,
                 false,
@@ -247,6 +265,7 @@ impl TelemetryServer {
         let addr = listener.local_addr()?;
         let period = Duration::from_secs_f64(1.0 / cfg.rate_hz.clamp(1.0, 50.0));
         let shared = Arc::new(Shared {
+            radio_check: Mutex::new(None),
             cfg,
             car: car.to_string(),
             mode,
@@ -300,6 +319,11 @@ impl TelemetryServer {
             addr,
             threads: vec![accept, broadcaster],
         })
+    }
+
+    /// Lets clients run the race-mode radio check from test mode (`radio_check` command).
+    pub fn set_radio_check(&self, check: RadioCheck) {
+        *lock(&self.shared.radio_check) = Some(check);
     }
 
     pub fn local_addr(&self) -> SocketAddr {

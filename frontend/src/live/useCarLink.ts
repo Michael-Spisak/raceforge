@@ -27,6 +27,14 @@ export interface ShareInfo {
   run?: string | null;
 }
 
+/** Answer of the car's race-mode radio pre-check (spec 0030). */
+export interface RadioCheck {
+  ok: boolean;
+  violations: string[];
+  unsupported?: boolean;
+  at: number;
+}
+
 export type LinkState = "idle" | "connecting" | "connected" | "error" | "closed";
 
 export interface CarEvent {
@@ -48,6 +56,7 @@ export function useCarLink() {
   const [share, setShare] = useState<ShareInfo>({ state: "off", session: null });
   const [watching, setWatching] = useState<string | null>(null);
   const [lastFrameAt, setLastFrameAt] = useState(0);
+  const [radio, setRadio] = useState<RadioCheck | null>(null);
 
   const addEvent = (kind: string, text: string) =>
     setEvents((e) => [{ at: Date.now(), kind, detail: text }, ...e].slice(0, 200));
@@ -67,6 +76,7 @@ export function useCarLink() {
     setRtt(null);
     setCar(null);
     setShare({ state: "off", session: null });
+    setRadio(null);
     setWatching(session);
     const socket = new WebSocket(socketUrl);
     ws.current = socket;
@@ -113,8 +123,12 @@ export function useCarLink() {
         case "event":
           addEvent(String(msg.kind), String(msg.detail ?? ""));
           break;
+        case "radio_check":
+          setRadio({ ok: msg.ok === true, violations: (msg.violations as string[] | undefined) ?? [], at: Date.now() });
+          break;
         case "ack":
-          if (!msg.ok) addEvent(`${String(msg.cmd)} refused`, String(msg.detail ?? ""));
+          if (msg.cmd === "radio_check" && !msg.ok) setRadio({ ok: false, violations: [String(msg.detail ?? "")], unsupported: true, at: Date.now() });
+          else if (!msg.ok) addEvent(`${String(msg.cmd)} refused`, String(msg.detail ?? ""));
           break;
       }
     };
@@ -134,5 +148,5 @@ export function useCarLink() {
 
   useEffect(() => disconnect, [disconnect]);
   const pushEvent = useCallback((e: CarEvent) => setEvents((list) => [e, ...list].slice(0, 200)), []);
-  return { state, detail, car, frame, lastFrameAt, rtt, events, share, watching, connect, watch, disconnect, send, pushEvent };
+  return { state, detail, car, frame, lastFrameAt, rtt, events, share, watching, radio, connect, watch, disconnect, send, pushEvent };
 }

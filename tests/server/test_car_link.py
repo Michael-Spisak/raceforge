@@ -40,6 +40,9 @@ class FakeCar:
                     await conn.send(
                         json.dumps({"type": "ack", "cmd": "stop", "ok": True, "detail": ""})
                     )
+                if msg["type"] == "radio_check":
+                    reply = {"type": "radio_check", "ok": False, "violations": ["wlan0 is up"]}
+                    await conn.send(json.dumps(reply))
 
         async def main() -> None:
             async with serve(handler, "127.0.0.1", 0) as server:
@@ -126,3 +129,14 @@ def test_pairing_code_for_trackscout(client: TestClient) -> None:
     )
     assert body["qr_svg"].startswith("<svg")
     assert client.post("/api/v1/car/pairing-code", json={"url": "ftp://x"}).status_code == 422
+
+
+def test_radio_pre_check_is_forwarded(client: TestClient, car: FakeCar) -> None:
+    """Spec 0030 AC3."""
+    with client.websocket_connect("/api/v1/car/live") as ws:
+        ws.send_json({"type": "connect", "url": car.url, "token": TOKEN, "share": False})
+        _until(ws, "link", "connected")
+        ws.send_json({"type": "radio_check"})
+        reply = _until(ws, "radio_check")
+        assert reply["ok"] is False and reply["violations"] == ["wlan0 is up"]
+    assert any(m["type"] == "radio_check" for m in car.received)

@@ -29,7 +29,7 @@ from raceforge.api.live_share import LiveShare, RunRecorder
 from raceforge.api.models import CarPairingCode, CarPairingRequest
 from raceforge.workspace.sync import Workspace
 
-FORWARD_TO_CAR = {"teleop", "teleop_release", "stop", "note"}
+FORWARD_TO_CAR = {"teleop", "teleop_release", "stop", "note", "radio_check"}  # 0030: radio_check
 PING_PERIOD_S = 1.0
 CONNECT_TIMEOUT_S = 5.0
 

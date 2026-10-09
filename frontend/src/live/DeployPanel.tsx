@@ -20,8 +20,13 @@ function remember(key: string, value: string) {
 
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
 
-/** Build a test-mode bundle and install it on the car over Wi-Fi (SSH) or a USB stick (spec 0012). */
-export function DeployPanel() {
+export interface Deployed {
+  bundle: BundleInfo;
+  result: InstallResult;
+}
+
+/** Build a test or race bundle (spec 0012/0030) and install it over Wi-Fi (SSH) or a USB stick. */
+export function DeployPanel({ onInstalled }: { onInstalled?: (d: Deployed) => void } = {}) {
   const { t } = useTranslation();
   const [controllers, setControllers] = useState<ControllerInfo[]>([]);
   const [controller, setController] = useState(() => stored("controller"));
@@ -36,6 +41,7 @@ export function DeployPanel() {
   const [result, setResult] = useState<InstallResult | null>(null);
   const [usbPath, setUsbPath] = useState("");
   const [usbPending, setUsbPending] = useState(false);
+  const [race, setRace] = useState(false);
 
   useEffect(() => {
     void api.controllers().then((cs) => {
@@ -46,6 +52,7 @@ export function DeployPanel() {
 
   const build = (e: FormEvent) => {
     e.preventDefault();
+    if (race && !window.confirm(t("deploy.race_confirm"))) return;
     remember("controller", controller);
     remember("params", params);
     remember("car", carConfig);
@@ -54,7 +61,7 @@ export function DeployPanel() {
     setBundle(null);
     setResult(null);
     setUsbPath("");
-    api.buildBundle({ controller, params: params || null, car_config: carConfig, name: null })
+    api.buildBundle({ controller, params: params || null, car_config: carConfig, name: race ? `${controller.split(/[\\/]/).pop()?.replace(/\.py$/, "") ?? "race"}-race` : null, race })
       .then(setBundle)
       .catch((err: unknown) => setError(message(err)))
       .finally(() => setBusy(""));
@@ -73,6 +80,7 @@ export function DeployPanel() {
       .then((r) => {
         setResult(r.result ?? null);
         setUsbPath(r.usb_path ?? "");
+        if (r.result) onInstalled?.({ bundle, result: r.result });
       })
       .catch((err: unknown) => setError(message(err)))
       .finally(() => setBusy(""));
@@ -84,6 +92,7 @@ export function DeployPanel() {
       .then((r) => {
         setResult(r);
         setUsbPending(r === null);
+        if (r && bundle) onInstalled?.({ bundle, result: r });
       })
       .catch((err: unknown) => setError(message(err)));
   };
@@ -113,13 +122,17 @@ export function DeployPanel() {
         <label htmlFor="deploy-car">{t("deploy.car_config")}</label>
         <input id="deploy-car" data-testid="deploy-car" value={carConfig} onChange={(e) => setCarConfig(e.target.value)} required />
       </div>
+      <div className="field">
+        <label><input type="checkbox" checked={race} data-testid="deploy-race" onChange={(e) => setRace(e.target.checked)} /> {t("deploy.race")}</label>
+      </div>
       <button type="submit" disabled={busy !== "" || !controller || !carConfig} data-testid="deploy-build">
         {busy === "build" ? t("deploy.building") : t("deploy.build")}
       </button>
-      <p className="muted">{t("deploy.race_hint")}</p>
+      <p className="muted">{race ? t("deploy.race_info") : t("deploy.test_info")}</p>
 
       {bundle && (
         <>
+          {bundle.mode === "race" && <p className="warning" data-testid="deploy-race-bundle">{t("deploy.race_bundle")}</p>}
           <p data-testid="deploy-bundle">
             {t("deploy.bundle", {
               name: bundle.name, digest: short(bundle.digest), car: bundle.car_name,

@@ -2,7 +2,8 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, api, type CarPairingCode, type Schemas, workspace } from "../api/client";
 import { Dashboard } from "../live/Dashboard";
-import { DeployPanel } from "../live/DeployPanel";
+import { type Deployed, DeployPanel } from "../live/DeployPanel";
+import { RaceChecklist } from "../live/RaceChecklist";
 import { LATENCY_WARN_MS, useCarLink } from "../live/useCarLink";
 import { useWorkspace } from "../store/workspace";
 import { TeleopPanel } from "../teleop/TeleopPanel";
@@ -26,6 +27,7 @@ export function LiveScreen() {
   const [share, setShare] = useState(() => localStorage.getItem("rf.live.share") !== "0");
   const [shareRate, setShareRate] = useState(() => Number(localStorage.getItem("rf.live.share_rate") ?? 10));
   const [sessions, setSessions] = useState<Schemas["LiveSession"][]>([]);
+  const [deployed, setDeployed] = useState<Deployed | null>(null);
   useEffect(() => {
     if (!loggedIn) return;
     const load = () => void workspace.liveSessions().then(setSessions).catch(() => setSessions([]));
@@ -139,7 +141,7 @@ export function LiveScreen() {
             </div>
           </form>
         )}
-        <DeployPanel />
+        <DeployPanel onInstalled={setDeployed} />
       </aside>
       <section className="main" style={{ display: "block", overflow: "auto", padding: 12 }}>
         <div className="panel" data-testid="car-status">
@@ -159,6 +161,11 @@ export function LiveScreen() {
         </div>
         {(link.state === "connected" || f) && (
           <Dashboard frame={f} lastFrameAt={link.lastFrameAt} rtt={watching ? null : link.rtt} onEvent={link.pushEvent} />
+        )}
+        {!watching && (
+          <RaceChecklist connected={connected} frame={f} radio={link.radio} deployed={deployed}
+                         runRadioCheck={() => link.send({ type: "radio_check" })}
+                         saveNote={(text) => link.send({ type: "note", text })} />
         )}
         <div className="panel">
           <h4 style={{ marginTop: 0 }}>{t("live.events")}</h4>
