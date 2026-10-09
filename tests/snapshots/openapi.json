@@ -1855,6 +1855,11 @@
       "JobInfo": {
         "additionalProperties": false,
         "properties": {
+          "attempt": {
+            "default": 1,
+            "title": "Attempt",
+            "type": "integer"
+          },
           "cancel_requested": {
             "title": "Cancel Requested",
             "type": "boolean"
@@ -1907,10 +1912,31 @@
             "title": "Log Tail",
             "type": "array"
           },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "high",
+              "critical"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
           "progress": {
             "additionalProperties": true,
             "title": "Progress",
             "type": "object"
+          },
+          "raceforge_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raceforge Version"
           },
           "result": {
             "anyOf": [
@@ -1946,6 +1972,17 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "target_worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Worker Id"
           },
           "worker_id": {
             "anyOf": [

@@ -22,5 +22,5 @@ Detail questions are asked just-in-time while writing each spec.
 | 0016 | Rule checker, budget and overlaps in the Construct editor | 4–5 | approved |
 | 0018 | More parts: LDraw library search, team catalogue additions | 4–5 | approved |
 | 0019 | Import 3D-printed parts (STL/3MF/OBJ/PLY, mass, cost, mesh) | 6–7 | approved |
-| 0020 | Workers v1: team computers run training/benchmark jobs (worker tokens) | 4–5 | approved |
+| 0020 | Workers v1: team computers run training/benchmark jobs (worker tokens) | 4–5 | part C in progress |
 | 0021 | Connectors on 3D-printed parts (click on the mesh) | 6–7 | approved |

@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import ValidationError
 from sqlalchemy import delete, func, select, text
@@ -33,6 +33,7 @@ from raceforge.backend.models import (
     JobCreate,
     JobFinish,
     JobInfo,
+    JobPriority,
     JobProgress,
     JobProgressAck,
     LoginRequest,
@@ -544,8 +545,11 @@ class Backend:
             self._audit(s, actor, "token.revoke", tok.id)
 
     # ------------------------------------------------------------------ workers & jobs (spec 0020)
-    WORKER_ONLINE = timedelta(minutes=2)
+    WORKER_ONLINE = timedelta(minutes=2)  # also the lease: a running job's worker must be seen
     LOG_LINES = 2000
+    MAX_ATTEMPTS = 3  # part C: the 3rd lost worker ends the job as error
+    AVOID_LOST = timedelta(minutes=2)  # a lost worker does not get its job back this soon
+    PRIORITIES: ClassVar[tuple[JobPriority, ...]] = ("normal", "high", "critical")  # index = db
 
     def _worker_info(self, s: Session, w: db.Worker) -> WorkerInfo:
         busy = (
@@ -610,6 +614,7 @@ class Backend:
     def list_workers(self, actor: Actor, workspace_id: str) -> list[WorkerInfo]:
         self.require(actor, Scope.READ)
         with self.db.session() as s:
+            self._reap_lost(s, workspace_id)
             rows = s.scalars(
                 select(db.Worker)
                 .where(db.Worker.workspace_id == workspace_id, db.Worker.removed_at.is_(None))
@@ -634,8 +639,46 @@ class Backend:
             for job in s.scalars(
                 select(db.Job).where(db.Job.worker_id == w.id, db.Job.status == "running")
             ):
-                job.status, job.worker_id, job.started_at = "queued", None, None
+                self._requeue(job, f"worker {w.name} removed")
             self._audit(s, actor, "worker.remove", w.id)
+
+    # part C: leases and requeueing --------------------------------------------------------
+    def _log(self, j: db.Job, *lines: str) -> None:
+        j.log = "\n".join([*j.log.splitlines(), *lines][-self.LOG_LINES :])
+
+    def _requeue(self, j: db.Job, why: str, lost: bool = False) -> None:
+        """Back to the queue; the partial result stays in the payload for the next worker."""
+        if j.cancel_requested:  # the user cancelled meanwhile: do not run it again
+            j.status, j.worker_id, j.finished_at = "cancelled", None, self.clock()
+            self._log(j, f"{why}; cancelled")
+            return
+        payload = dict(j.payload)
+        if lost and j.worker_id:
+            payload["lost_on"] = [*payload.get("lost_on", []), j.worker_id]
+            payload["last_lost"] = j.worker_id
+            j.attempt += 1
+        j.payload = payload
+        j.status, j.worker_id, j.started_at = "queued", None, None
+        j.queued_at = self.clock()
+        self._log(j, f"{why}; back in the queue (attempt {j.attempt})")
+
+    def _reap_lost(self, s: Session, workspace_id: str) -> None:
+        """Running jobs whose worker was not seen within the lease go back to the queue."""
+        limit = self.clock() - self.WORKER_ONLINE
+        rows = s.execute(
+            select(db.Job, db.Worker)
+            .join(db.Worker, db.Job.worker_id == db.Worker.id)
+            .where(db.Job.workspace_id == workspace_id, db.Job.status == "running")
+        ).all()
+        for j, w in rows:
+            if w.last_seen_at is not None and w.last_seen_at >= limit:
+                continue
+            if j.attempt >= self.MAX_ATTEMPTS and not j.cancel_requested:
+                j.status, j.finished_at = "error", self.clock()
+                j.error = f"worker lost {j.attempt} times (last: {w.name})"
+                self._log(j, j.error)
+            else:
+                self._requeue(j, f"worker {w.name} lost", lost=True)
 
     def _job_info(self, s: Session, j: db.Job) -> JobInfo:
         worker = s.get(db.Worker, j.worker_id) if j.worker_id else None
@@ -656,13 +699,26 @@ class Backend:
             error=j.error,
             log_tail=j.log.splitlines()[-50:],
             cancel_requested=j.cancel_requested,
+            priority=self._priority_name(j.priority),
+            target_worker_id=j.target_worker_id,
+            raceforge_version=j.raceforge_version,
+            attempt=j.attempt,
         )
+
+    def _priority_name(self, value: int) -> JobPriority:
+        return self.PRIORITIES[value] if 0 <= value < len(self.PRIORITIES) else "normal"
 
     def create_job(self, actor: Actor, workspace_id: str, req: JobCreate) -> JobInfo:
         self.require(actor, Scope.SIM_TRAIN)
+        if req.priority == "critical":
+            self.require(actor, Scope.ADMIN)  # race-critical jobs jump the queue: admin only
         with self.db.session() as s:
             if s.get(db.Workspace, workspace_id) is None:
                 raise ApiError(404, "workspace not found")
+            if req.target_worker_id is not None:
+                target = s.get(db.Worker, req.target_worker_id)
+                if target is None or target.removed_at or target.workspace_id != workspace_id:
+                    raise ApiError(422, "target worker not found in this workspace")
             j = db.Job(
                 id=new_object_id(),
                 workspace_id=workspace_id,
@@ -677,6 +733,11 @@ class Backend:
                 cancel_requested=False,
                 created_by=actor.user_id,
                 created_at=self.clock(),
+                priority=self.PRIORITIES.index(req.priority),
+                target_worker_id=req.target_worker_id,
+                raceforge_version=req.raceforge_version,
+                attempt=1,
+                queued_at=self.clock(),
             )
             s.add(j)
             s.flush()
@@ -686,6 +747,7 @@ class Backend:
     def list_jobs(self, actor: Actor, workspace_id: str, limit: int = 50) -> list[JobInfo]:
         self.require(actor, Scope.READ)
         with self.db.session() as s:
+            self._reap_lost(s, workspace_id)
             rows = s.scalars(
                 select(db.Job)
                 .where(db.Job.workspace_id == workspace_id)
@@ -700,6 +762,7 @@ class Backend:
             j = s.get(db.Job, job_id)
             if j is None:
                 raise ApiError(404, "job not found")
+            self._reap_lost(s, j.workspace_id)
             return self._job_info(s, j)
 
     def cancel_job(self, actor: Actor, job_id: str) -> JobInfo:
@@ -730,8 +793,13 @@ class Backend:
                 w.info = dict(req.info)
             return self._worker_info(s, w)
 
+    def _claimable(self, j: db.Job, w: db.Worker) -> bool:
+        lost_here = j.payload.get("last_lost") == w.id
+        recent = j.queued_at is not None and self.clock() - j.queued_at < self.AVOID_LOST
+        return not (lost_here and recent)
+
     def worker_claim(self, actor: Actor) -> WorkerJob | None:
-        """Oldest queued job of the worker's workspace, or None. One job per worker at a time."""
+        """Highest-priority, oldest queued job this worker may run, or None. One job at a time."""
         with self.db.session() as s:
             w = self._worker_of(s, actor)
             running = s.scalars(
@@ -739,15 +807,23 @@ class Backend:
             ).first()
             if running is not None:
                 raise ApiError(409, f"finish job {running.id} first")
+            self._reap_lost(s, w.workspace_id)
+            version = w.info.get("raceforge")
             q = (
                 select(db.Job)
-                .where(db.Job.workspace_id == w.workspace_id, db.Job.status == "queued")
-                .order_by(db.Job.created_at)
-                .limit(1)
+                .where(
+                    db.Job.workspace_id == w.workspace_id,
+                    db.Job.status == "queued",
+                    (db.Job.target_worker_id.is_(None)) | (db.Job.target_worker_id == w.id),
+                    (db.Job.raceforge_version.is_(None))
+                    | (db.Job.raceforge_version == str(version)),
+                )
+                .order_by(db.Job.priority.desc(), db.Job.created_at)
+                .limit(3)  # few locked rows, so parallel claims still find work
             )
             if s.bind is not None and s.bind.dialect.name == "postgresql":
                 q = q.with_for_update(skip_locked=True)  # two workers never get the same job
-            j = s.scalars(q).first()
+            j = next((j for j in s.scalars(q) if self._claimable(j, w)), None)
             if j is None:
                 return None
             j.status, j.worker_id, j.started_at = "running", w.id, self.clock()
@@ -759,6 +835,8 @@ class Backend:
                 controller_name=str(p["controller_name"]),
                 controller_source=str(p["controller_source"]),
                 params_yaml=p.get("params_yaml"),
+                attempt=j.attempt,
+                resume=p.get("partial"),
             )
 
     def _running_job(self, s: Session, actor: Actor, job_id: str) -> db.Job:
@@ -774,13 +852,20 @@ class Backend:
             if req.progress:
                 j.progress = dict(req.progress)
             if req.log:
-                lines = (j.log.splitlines() + list(req.log))[-self.LOG_LINES :]
-                j.log = "\n".join(lines)
+                self._log(j, *req.log)
+            if req.partial is not None:
+                j.payload = {**j.payload, "partial": req.partial}
             return JobProgressAck(cancel=j.cancel_requested)
 
     def job_finish(self, actor: Actor, job_id: str, req: JobFinish) -> JobInfo:
         with self.db.session() as s:
             j = self._running_job(s, actor, job_id)
+            # paused: the worker's owner needs the computer, someone else goes on
+            if req.status == "paused":
+                if req.result is not None:
+                    j.payload = {**j.payload, "partial": req.result}
+                self._requeue(j, "paused on the worker")
+                return self._job_info(s, j)
             j.status, j.result, j.error = req.status, req.result, req.error
             j.finished_at = self.clock()
             return self._job_info(s, j)

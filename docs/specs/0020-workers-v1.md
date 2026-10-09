@@ -52,3 +52,55 @@ laptop of the person who starts them.
   `POST /api/v1/workspace/jobs/{id}/cancel`, `POST /api/v1/workspace/jobs/{id}/save-params {path}`.
 - Train tab (when logged in): "Run on: this computer / team workers"; team workers (online/busy) and team jobs
   (status, progress, worker, score, cancel, save tuned parameters next to the controller).
+
+## Part C — availability policy, leases, targeting (owner decisions 2026-10-09, Daniel Hodeib)
+Brings v1 up to the plan's "Workers v1" milestone (§9: idle-only policy, launch dialog local/specific/auto) while
+keeping the security model above (worker tokens, inline inputs). Owner choices: queue stays in PostgreSQL (no
+Redis), workers only take jobs of their own RaceForge version (uv envs per version: later spec), the full
+availability policy, and a worker switch in the desktop app in addition to the CLI.
+
+**Queue (backend, additive contract; migration 0003)**
+- `JobCreate` gets `priority: normal | high | critical` (`critical` admin only, else 403), `target_worker_id`
+  (a worker of the same workspace, else 422; only that worker may claim it) and `raceforge_version` (the engine
+  sends its own; a worker whose reported `raceforge` version differs never claims the job).
+- Claim order: `critical` > `high` > `normal`, then oldest first.
+- **Leases:** a running job whose worker was not seen for 2 minutes goes back to `queued` with `attempt + 1` and
+  keeps its partial result; the 3rd loss ends it as `error` ("worker lost 3 times"). For 2 minutes after such a
+  loss the lost worker does not get the job back, so another worker is preferred. Checked lazily on claim and on
+  job/worker reads (the backend has no background threads).
+- **Partial results:** `JobProgress.partial` (finished runs or trials so far) is stored with the job;
+  `JobFinish {status: "paused", result: partial}` puts the job back to `queued` without counting an attempt.
+  `WorkerJob.resume` hands the partial result to the next worker.
+- `JobInfo` adds `priority`, `target_worker_id`, `raceforge_version`, `attempt`.
+
+**Worker (agent + CLI)**
+- `WorkerPolicy {mode: always | idle | schedule | paused, idle_minutes (default 10), schedule: [{days, start,
+  end}], processes}`; default `idle`. Stored in `worker.json`; `raceforge worker run --mode M --idle-minutes N`
+  overrides it (`--idle-only` = `--mode idle`). The heartbeat reports `available` and `reason`.
+- Idle = no keyboard/mouse input for `idle_minutes` **and** on AC power (no battery = AC); stdlib only: macOS
+  `ioreg`/`pmset`, Windows `GetLastInputInfo`/`GetSystemPowerStatus` (ctypes), Linux logind `IdleSinceHint` and
+  `/sys/class/power_supply`. Unknown idle time → unavailable, reason `idle_unknown`.
+- The worker heartbeats every 30 s **also while a job runs**. When it becomes unavailable during a job, the job
+  stops after the current race/trial and is reported `paused`. A job the backend took away (404) is dropped and
+  the worker keeps serving.
+- Resume: a benchmark skips the corridors already raced; a tune adds the finished trials to a new study and runs
+  the remaining number. A paused-and-resumed benchmark gives the same runs as an uninterrupted one.
+
+**Engine and app**
+- `TeamJobRequest` gets `target_worker_id` and `priority`. `GET|PUT /api/v1/workspace/worker/local` shows and
+  sets this computer's worker (`enabled`, `policy`): enabling registers it in the current workspace if needed
+  and runs the worker loop in the engine; disabling stops it after the current race/trial (the job is paused).
+- Train tab: "Run on" lists this computer, any team worker, and each worker by name; priority select; the worker
+  list shows availability and the reason. Team tab: "Use this computer as a worker" with mode, idle minutes and
+  one schedule window.
+
+**Acceptance criteria (part C)**
+- [ ] AC5: priority order, target and version filters; `critical` by a member → 403; unknown target → 422.
+- [ ] AC6: lease loss requeues with attempt 2 and the partial result as `resume`; the lost worker is skipped
+  for 2 minutes; the 3rd loss → `error`. `paused` requeues without counting an attempt.
+- [ ] AC7: policy decisions for every mode with fake probes; a schedule window across midnight; unknown idle time.
+- [ ] AC8: a benchmark paused after the first race and resumed by another worker ends with the same runs as an
+  uninterrupted benchmark; a tune resumed after 2 trials ends with `trials` trials.
+- [ ] AC9: the engine's local worker switch registers, runs a queued job and stops.
+- [ ] AC10 (manual, owner): Mac + Windows, worker switched on in the app in `idle` mode: the job waits while you
+  type, starts after the idle time, pauses when you use the computer.

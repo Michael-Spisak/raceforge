@@ -204,6 +204,12 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
     started_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # part C: claim order, targeting, version matching, leases
+    priority: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # 0 normal … 2
+    target_worker_id: Mapped[str | None] = mapped_column(ID)
+    raceforge_version: Mapped[str | None] = mapped_column(String(32))
+    attempt: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    queued_at: Mapped[datetime | None] = mapped_column(UtcDateTime)  # last (re)queue time
 
 
 class AuditEntry(Base):

@@ -1866,6 +1866,11 @@ export interface components {
         };
         /** JobInfo */
         JobInfo: {
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt: number;
             /** Cancel Requested */
             cancel_requested: boolean;
             /** Controller Name */
@@ -1890,10 +1895,18 @@ export interface components {
             kind: "benchmark" | "tune";
             /** Log Tail */
             log_tail: string[];
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "normal" | "high" | "critical";
             /** Progress */
             progress: {
                 [key: string]: unknown;
             };
+            /** Raceforge Version */
+            raceforge_version?: string | null;
             /** Result */
             result: {
                 [key: string]: unknown;
@@ -1905,6 +1918,8 @@ export interface components {
              * @enum {string}
              */
             status: "queued" | "running" | "done" | "error" | "cancelled";
+            /** Target Worker Id */
+            target_worker_id?: string | null;
             /** Worker Id */
             worker_id: string | null;
             /** Worker Name */
