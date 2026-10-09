@@ -3834,7 +3834,8 @@
           "read",
           "sim_train",
           "edit",
-          "admin"
+          "admin",
+          "worker"
         ],
         "title": "Scope",
         "type": "string"
