@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/assembly/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assembly Edit
+         * @description Apply one edit (move/rotate/delete/add/snap) and return the evaluated assembly.
+         */
+        post: operations["assembly_edit_api_v1_assembly_edit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/car/bundle": {
         parameters: {
             query?: never;
@@ -592,6 +612,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/save/assembly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Save Assembly */
+        post: operations["ws_save_assembly_api_v1_workspace_save_assembly_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/save/files": {
         parameters: {
             query?: never;
@@ -862,6 +899,58 @@ export interface components {
             /** User */
             user: string;
         };
+        /** AssemblyEditRequest */
+        AssemblyEditRequest: {
+            /** Assembly */
+            assembly: {
+                [key: string]: unknown;
+            };
+            /**
+             * @default {
+             *       "axis": "z",
+             *       "delta": [
+             *         0,
+             *         0,
+             *         0
+             *       ],
+             *       "kind": "none",
+             *       "path": [],
+             *       "position": [
+             *         0,
+             *         0,
+             *         0.05
+             *       ],
+             *       "turns": 1
+             *     }
+             */
+            op: components["schemas"]["EditOp"];
+            quickstart?: components["schemas"]["QuickStartParams"];
+            /**
+             * Snap
+             * @default true
+             */
+            snap: boolean;
+        };
+        /** AssemblyEditResponse */
+        AssemblyEditResponse: {
+            /** Assembly */
+            assembly: {
+                [key: string]: unknown;
+            };
+            /** Derived */
+            derived: {
+                [key: string]: unknown;
+            };
+            /** Parts */
+            parts: components["schemas"]["EditorPartView"][];
+            /** Problems */
+            problems: string[];
+            /** Selected */
+            selected?: string[] | null;
+            snapped?: components["schemas"]["SnapInfo"] | null;
+            /** Warnings */
+            warnings: components["schemas"]["Warning"][];
+        };
         /** BundleInfo */
         BundleInfo: {
             /** Car Name */
@@ -1050,6 +1139,127 @@ export interface components {
             result?: components["schemas"]["InstallResult"] | null;
             /** Usb Path */
             usb_path?: string | null;
+        };
+        /**
+         * EditOp
+         * @description One edit; ``none`` only evaluates. Moves and turns use world axes (m, quarter turns).
+         */
+        EditOp: {
+            /**
+             * Axis
+             * @default z
+             * @enum {string}
+             */
+            axis: "x" | "y" | "z";
+            /**
+             * Delta
+             * @default [
+             *       0,
+             *       0,
+             *       0
+             *     ]
+             */
+            delta: [
+                number,
+                number,
+                number
+            ];
+            /** Key */
+            key?: string | null;
+            /**
+             * Kind
+             * @default none
+             * @enum {string}
+             */
+            kind: "none" | "move" | "rotate" | "delete" | "add" | "snap";
+            /**
+             * Path
+             * @default []
+             */
+            path: string[];
+            /**
+             * Position
+             * @default [
+             *       0,
+             *       0,
+             *       0.05
+             *     ]
+             */
+            position: [
+                number,
+                number,
+                number
+            ];
+            /**
+             * Turns
+             * @default 1
+             */
+            turns: number;
+        };
+        /** EditorConnector */
+        EditorConnector: {
+            /** Axis */
+            axis: [
+                number,
+                number,
+                number
+            ];
+            /** Id */
+            id: string;
+            /** Pos */
+            pos: [
+                number,
+                number,
+                number
+            ];
+            /** Type */
+            type: string;
+        };
+        /** EditorPartView */
+        EditorPartView: {
+            /** Bbox Hi */
+            bbox_hi: [
+                number,
+                number,
+                number
+            ];
+            /** Bbox Lo */
+            bbox_lo: [
+                number,
+                number,
+                number
+            ];
+            /** Category */
+            category: string;
+            /** Color */
+            color: number;
+            /** Connectors */
+            connectors: components["schemas"]["EditorConnector"][];
+            /** Key */
+            key: string;
+            /** Ldraw Id */
+            ldraw_id: string | null;
+            /** Linked */
+            linked: boolean;
+            /** Mirrored */
+            mirrored: boolean;
+            /** Name */
+            name: string;
+            /** Path */
+            path: string[];
+            /** Pos */
+            pos: [
+                number,
+                number,
+                number
+            ];
+            /** Quat */
+            quat: [
+                number,
+                number,
+                number,
+                number
+            ];
         };
         /** EgoView */
         EgoView: {
@@ -1701,6 +1911,25 @@ export interface components {
          * @enum {string}
          */
         Role: "admin" | "member";
+        /**
+         * SaveAssembly
+         * @description An edited assembly (Construct editor, spec 0015) as a new version of an `assembly` object.
+         */
+        SaveAssembly: {
+            /** Assembly */
+            assembly: {
+                [key: string]: unknown;
+            };
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+            /** Name */
+            name?: string | null;
+            /** Slug */
+            slug: string;
+        };
         /** SaveFiles */
         SaveFiles: {
             /**
@@ -2009,6 +2238,17 @@ export interface components {
              * @constant
              */
             type: "start";
+        };
+        /** SnapInfo */
+        SnapInfo: {
+            /** Connector */
+            connector: string;
+            /** Distance M */
+            distance_m: number;
+            /** Target */
+            target: string[];
+            /** Target Connector */
+            target_connector: string;
         };
         /** SyncResult */
         SyncResult: {
@@ -2359,6 +2599,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    assembly_edit_api_v1_assembly_edit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssemblyEditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssemblyEditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     car_bundle_api_v1_car_bundle_post: {
         parameters: {
             query?: never;
@@ -3389,6 +3662,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_save_assembly_api_v1_workspace_save_assembly_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAssembly"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalVersion"];
                 };
             };
             /** @description Validation Error */

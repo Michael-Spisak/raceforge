@@ -236,6 +236,15 @@ class SaveQuickstart(ApiModel):
     name: str | None = None
 
 
+class SaveAssembly(ApiModel):
+    """An edited assembly (Construct editor, spec 0015) as a new version of an `assembly` object."""
+
+    slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,62}$")
+    assembly: dict[str, Any]
+    message: str = ""
+    name: str | None = None
+
+
 class SaveFiles(ApiModel):
     kind: Literal["controller", "dataset", "model", "capture", "bundle"] = "controller"
     slug: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,62}$")
@@ -468,3 +477,63 @@ class QuickTrackPreview(ApiModel):
     start_line: tuple[tuple[float, float], tuple[float, float]] | None = None
     direction: tuple[float, float] | None = None
     objects: list[QuickTrackObject] = []
+
+
+# ------------------------------------------------------------------ assembly editor (spec 0015)
+class EditOp(ApiModel):
+    """One edit; ``none`` only evaluates. Moves and turns use world axes (m, quarter turns)."""
+
+    kind: Literal["none", "move", "rotate", "delete", "add", "snap"] = "none"
+    path: list[str] = []
+    delta: V3 = (0.0, 0.0, 0.0)
+    axis: Literal["x", "y", "z"] = "z"
+    turns: int = Field(default=1, ge=-3, le=3)
+    key: str | None = None  # catalogue part to add
+    position: V3 = (0.0, 0.0, 0.05)
+
+
+class AssemblyEditRequest(ApiModel):
+    assembly: dict[str, Any]
+    quickstart: QuickStartParams = Field(default_factory=QuickStartParams)  # drives, steering
+    op: EditOp = EditOp()
+    snap: bool = True  # after move/add: snap to a compatible connector nearby
+
+
+class EditorConnector(ApiModel):
+    id: str
+    type: str
+    pos: V3
+    axis: V3
+
+
+class EditorPartView(ApiModel):
+    path: list[str]
+    key: str
+    name: str
+    ldraw_id: str | None
+    category: str
+    color: int
+    pos: V3
+    quat: Q4
+    bbox_lo: V3
+    bbox_hi: V3
+    mirrored: bool
+    linked: bool
+    connectors: list[EditorConnector]
+
+
+class SnapInfo(ApiModel):
+    connector: str
+    target: list[str]
+    target_connector: str
+    distance_m: float
+
+
+class AssemblyEditResponse(ApiModel):
+    assembly: dict[str, Any]
+    parts: list[EditorPartView]
+    derived: dict[str, Any]
+    warnings: list[Warning]
+    problems: list[str]
+    selected: list[str] | None = None
+    snapped: SnapInfo | None = None

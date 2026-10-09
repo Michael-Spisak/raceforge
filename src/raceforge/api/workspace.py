@@ -18,6 +18,7 @@ import segno  # pyright: ignore[reportMissingTypeStubs]
 from raceforge.api.models import (
     InboxAction,
     ReceiveRequest,
+    SaveAssembly,
     SaveFiles,
     SaveQuickstart,
     TrackScoutPairing,
@@ -35,7 +36,8 @@ from raceforge.capture import rftx
 from raceforge.capture.inbox import Inbox, InboxPass, Relay
 from raceforge.capture.usb import DeviceFiles, pull_usb
 from raceforge.construct.quickstart import generate
-from raceforge.core.io import to_jsonable
+from raceforge.core.assembly import Assembly
+from raceforge.core.io import load_as, to_jsonable
 from raceforge.parts.catalogue import Catalogue
 from raceforge.workspace.client import (
     BackendClient,
@@ -147,6 +149,11 @@ class WorkspaceApi:
     def save_quickstart(self, req: SaveQuickstart) -> LocalVersion:
         assembly = to_jsonable(generate(req.params, self.cat).assembly)
         return self.ws.save("assembly", req.slug, assembly, req.message, req.name)
+
+    def save_assembly(self, req: SaveAssembly) -> LocalVersion:
+        assembly = load_as(Assembly, req.assembly)  # validates before it is versioned
+        assembly.validate_against_parts(self.cat.parts_by_hash())
+        return self.ws.save("assembly", req.slug, to_jsonable(assembly), req.message, req.name)
 
     def save_files(self, req: SaveFiles) -> LocalVersion:
         paths = [Path(p).expanduser() for p in req.paths]

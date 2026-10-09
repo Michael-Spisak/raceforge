@@ -17,6 +17,8 @@ from raceforge.api import deploy as car_deploy
 from raceforge.api.car_link import pairing_code
 from raceforge.api.car_link import relay as car_relay
 from raceforge.api.models import (
+    AssemblyEditRequest,
+    AssemblyEditResponse,
     BundleInfo,
     BundleRequest,
     CarPairingCode,
@@ -37,6 +39,7 @@ from raceforge.api.models import (
     ReceiveRequest,
     ReplayRequest,
     ReplaySummary,
+    SaveAssembly,
     SaveFiles,
     SaveQuickstart,
     ScanDetail,
@@ -319,6 +322,13 @@ def create_app(
     def ws_save_quickstart(req: SaveQuickstart) -> LocalVersion:
         return ws().save_quickstart(req)
 
+    @app.post(f"{w}/save/assembly")
+    def ws_save_assembly(req: SaveAssembly) -> LocalVersion:
+        try:
+            return ws().save_assembly(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
     @app.post(f"{w}/save/files")
     def ws_save_files(req: SaveFiles) -> LocalVersion:
         try:
@@ -339,6 +349,15 @@ def create_app(
         return ws().pair_trackscout()
 
     # ------------------------------------------------------------ scans (spec 0009)
+    # ------------------------------------------------------------ assembly editor (spec 0015)
+    @app.post("/api/v1/assembly/edit")
+    def assembly_edit(req: AssemblyEditRequest) -> AssemblyEditResponse:
+        """Apply one edit (move/rotate/delete/add/snap) and return the evaluated assembly."""
+        try:
+            return eng.edit_assembly(req)
+        except (ValueError, KeyError) as exc:
+            raise HTTPException(422, str(exc).strip("'")) from exc
+
     # ------------------------------------------------------------ quick tracks (spec 0014)
     @app.post("/api/v1/tracks/quick/preview")
     def quick_track_preview(q: QuickTrack) -> QuickTrackPreview:

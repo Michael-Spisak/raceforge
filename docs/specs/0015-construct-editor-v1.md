@@ -1,0 +1,44 @@
+# Spec: Construct editor v1 (part A) — edit the assembly
+
+- **Status:** approved (owner request 2026-10-09: "continue working off the list of features")
+- **Owner:** Michael Spisak
+- **Plan section:** docs/PLAN.md §1 (Construct), milestone weeks 4–5 ("Editor v1")
+- **Depends on:** Spec 0001 (Assembly, Part, connectors), Spec 0002 (quick-start, derive)
+
+## Purpose
+Turn the quick-start car into an editable assembly: the 3D modeler can move, turn, add and delete parts,
+snap them onto compatible connectors and save the result as a team version, with derived data (mass, CoG,
+wheelbase, warnings) updated after every edit. The Assembly stays the single source of truth.
+
+## Scope
+- In scope (part A): engine edit operations (`raceforge.construct.editor`), `POST /api/v1/assembly/edit`,
+  `POST /api/v1/workspace/save/assembly`, a parts editor in the Construct tab (click/list selection, keyboard
+  moves on the stud grid with 1-LDU fine steps, 90° turns, delete, add from the catalogue, quick snap,
+  undo/redo, live derived data and validation problems, save as version).
+- Out of scope (later parts): gizmo dragging, multi-select, submodel creation/linking/mirroring UI,
+  precision snap (pick A then B), rule checker and budget panel, overlap highlighting, gears/kinematics,
+  custom parts, import/export of edited assemblies to MJCF/MPD (assembly → MJCF is weeks 8–9).
+
+## Interfaces (additive)
+- `POST /api/v1/assembly/edit` — `AssemblyEditRequest {assembly, quickstart (drives/steering for derived
+  data), op: EditOp {kind: none|move|rotate|delete|add|snap, path, delta (m, world), axis, turns, key,
+  position}, snap: bool}` → `AssemblyEditResponse {assembly, parts: [EditorPartView{path, key, name,
+  ldraw_id, category, color, pos, quat, bbox, mirrored, linked, connectors (world)}], derived, warnings,
+  problems, selected, snapped?}`. Unknown parts/paths → 422.
+- `POST /api/v1/workspace/save/assembly {slug, assembly, message}` → `LocalVersion` (validated first).
+
+## Behaviour
+- Parts are addressed by their instance chain (`path`). Moves and turns are given in world axes and converted
+  into the parent frame, so they work in nested and mirrored submodels; editing inside a linked submodel
+  changes every copy (the UI says so).
+- Quick snap (after a move/add, or on demand): a connector of the part engages a compatible connector of
+  another part when their axes are parallel (|cos| ≥ 0.98), the axis lines are ≤ 6 mm apart and they overlap
+  along the axis; the part is moved sideways onto the axis and the connection is recorded (once).
+- Deleting a part removes its connections and re-indexes joint roles.
+- Undo/redo keep up to 100 assemblies in the UI.
+
+## Acceptance criteria (→ tests, critical paths)
+- [ ] AC1: Move (world delta), rotate (90°), delete (connections removed, no validation problems), add
+  (catalogue part, new id) work through the API on the quick-start car.
+- [ ] AC2: A pin dropped 3 mm beside a free beam's hole snaps onto the hole axis and records one connection.
+- [ ] AC3: The editor in the app selects, moves, undoes and deletes parts (manual check by the owner).

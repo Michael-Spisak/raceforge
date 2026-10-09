@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, type QuickStartParams, type QuickstartResponse, type QuickstartSchema, versionLabel, workspace } from "../api/client";
 import { useWorkspace } from "../store/workspace";
 import { formatLength, useSettings } from "../store/settings";
+import { AssemblyEditor } from "../construct/AssemblyEditor";
 import { CarModel } from "../three/CarModel";
 import { Viewport } from "../three/Viewport";
 
@@ -73,6 +74,7 @@ export function ConstructScreen() {
   const [result, setResult] = useState<QuickstartResponse | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     void api.quickstartSchema().then((s) => {
@@ -97,6 +99,7 @@ export function ConstructScreen() {
   }, [draft, schema]);
 
   if (!schema) return <p style={{ padding: 24 }}>{t("common.loading")}</p>;
+  if (editing) return <AssemblyEditor start={editing} params={toParams(draft)} onExit={() => setEditing(null)} />;
   const opt = schema.options;
   const set = (patch: Draft) => setDraft((d) => ({ ...d, ...patch }));
   const gears = draft.differential === false ? opt["drive_gears_locked"] : opt["drive_gears_differential"];
@@ -154,6 +157,9 @@ export function ConstructScreen() {
           <label><input type="checkbox" checked={draft.lidar ?? false} onChange={(e) => set({ lidar: e.target.checked })} /> {t("construct.lidar")}</label>
         </div>
         {errors["_"] && !Object.keys(errors).some((k) => k !== "_") && <p className="error" role="alert">{errors["_"]}</p>}
+        <button type="button" className="primary" data-testid="construct-edit" disabled={!result}
+                onClick={() => result && setEditing(result.assembly)}>{t("editor.open")}</button>
+        <p className="muted">{t("editor.open_hint")}</p>
         <h3>{t("construct.export")}</h3>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {(["assembly", "mpd", "mjcf"] as const).map((k) => (
