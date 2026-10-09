@@ -758,3 +758,27 @@ class ConnectorDef(ApiModel):
     ]
     pos: V3
     axis: V3 = (0.0, 0.0, 1.0)
+
+
+# ------------------------------------------------------------------ scan floor plan (spec 0024)
+class FloorplanResponse(ApiModel):
+    """Car-height occupancy of a scan pass as an image (row 0 = highest y), to draw tracks on."""
+
+    sha256: str
+    origin: tuple[float, float]  # world (x, y) of the image's lower-left corner, metres
+    resolution: float  # metres per pixel
+    width: int
+    height: int
+    png_b64: str
+    floor_z: float
+    trajectory: list[tuple[float, float]]  # camera path (x, y), for orientation
+
+
+class CorridorWidthRequest(ApiModel):
+    points: list[tuple[float, float]] = Field(min_length=2)
+
+
+class CorridorWidth(ApiModel):
+    median_m: float | None  # None: no closed cross-section along the line
+    min_m: float | None
+    samples: int

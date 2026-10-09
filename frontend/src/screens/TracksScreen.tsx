@@ -1,6 +1,6 @@
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, type QuickObstacle, type QuickTrack, type QuickTrackInfo, type QuickTrackPreview, type TrackEdit, type EditObject } from "../api/client";
+import { ApiError, api, type Schemas, type QuickObstacle, type QuickTrack, type QuickTrackInfo, type QuickTrackPreview, type TrackEdit, type EditObject } from "../api/client";
 
 type Pt = [number, number];
 type ObjKind = EditObject["kind"];
@@ -20,9 +20,10 @@ interface Draft {
   corner_radius_m: number | null;
   obstacles: QuickObstacle[];
   edit: EditState;
+  underlay: string | null; // scan pass sha256 drawn under the track (spec 0024)
 }
 
-const EMPTY: Draft = { name: "", points: [], width_m: 1.6, loop: true, laps: 3, corner_radius_m: null, obstacles: [], edit: EMPTY_EDIT };
+const EMPTY: Draft = { name: "", points: [], width_m: 1.6, loop: true, laps: 3, corner_radius_m: null, obstacles: [], edit: EMPTY_EDIT, underlay: null };
 const SNAP = 0.25;
 const OBSTACLE_SIZE: Record<QuickObstacle["kind"], [number, number]> = { bin: [0.35, 0.35], pillar: [0.3, 0.3], bench: [1.2, 0.4] };
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
@@ -39,6 +40,7 @@ function toTrack(d: Draft): QuickTrack {
     wall_height_m: 2.5,
     friction: 0.75,
     edit: isEmptyEdit(d.edit) ? null : d.edit,
+    underlay_sha256: d.underlay,
   };
 }
 
@@ -56,11 +58,36 @@ export function TracksScreen() {
   const [pending, setPending] = useState<Pt[]>([]);
   const [measured, setMeasured] = useState("");
   const [sel, setSel] = useState<number | null>(null);
+  const [passes, setPasses] = useState<{ sha: string; label: string }[]>([]);
+  const [plan, setPlan] = useState<Schemas["FloorplanResponse"] | null>(null);
+  const [widthNote, setWidthNote] = useState("");
   const svg = useRef<SVGSVGElement | null>(null);
   const drag = useRef<{ index: number; moved: boolean } | null>(null);
 
   const loadList = useCallback(() => api.quickTracks().then(setSaved).catch(() => undefined), []);
   useEffect(() => void loadList(), [loadList]);
+  useEffect(() => {
+    api.scans().then((tracks) => setPasses(tracks.flatMap((tr) => tr.passes.filter((p) => !p.error).map((p) => ({ sha: p.sha256, label: `${tr.name} · ${p.name}` }))))).catch(() => undefined);
+  }, []);
+  // Scan floor plan under the drawing (spec 0024).
+  useEffect(() => {
+    setPlan(null);
+    setWidthNote("");
+    if (!draft.underlay) return;
+    let live = true;
+    api.scanFloorplan(draft.underlay).then((p) => { if (live) setPlan(p); }).catch((e: unknown) => { if (live) setError(message(e)); });
+    return () => { live = false; };
+  }, [draft.underlay]);
+  const measureWidth = () => {
+    if (!draft.underlay || draft.points.length < 2) return;
+    const pts = draft.loop ? [...draft.points, draft.points[0] as Pt] : draft.points;
+    api.scanCorridorWidth(draft.underlay, pts).then((w) => {
+      if (!w.samples || w.median_m === null || w.median_m === undefined) return setWidthNote(t("tracks.width_none"));
+      const width = Math.min(4, Math.max(0.6, Math.round(w.median_m / 0.05) * 0.05));
+      change({ ...draft, width_m: Number(width.toFixed(2)) });
+      setWidthNote(t("tracks.width_measured", { median: w.median_m.toFixed(2), min: (w.min_m ?? w.median_m).toFixed(2), n: w.samples }));
+    }).catch((e: unknown) => setError(message(e)));
+  };
 
   const change = (next: Draft, record = true) => {
     if (record) setHistory((h) => [...h.slice(-49), draft]);
@@ -85,11 +112,15 @@ export function TracksScreen() {
     const xs = [-1, 31, ...draft.points.map((p) => p[0]), ...draft.obstacles.map((o) => o.x)];
     const ys = [-1, 21, ...draft.points.map((p) => p[1]), ...draft.obstacles.map((o) => o.y)];
     for (const w of preview?.walls ?? []) for (const [x, y] of w) { xs.push(x); ys.push(y); }
+    if (plan) {
+      xs.push(plan.origin[0], plan.origin[0] + plan.width * plan.resolution);
+      ys.push(plan.origin[1], plan.origin[1] + plan.height * plan.resolution);
+    }
     const m = 2;
     const x0 = Math.floor(Math.min(...xs) - m), x1 = Math.ceil(Math.max(...xs) + m);
     const y0 = Math.floor(Math.min(...ys) - m), y1 = Math.ceil(Math.max(...ys) + m);
     return { x0, x1, y0, y1 };
-  }, [draft, preview]);
+  }, [draft, preview, plan]);
 
   const world = (e: { clientX: number; clientY: number }): Pt | null => {
     const el = svg.current;
@@ -188,6 +219,7 @@ export function TracksScreen() {
       setDraft({
         name: q.name, points: q.points as Pt[], width_m: q.width_m ?? 1.6, loop: q.loop ?? true, laps: q.laps ?? 3,
         corner_radius_m: q.corner_radius_m ?? null, obstacles: q.obstacles ?? [], edit: { ...EMPTY_EDIT, ...q.edit },
+        underlay: q.underlay_sha256 ?? null,
       });
     }).catch((e: unknown) => setError(message(e)));
   };
@@ -233,6 +265,19 @@ export function TracksScreen() {
               </optgroup>
             </select>
           </div>
+          <div className="field">
+            <label htmlFor="qt-underlay">{t("tracks.underlay")}</label>
+            <select id="qt-underlay" data-testid="qt-underlay" value={draft.underlay ?? ""} onChange={(e) => change({ ...draft, underlay: e.target.value || null })}>
+              <option value="">{t("tracks.underlay_none")}</option>
+              {passes.map((p) => <option key={p.sha} value={p.sha}>{p.label}</option>)}
+            </select>
+          </div>
+          {draft.underlay && (
+            <div className="field">
+              <button type="button" onClick={measureWidth} disabled={!plan || draft.points.length < 2} data-testid="qt-measure-width">{t("tracks.measure_width")}</button>
+              {widthNote && <p className="muted">{widthNote}</p>}
+            </div>
+          )}
           <div className="field"><label><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} /> {t("tracks.snap")}</label></div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button type="button" className="primary" onClick={save} data-testid="qt-save" disabled={draft.points.length < 2}>{t("tracks.save")}</button>
@@ -315,6 +360,13 @@ export function TracksScreen() {
           <g stroke="var(--border)" strokeWidth={1} vectorEffect="non-scaling-stroke">
             {grid.map(([a, b, c, d], i) => <line key={i} x1={a} y1={-b} x2={c} y2={-d} vectorEffect="non-scaling-stroke" strokeOpacity={(a === c ? a : b) % 5 === 0 ? 0.9 : 0.35} />)}
           </g>
+          {plan && (
+            <g data-testid="qt-floorplan" pointerEvents="none">
+              <image href={`data:image/png;base64,${plan.png_b64}`} x={plan.origin[0]} y={-(plan.origin[1] + plan.height * plan.resolution)}
+                     width={plan.width * plan.resolution} height={plan.height * plan.resolution} preserveAspectRatio="none" style={{ imageRendering: "pixelated" }} opacity={0.75} />
+              {plan.trajectory.length > 1 && <polyline points={poly(plan.trajectory)} fill="none" stroke="var(--accent)" strokeOpacity={0.4} strokeDasharray="2 4" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+            </g>
+          )}
           {preview?.ok && (
             <g>
               {preview.walls.map((w, i) => (

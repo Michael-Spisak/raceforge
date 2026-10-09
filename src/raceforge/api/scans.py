@@ -9,8 +9,17 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from raceforge.api.models import ScanDetail, ScanMesh, ScanPassRef, ScanSegment, ScanTrack
+from raceforge.api.models import (
+    CorridorWidth,
+    FloorplanResponse,
+    ScanDetail,
+    ScanMesh,
+    ScanPassRef,
+    ScanSegment,
+    ScanTrack,
+)
 from raceforge.api.workspace import WorkspaceApi
+from raceforge.capture.floorplan import Floorplan
 from raceforge.capture.tscan import ARKIT_CLASSES, TscanError, TscanPass
 from raceforge.workspace.client import BackendError, OfflineError
 from raceforge.workspace.sync import file_sha256
@@ -30,28 +39,19 @@ class ScanApi:
         self._lock = threading.Lock()
         self._details: OrderedDict[str, ScanDetail] = OrderedDict()
         self._meshes: OrderedDict[tuple[str, int], ScanMesh] = OrderedDict()
+        self._plans: OrderedDict[tuple[str, float, float, float], Floorplan] = OrderedDict()
 
     # ------------------------------------------------------------------ listing
     def tracks(self) -> list[ScanTrack]:
         tracks: list[ScanTrack] = []
         by_slug: dict[str, ScanTrack] = {}
-        ws = self.wsapi.ws
-        if ws.workspace_id is not None:
-            for obj in ws.objects("capture"):
-                if obj.latest is None:
-                    continue
-                files = ws.version_content(obj.latest.id).get("files", [])
-                refs = [
-                    ScanPassRef(
-                        sha256=f["sha256"], name=f["path"], size=f["size"], source="workspace"
-                    )
-                    for f in files
-                ]
-                track = ScanTrack(
-                    name=obj.slug, slug=obj.slug, version=obj.latest.semver, passes=refs
-                )
-                tracks.append(track)
-                by_slug[obj.slug] = track
+        try:  # offline backend: the local passes are listed anyway
+            ws_tracks = self._workspace_tracks()
+        except OfflineError:
+            ws_tracks = []
+        for track in ws_tracks:
+            tracks.append(track)
+            by_slug[track.slug or track.name] = track
         for p in self.wsapi.inbox.list():
             if p.state in ("receiving", "uploaded"):  # uploaded passes are in the workspace list
                 continue
@@ -77,6 +77,24 @@ class ScanApi:
             ]
             tracks.append(ScanTrack(name="files", passes=refs))
         return tracks
+
+    def _workspace_tracks(self) -> list[ScanTrack]:
+        ws = self.wsapi.ws
+        if ws.workspace_id is None:
+            return []
+        out: list[ScanTrack] = []
+        for obj in ws.objects("capture"):
+            if obj.latest is None:
+                continue
+            files = ws.version_content(obj.latest.id).get("files", [])
+            refs = [
+                ScanPassRef(sha256=f["sha256"], name=f["path"], size=f["size"], source="workspace")
+                for f in files
+            ]
+            out.append(
+                ScanTrack(name=obj.slug, slug=obj.slug, version=obj.latest.semver, passes=refs)
+            )
+        return out
 
     def open_file(self, path: str) -> ScanPassRef:
         p = Path(path).expanduser()
@@ -163,6 +181,51 @@ class ScanApi:
                 ),
             )
         return self._cached(self._details, sha, detail)
+
+    def _floorplan(self, sha: str, resolution: float, z_min: float, z_max: float) -> "Floorplan":
+        from raceforge.capture.floorplan import floorplan
+
+        key = (sha, resolution, z_min, z_max)
+        cached = self._plans.get(key)
+        if cached is not None:
+            return cached
+        with TscanPass(self._path(sha)) as tp:
+            meshes = [m for i in range(len(tp.manifest.segments)) if (m := tp.mesh(i)) is not None]
+        if not meshes:
+            raise TscanError("this pass has no mesh (record with LiDAR mesh enabled)")
+        fp = floorplan(meshes, resolution, z_min, z_max)
+        return self._cached(self._plans, key, fp)
+
+    def floorplan(
+        self, sha: str, resolution: float = 0.05, z_min: float = 0.05, z_max: float = 0.5
+    ) -> FloorplanResponse:
+        from raceforge.capture.floorplan import png_rgba
+
+        fp = self._floorplan(sha, resolution, z_min, z_max)
+        traj = self.detail(sha).trajectory
+        return FloorplanResponse(
+            sha256=sha,
+            origin=fp.origin,
+            resolution=fp.resolution,
+            width=fp.width,
+            height=fp.height,
+            png_b64=base64.b64encode(png_rgba(fp)).decode(),
+            floor_z=fp.floor_z,
+            trajectory=[
+                (round(x, 3), round(y, 3)) for x, y, _ in traj[:: max(1, len(traj) // 400)]
+            ],
+        )
+
+    def corridor_width(self, sha: str, points: list[tuple[float, float]]) -> CorridorWidth:
+        from raceforge.capture.floorplan import corridor_widths
+
+        fp = self._floorplan(sha, 0.05, 0.05, 0.5)
+        widths = [w for w in corridor_widths(fp, points) if np.isfinite(w)]
+        return CorridorWidth(
+            median_m=round(float(np.median(widths)), 3) if widths else None,
+            min_m=round(float(min(widths)), 3) if widths else None,
+            samples=len(widths),
+        )
 
     def mesh(self, sha: str, max_faces: int = 300_000) -> ScanMesh:
         key = (sha, max_faces)

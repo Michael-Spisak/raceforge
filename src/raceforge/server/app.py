@@ -30,9 +30,12 @@ from raceforge.api.models import (
     ConstructSettings,
     ControllerInfo,
     CorridorResponse,
+    CorridorWidth,
+    CorridorWidthRequest,
     DeployRequest,
     DeployResponse,
     ErrorMessage,
+    FloorplanResponse,
     Health,
     InboxAction,
     InviteRequest,
@@ -618,6 +621,31 @@ def create_app(
     def scan_detail(sha256: str) -> ScanDetail:
         try:
             return scans().detail(sha256)
+        except ScanNotFoundError as exc:
+            raise HTTPException(404, f"no scan {sha256}") from exc
+        except TscanError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/scans/{sha256}/floorplan")
+    def scan_floorplan(
+        sha256: str,
+        resolution: Annotated[float, Query(ge=0.01, le=0.5)] = 0.05,
+        z_min: Annotated[float, Query(ge=-1.0, le=3.0)] = 0.05,
+        z_max: Annotated[float, Query(ge=-1.0, le=3.0)] = 0.5,
+    ) -> FloorplanResponse:
+        """Car-height floor plan of a pass (spec 0024): underlay for drawing quick tracks."""
+        try:
+            return scans().floorplan(sha256, resolution, z_min, z_max)
+        except ScanNotFoundError as exc:
+            raise HTTPException(404, f"no scan {sha256}") from exc
+        except TscanError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/scans/{sha256}/corridor-width")
+    def scan_corridor_width(sha256: str, req: CorridorWidthRequest) -> CorridorWidth:
+        """Free width of the scanned corridor along a drawn line (spec 0024)."""
+        try:
+            return scans().corridor_width(sha256, req.points)
         except ScanNotFoundError as exc:
             raise HTTPException(404, f"no scan {sha256}") from exc
         except TscanError as exc:
