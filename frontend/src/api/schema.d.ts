@@ -453,6 +453,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scans/{sha256}/corridor-width": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan Corridor Width
+         * @description Free width of the scanned corridor along a drawn line (spec 0024).
+         */
+        post: operations["scan_corridor_width_api_v1_scans__sha256__corridor_width_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scans/{sha256}/floorplan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Scan Floorplan
+         * @description Car-height floor plan of a pass (spec 0024): underlay for drawing quick tracks.
+         */
+        get: operations["scan_floorplan_api_v1_scans__sha256__floorplan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/scans/{sha256}/mesh": {
         parameters: {
             query?: never;
@@ -1623,6 +1663,23 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CorridorWidth */
+        CorridorWidth: {
+            /** Median M */
+            median_m: number | null;
+            /** Min M */
+            min_m: number | null;
+            /** Samples */
+            samples: number;
+        };
+        /** CorridorWidthRequest */
+        CorridorWidthRequest: {
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+        };
         /** DeployRequest */
         DeployRequest: {
             /** Bundle */
@@ -1919,6 +1976,34 @@ export interface components {
             other: string;
             /** T */
             t: number;
+        };
+        /**
+         * FloorplanResponse
+         * @description Car-height occupancy of a scan pass as an image (row 0 = highest y), to draw tracks on.
+         */
+        FloorplanResponse: {
+            /** Floor Z */
+            floor_z: number;
+            /** Height */
+            height: number;
+            /** Origin */
+            origin: [
+                number,
+                number
+            ];
+            /** Png B64 */
+            png_b64: string;
+            /** Resolution */
+            resolution: number;
+            /** Sha256 */
+            sha256: string;
+            /** Trajectory */
+            trajectory: [
+                number,
+                number
+            ][];
+            /** Width */
+            width: number;
         };
         /** FrameMessage */
         FrameMessage: {
@@ -2564,6 +2649,8 @@ export interface components {
                 number,
                 number
             ][];
+            /** Underlay Sha256 */
+            underlay_sha256?: string | null;
             /**
              * Wall Height M
              * @default 2.5
@@ -4579,6 +4666,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScanDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_corridor_width_api_v1_scans__sha256__corridor_width_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorridorWidthRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorridorWidth"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_floorplan_api_v1_scans__sha256__floorplan_get: {
+        parameters: {
+            query?: {
+                resolution?: number;
+                z_min?: number;
+                z_max?: number;
+            };
+            header?: never;
+            path: {
+                sha256: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanResponse"];
                 };
             };
             /** @description Validation Error */

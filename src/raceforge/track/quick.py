@@ -60,6 +60,7 @@ class QuickTrack(BaseModel):
     wall_height_m: float = Field(default=2.5, gt=0, le=10.0)
     friction: float = Field(default=0.75, gt=0, le=2.0)
     edit: TrackEdit | None = None  # track editor layer (spec 0025)
+    underlay_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")  # spec 0024
 
     @model_validator(mode="after")
     def _check(self) -> "QuickTrack":

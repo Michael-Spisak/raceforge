@@ -107,3 +107,18 @@ def test_workspace_capture_passes(env: Env, team: Team, tmp_path: Path, cat: Cat
     other.ws.sync()
     e2 = _engine(tmp_path, cat, other)
     assert e2.get(f"/api/v1/scans/{ref['sha256']}").json()["summary"]["segments"] == 2
+
+
+def test_floorplan_and_width_endpoints(tmp_path: Path, cat: Catalogue) -> None:
+    """Spec 0024: the synthetic pass has a floor and one wall triangle at y = 2 m."""
+    engine = _engine(tmp_path, cat)
+    file = make_pass(tmp_path / "corridor.tscan")
+    sha = engine.post("/api/v1/scans/open", json={"path": str(file)}).json()["sha256"]
+    r = engine.get(f"/api/v1/scans/{sha}/floorplan")
+    assert r.status_code == 200, r.text
+    fp = r.json()
+    assert fp["width"] > 10 and fp["height"] > 10 and fp["resolution"] == 0.05
+    assert base64.b64decode(fp["png_b64"])[:4] == b"\x89PNG" and abs(fp["floor_z"]) < 0.01
+    assert len(fp["trajectory"]) > 0
+    w = engine.post(f"/api/v1/scans/{sha}/corridor-width", json={"points": [[0, 1], [2, 1]]}).json()
+    assert w["median_m"] is None and w["samples"] == 0  # one wall only: no closed cross-section

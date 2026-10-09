@@ -926,6 +926,73 @@
         "title": "CorridorResponse",
         "type": "object"
       },
+      "CorridorWidth": {
+        "additionalProperties": false,
+        "properties": {
+          "median_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median M"
+          },
+          "min_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min M"
+          },
+          "samples": {
+            "title": "Samples",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "median_m",
+          "min_m",
+          "samples"
+        ],
+        "title": "CorridorWidth",
+        "type": "object"
+      },
+      "CorridorWidthRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "points": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 500,
+            "minItems": 2,
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "title": "CorridorWidthRequest",
+        "type": "object"
+      },
       "DeployRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1682,6 +1749,79 @@
           "other"
         ],
         "title": "EventView",
+        "type": "object"
+      },
+      "FloorplanResponse": {
+        "additionalProperties": false,
+        "description": "Car-height occupancy of a scan pass as an image (row 0 = highest y), to draw tracks on.",
+        "properties": {
+          "floor_z": {
+            "title": "Floor Z",
+            "type": "number"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "origin": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Origin",
+            "type": "array"
+          },
+          "png_b64": {
+            "title": "Png B64",
+            "type": "string"
+          },
+          "resolution": {
+            "title": "Resolution",
+            "type": "number"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "trajectory": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Trajectory",
+            "type": "array"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "origin",
+          "resolution",
+          "width",
+          "height",
+          "png_b64",
+          "floor_z",
+          "trajectory"
+        ],
+        "title": "FloorplanResponse",
         "type": "object"
       },
       "FrameMessage": {
@@ -3281,6 +3421,18 @@
             "minItems": 2,
             "title": "Points",
             "type": "array"
+          },
+          "underlay_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underlay Sha256"
           },
           "wall_height_m": {
             "default": 2.5,
@@ -7560,6 +7712,132 @@
           }
         },
         "summary": "Scan Detail"
+      }
+    },
+    "/api/v1/scans/{sha256}/corridor-width": {
+      "post": {
+        "description": "Free width of the scanned corridor along a drawn line (spec 0024).",
+        "operationId": "scan_corridor_width_api_v1_scans__sha256__corridor_width_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sha256",
+            "required": true,
+            "schema": {
+              "title": "Sha256",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorridorWidthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorridorWidth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scan Corridor Width"
+      }
+    },
+    "/api/v1/scans/{sha256}/floorplan": {
+      "get": {
+        "description": "Car-height floor plan of a pass (spec 0024): underlay for drawing quick tracks.",
+        "operationId": "scan_floorplan_api_v1_scans__sha256__floorplan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sha256",
+            "required": true,
+            "schema": {
+              "title": "Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resolution",
+            "required": false,
+            "schema": {
+              "default": 0.05,
+              "maximum": 0.5,
+              "minimum": 0.03,
+              "title": "Resolution",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "z_min",
+            "required": false,
+            "schema": {
+              "default": 0.05,
+              "maximum": 3.0,
+              "minimum": -1.0,
+              "title": "Z Min",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "z_max",
+            "required": false,
+            "schema": {
+              "default": 0.5,
+              "maximum": 3.0,
+              "minimum": -1.0,
+              "title": "Z Max",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FloorplanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scan Floorplan"
       }
     },
     "/api/v1/scans/{sha256}/mesh": {

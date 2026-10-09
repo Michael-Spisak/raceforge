@@ -131,6 +131,10 @@ export const api = {
   openScan: (path: string) => request<ScanPassRef>("/api/v1/scans/open", { method: "POST", body: JSON.stringify({ path }) }),
   scan: (sha: string) => request<ScanDetail>(`/api/v1/scans/${sha}`),
   scanMesh: (sha: string, maxFaces = 300_000) => request<ScanMesh>(`/api/v1/scans/${sha}/mesh?max_faces=${maxFaces}`),
+  /** Car-height floor plan of a scan pass and the corridor width along a line (spec 0024). */
+  scanFloorplan: (sha: string) => request<Schemas["FloorplanResponse"]>(`/api/v1/scans/${sha}/floorplan`),
+  scanCorridorWidth: (sha: string, points: [number, number][]) =>
+    request<Schemas["CorridorWidth"]>(`/api/v1/scans/${sha}/corridor-width`, { method: "POST", body: JSON.stringify({ points }) }),
   /** QR code for TrackScout's drive mode (spec 0010 C): the phone connects to the car directly. */
   exportAssembly: (kind: "assembly" | "mpd" | "mjcf" | "bom", assembly: Record<string, unknown>, params: Partial<QuickStartParams>) =>
     request<string>(`/api/v1/assembly/export/${kind}`, { method: "POST", body: JSON.stringify({ assembly, quickstart: params }) }),
