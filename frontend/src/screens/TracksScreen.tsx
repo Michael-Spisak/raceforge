@@ -213,6 +213,13 @@ export function TracksScreen() {
       .then((pv) => { setPreview(pv); setNote(pv.ok ? t("tracks.saved_ok") : ""); return loadList(); })
       .catch((e: unknown) => setError(message(e)));
   };
+  const exportForCar = () => {
+    const name = draft.name.trim();
+    const path = window.prompt(t("tracks.localise_path"), `~/raceforge/${name.replace(/\W+/g, "-")}.localised.yaml`);
+    if (!name || !path) return;
+    setError("");
+    api.localiseQuickTrack(name, path).then((r) => setNote(t("tracks.localised", { path: r.path }))).catch((e: unknown) => setError(message(e)));
+  };
   const load = (name: string) => {
     api.quickTrack(name).then((q) => {
       setHistory([]);
@@ -281,6 +288,7 @@ export function TracksScreen() {
           <div className="field"><label><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} /> {t("tracks.snap")}</label></div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button type="button" className="primary" onClick={save} data-testid="qt-save" disabled={draft.points.length < 2}>{t("tracks.save")}</button>
+            <button type="button" onClick={exportForCar} disabled={!preview?.ok} title={t("tracks.localise_hint")}>{t("tracks.localise")}</button>
             <button type="button" onClick={undo} disabled={!history.length}>{t("tracks.undo")}</button>
             <button type="button" onClick={() => change({ ...draft, points: [], obstacles: [] })}>{t("tracks.clear")}</button>
             <button type="button" onClick={() => { setHistory([]); setDraft(EMPTY); }}>{t("tracks.new")}</button>

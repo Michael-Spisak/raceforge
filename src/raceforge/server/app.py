@@ -556,6 +556,16 @@ def create_app(
     def quick_track_validate(q: QuickTrack) -> ValidationReport:
         return quick_validate(q)
 
+    @app.post("/api/v1/tracks/quick/{name}/localisation")
+    def quick_track_localisation(name: str, req: ScanOpen) -> ScanOpen:
+        """Params for the `localised` controller (map + racing line, spec 0029) to ``path``."""
+        from raceforge.api.localisation import write_params
+
+        try:
+            return ScanOpen(path=str(write_params(name, Path(req.path).expanduser(), quick_tracks)))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
     @app.get("/api/v1/tracks/quick")
     def quick_track_list() -> list[QuickTrackInfo]:
         return quick_tracks.list()

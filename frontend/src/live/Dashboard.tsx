@@ -16,6 +16,16 @@ interface Props {
   onEvent?: (e: CarEvent) => void;
 }
 
+/** Pose from the frame, else from the controller's pose.* channels (spec 0029). */
+function poseOf(f: CarFrame | null): { pose: { x: number; y: number; yaw: number }; confidence: number } | null {
+  if (f?.pose_est) return f.pose_est;
+  const c = f?.channels;
+  const [x, y, yaw] = [c?.["pose.x"], c?.["pose.y"], c?.["pose.yaw"]];
+  if (typeof x !== "number" || typeof y !== "number" || typeof yaw !== "number") return null;
+  const conf = c?.["pose.conf"];
+  return { pose: { x, y, yaw }, confidence: typeof conf === "number" ? conf : 1 };
+}
+
 /** Live dashboard (spec 0027): health, plots, state timeline, top-down view, timer, alarms. */
 export function Dashboard({ frame, lastFrameAt, rtt, onEvent }: Props) {
   const { t } = useTranslation();
@@ -37,7 +47,7 @@ export function Dashboard({ frame, lastFrameAt, rtt, onEvent }: Props) {
   useEffect(() => {
     if (!frame) return;
     plots.current.push(frame, lastFrameAt);
-    const p = frame.pose_est?.pose;
+    const p = poseOf(frame)?.pose;
     if (p) trail.current = [...trail.current.slice(-TRAIL), [p.x, p.y]];
     if (movedAt.current == null && Math.abs(frame.meas?.speed_m_s ?? 0) > 0.05) movedAt.current = lastFrameAt;
     const raised = alarms(frame, rtt, thresholds, prevFaults.current);
@@ -124,7 +134,7 @@ export function Dashboard({ frame, lastFrameAt, rtt, onEvent }: Props) {
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           <Radar frame={f} />
-          {f?.pose_est && <TrackMap track={track} trail={trail.current} pose={f.pose_est.pose} confidence={f.pose_est.confidence} />}
+          {poseOf(f) && <TrackMap track={track} trail={trail.current} pose={poseOf(f)!.pose} confidence={poseOf(f)!.confidence} />}
         </div>
       </div>
     </div>
