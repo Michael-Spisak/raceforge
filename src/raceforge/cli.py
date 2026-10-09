@@ -315,6 +315,57 @@ def _cmd_train_rl(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_train_bc(args: argparse.Namespace) -> int:
+    """Spec 0023: behaviour cloning from recorded drives → ONNX policy for onnx_policy.py."""
+    from raceforge.api.train import (
+        DEMO_STATES,
+        ONNX_TEMPLATE,
+        BCConfig,
+        BCProgress,
+        sim_robot_info,
+        train_bc,
+    )
+    from raceforge.sim.record import read_frames
+
+    try:
+        bench = _bench_config(args)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    files = [Path(f) for f in args.recordings]
+    states = tuple(DEMO_STATES)
+    if args.all_states:
+        states = tuple(sorted({fr.state for f in files for fr in read_frames(f)}))
+    out = Path(args.out)
+
+    def line(p: BCProgress) -> None:
+        print(
+            f"  epoch {p.epoch}/{p.epochs}: train {p.train_loss:.4f} · val {p.val_loss:.4f}",
+            flush=True,
+        )
+
+    try:
+        res = train_bc(
+            files,
+            sim_robot_info(),
+            BCConfig(epochs=args.epochs, states=states, bench=bench, out=out),
+            line,
+        )
+    except ImportError as e:
+        print(f"error: {e}: install the extra: uv sync --extra rl", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(f"{res.samples} frames · best epoch {res.best_epoch} · val loss {res.val_loss:.4f}")
+    if res.validation is not None:
+        v = res.validation
+        print(f"held-out score {v.score:.1f} · finished {v.finished_rate:.0%}")
+    print(f"policy written to {out}")
+    print(f"deploy it with: raceforge bundle {ONNX_TEMPLATE} --params {out} ...")
+    return 0
+
+
 def _cmd_train(args: argparse.Namespace) -> int:
     from raceforge.api.train import RunResult, Trial, TuneConfig, benchmark, tune
 
@@ -658,7 +709,12 @@ def main(argv: list[str] | None = None) -> int:
     trl.add_argument("--steps", type=int, default=200_000, help="environment steps")
     trl.add_argument("--train-tracks", type=int, default=8, help="training corridors")
     trl.add_argument("--out", default="policy.yaml", help="params YAML for onnx_policy.py")
-    for p in (tbench, ttune, trl):
+    tbc = tsub.add_parser("bc", help="learn a policy from recorded drives (imitation; 'rl' extra)")
+    tbc.add_argument("recordings", nargs="+", help="run logs (.mcap) with teleop drives")
+    tbc.add_argument("--epochs", type=int, default=60)
+    tbc.add_argument("--all-states", action="store_true", help="use every frame, not only teleop")
+    tbc.add_argument("--out", default="policy.yaml", help="params YAML for onnx_policy.py")
+    for p in (tbench, ttune, trl, tbc):
         p.add_argument("--tracks", type=int, default=5, help="held-out benchmark corridors")
         p.add_argument("--length", type=float, default=25.0, help="corridor length in m (20-120)")
         p.add_argument("--laps", type=int, default=1)
@@ -667,6 +723,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--workers", type=int, default=0, help="processes (0: CPUs - 1)")
         p.set_defaults(func=_cmd_train)
     trl.set_defaults(func=_cmd_train_rl)
+    tbc.set_defaults(func=_cmd_train_bc)
 
     cap = sub.add_parser("capture", help="TrackScout scans (.tscan, spec 0007)")
     csub = cap.add_subparsers(dest="capture_command", required=True)

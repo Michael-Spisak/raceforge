@@ -546,6 +546,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/train/bc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Train Bc
+         * @description Learn a policy from recorded drives (behaviour cloning, spec 0023).
+         */
+        post: operations["train_bc_api_v1_train_bc_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/train/benchmark": {
         parameters: {
             query?: never;
@@ -611,6 +631,26 @@ export interface paths {
         put?: never;
         /** Train Job Cancel */
         post: operations["train_job_cancel_api_v1_train_jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/train/recordings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Train Recordings
+         * @description Recorded runs (e.g. teleop demonstrations) in the engine's runs folder (spec 0023).
+         */
+        get: operations["train_recordings_api_v1_train_recordings_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2432,6 +2472,26 @@ export interface components {
              */
             source: "usb" | "bluetooth";
         };
+        /** RecordingInfo */
+        RecordingInfo: {
+            /** Demo Frames */
+            demo_frames: number;
+            /** Duration S */
+            duration_s: number;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /** Frames */
+            frames: number;
+            /** Modified */
+            modified: number;
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+        };
         /** ReplayRequest */
         ReplayRequest: {
             /** Path */
@@ -2934,6 +2994,30 @@ export interface components {
             /** Workspace Id */
             workspace_id: string | null;
         };
+        /**
+         * TrainBCRequest
+         * @description Behaviour cloning from recorded drives (spec 0023).
+         */
+        TrainBCRequest: {
+            /**
+             * All States
+             * @default false
+             */
+            all_states: boolean;
+            /**
+             * Epochs
+             * @default 60
+             */
+            epochs: number;
+            /** Out */
+            out?: string | null;
+            race?: components["schemas"]["TrainRace"];
+            /**
+             * Recordings
+             * @default []
+             */
+            recordings: string[];
+        };
         /** TrainBenchRequest */
         TrainBenchRequest: {
             /** Controller */
@@ -2976,7 +3060,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "benchmark" | "tune" | "rl";
+            kind: "benchmark" | "tune" | "rl" | "bc";
             /** Mean Reward */
             mean_reward?: number | null;
             /** Out */
@@ -3007,6 +3091,8 @@ export interface components {
              * @default []
              */
             trials: components["schemas"]["TrainTrial"][];
+            /** Val Loss */
+            val_loss?: number | null;
         };
         /**
          * TrainRLRequest
@@ -4273,6 +4359,39 @@ export interface operations {
             };
         };
     };
+    train_bc_api_v1_train_bc_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainBCRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     train_benchmark_api_v1_train_benchmark_post: {
         parameters: {
             query?: never;
@@ -4384,6 +4503,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    train_recordings_api_v1_train_recordings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingInfo"][];
                 };
             };
         };

@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, workspace, type ControllerInfo, type QuickTrackInfo, type TrainJob, type TrainRace } from "../api/client";
+import { ApiError, api, workspace, type Schemas, type ControllerInfo, type QuickTrackInfo, type TrainJob, type TrainRace } from "../api/client";
 import { useWorkspace } from "../store/workspace";
 import { TeamJobs } from "./TeamJobs";
 
@@ -12,7 +12,18 @@ export function TrainScreen() {
   const { t } = useTranslation();
   const [controllers, setControllers] = useState<ControllerInfo[]>([]);
   const [controller, setController] = useState("");
-  const [mode, setMode] = useState<"benchmark" | "tune" | "rl">("benchmark");
+  const [mode, setMode] = useState<"benchmark" | "tune" | "rl" | "bc">("benchmark");
+  const [recordings, setRecordings] = useState<Schemas["RecordingInfo"][]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [epochs, setEpochs] = useState(60);
+  const [allStates, setAllStates] = useState(false);
+  useEffect(() => {
+    if (mode !== "bc") return;
+    api.trainRecordings().then((rs) => {
+      setRecordings(rs);
+      setPicked(rs.filter((r) => r.demo_frames > 0).map((r) => r.path));
+    }).catch(() => undefined);
+  }, [mode]);
   const [steps, setSteps] = useState(200000);
   const [params, setParams] = useState("");
   const [trials, setTrials] = useState(30);
@@ -45,7 +56,7 @@ export function TrainScreen() {
   const start = (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (runOn === "team") {
+    if (runOn === "team" && mode !== "bc") { // recordings stay on this laptop: imitation runs locally
       const job = mode === "benchmark"
         ? { bench: { controller, params: params || null, race } }
         : mode === "rl" ? { rl: { steps, train_tracks: trainTracks, out: null, race } }
@@ -55,6 +66,7 @@ export function TrainScreen() {
     }
     const req = mode === "benchmark"
       ? api.trainBenchmark({ controller, params: params || null, race })
+      : mode === "bc" ? api.trainBC({ recordings: picked, epochs, all_states: allStates, out: null, race })
       : mode === "rl" ? api.trainRL({ steps, train_tracks: trainTracks, out: null, race })
         : api.trainTune({ controller, trials, train_tracks: trainTracks, timeout_s: null, out: null, race });
     req.then((job) => { setSelected(job.id); return load(); }).catch((err: unknown) => setError(message(err)));
@@ -86,6 +98,7 @@ export function TrainScreen() {
             <div style={{ display: "flex", gap: 12 }}>
               <label><input type="radio" checked={mode === "benchmark"} onChange={() => setMode("benchmark")} /> {t("train.mode_benchmark")}</label>
               <label><input type="radio" checked={mode === "tune"} onChange={() => setMode("tune")} data-testid="train-mode-tune" /> {t("train.mode_tune")}</label>
+              <label><input type="radio" checked={mode === "bc"} onChange={() => { setMode("bc"); setRunOn("local"); }} data-testid="train-mode-bc" /> {t("train.mode_bc")}</label>
               <label><input type="radio" checked={mode === "rl"} onChange={() => { setMode("rl"); setTrainTracks((n) => Math.max(n, 8)); }} data-testid="train-mode-rl" /> {t("train.mode_rl")}</label>
             </div>
           </div>
@@ -94,6 +107,28 @@ export function TrainScreen() {
               <label htmlFor="train-params">{t("train.params")}</label>
               <input id="train-params" value={params} onChange={(e) => setParams(e.target.value)} />
             </div>
+          ) : mode === "bc" ? (
+            <>
+              <p className="muted">{t("train.bc_help")}</p>
+              {recordings.length === 0 && <p className="warning">{t("train.no_recordings")}</p>}
+              <ul className="list" data-testid="train-recordings" style={{ maxHeight: 200, overflow: "auto" }}>
+                {recordings.map((r) => (
+                  <li key={r.path}>
+                    <label>
+                      <input type="checkbox" checked={picked.includes(r.path)}
+                             onChange={(e) => setPicked(e.target.checked ? [...picked, r.path] : picked.filter((x) => x !== r.path))} />{" "}
+                      {r.name} <span className="muted">· {t("train.recording_info", { demo: r.demo_frames, frames: r.frames, s: r.duration_s.toFixed(0) })}</span>
+                      {r.error && <span className="error"> {r.error}</span>}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <div className="field">
+                <label htmlFor="train-epochs">{t("train.epochs")}</label>
+                <input id="train-epochs" type="number" min={1} max={2000} value={epochs} onChange={(e) => setEpochs(Number(e.target.value))} />
+              </div>
+              <div className="field"><label><input type="checkbox" checked={allStates} onChange={(e) => setAllStates(e.target.checked)} /> {t("train.all_states")}</label></div>
+            </>
           ) : mode === "rl" ? (
             <>
               <div className="field">
@@ -131,7 +166,7 @@ export function TrainScreen() {
           {num("laps", t("train.laps"), 1, 10)}
           {num("opponents", t("train.opponents"), 0, 5)}
           {num("max_time_s", t("train.max_time"), 10, 3600, 10)}
-          {loggedIn && (
+          {loggedIn && mode !== "bc" && (
             <div className="field">
               <label htmlFor="train-run-on">{t("train.run_on")}</label>
               <select id="train-run-on" data-testid="train-run-on" value={runOn} onChange={(e) => setRunOn(e.target.value as "local" | "team")}>
@@ -168,7 +203,7 @@ export function TrainScreen() {
 
 function JobView({ job }: { job: TrainJob }) {
   const { t } = useTranslation();
-  const done = job.kind === "benchmark" ? job.runs.length : job.kind === "rl" ? job.steps_done : Math.max(0, job.trials.length - 1);
+  const done = job.kind === "benchmark" ? job.runs.length : job.kind === "rl" || job.kind === "bc" ? job.steps_done : Math.max(0, job.trials.length - 1);
   const overfit = job.state === "done" && job.kind === "tune" && job.score != null && job.default_score != null && job.score > job.default_score;
   return (
     <div className="panel" data-testid="train-job">
@@ -178,6 +213,7 @@ function JobView({ job }: { job: TrainJob }) {
       <p>
         {t("train.progress", { done, total: job.total })}
         {job.kind === "rl" && job.mean_reward != null && ` · ${t("train.mean_reward", { r: job.mean_reward.toFixed(1) })}`}
+        {job.kind === "bc" && job.val_loss != null && ` · ${t("train.val_loss", { l: job.val_loss.toFixed(4) })}`}
         {job.state === "running" && (
           <button type="button" style={{ marginLeft: 8 }} onClick={() => void api.trainCancel(job.id)}>{t("train.cancel")}</button>
         )}
@@ -191,7 +227,7 @@ function JobView({ job }: { job: TrainJob }) {
         </p>
       )}
       {overfit && <p className="warning">{t("train.overfit")}</p>}
-      {job.out && <p data-testid="train-out">{t(job.kind === "rl" ? "train.policy_written" : "train.written", { path: job.out })}</p>}
+      {job.out && <p data-testid="train-out">{t(job.kind === "rl" || job.kind === "bc" ? "train.policy_written" : "train.written", { path: job.out })}</p>}
       {job.kind === "tune" && job.trials.length > 0 && (
         <table className="table">
           <thead><tr><th>{t("train.trial")}</th><th>Score</th><th>{t("train.best")}</th></tr></thead>
