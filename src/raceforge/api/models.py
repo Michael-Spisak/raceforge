@@ -800,3 +800,38 @@ class RaceResult(ApiModel):
 
 class RaceSaved(ApiModel):
     run: str  # slug of the `run` object in the workspace
+
+
+# ------------------------------------------------------------------ fleet + calibration (spec 0033)
+class FleetCar(ApiModel):
+    name: str  # file name without .yaml (the car's id in the fleet)
+    path: str
+    car_name: str  # robot.car_name inside the config
+    error: str | None = None  # the config does not validate
+
+
+class CalibrationSample(ApiModel):
+    t_ms: float  # receive time in the UI (ms)
+    frame: dict[str, Any]  # TelemetryFrame JSON
+
+
+class StraightCalibration(ApiModel):
+    car: str = Field(min_length=1)
+    samples: list[CalibrationSample] = Field(max_length=20_000)
+    true_distance_m: float = Field(gt=0, le=50)
+
+
+class CircleCalibration(ApiModel):
+    car: str = Field(min_length=1)
+    left: list[CalibrationSample] = Field(max_length=20_000)
+    right: list[CalibrationSample] = Field(max_length=20_000)
+
+
+class CalibrationResult(ApiModel):
+    kind: Literal["straight", "circle"]
+    changes: dict[str, float]  # dotted car.yaml field -> suggested value
+    details: dict[str, float | int | str]
+
+
+class CarChanges(ApiModel):
+    changes: dict[str, float]

@@ -41,6 +41,9 @@ pub struct Ev3Spec {
     pub drive_motor: String,
     pub steer_motor_deg_per_rad: f64,
     pub drive_counts_per_m: f64,
+    /// Steering zero point from calibration (spec 0033).
+    #[serde(default)]
+    pub steer_trim_rad: f64,
     #[serde(default)]
     pub ultrasonic: BTreeMap<String, String>,
     pub gyro: bool,
@@ -235,6 +238,7 @@ impl Manifest {
             steer_motor: motor_port(&e.steer_motor)?,
             drive_motor: motor_port(&e.drive_motor)?,
             steer_motor_deg_per_rad: e.steer_motor_deg_per_rad,
+            steer_trim_rad: e.steer_trim_rad,
             drive_counts_per_m: e.drive_counts_per_m,
             ultrasonic,
             gyro: e.gyro,

@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, type BundleInfo, type ControllerInfo, type InstallResult } from "../api/client";
+import { ApiError, api, type BundleInfo, type ControllerInfo, fleet, type InstallResult, type Schemas } from "../api/client";
 
 /** Remembered between sessions (never the telemetry token). */
 function stored(key: string, fallback = ""): string {
@@ -42,12 +42,14 @@ export function DeployPanel({ onInstalled }: { onInstalled?: (d: Deployed) => vo
   const [usbPath, setUsbPath] = useState("");
   const [usbPending, setUsbPending] = useState(false);
   const [race, setRace] = useState(false);
+  const [cars, setCars] = useState<Schemas["FleetCar"][]>([]);
 
   useEffect(() => {
     void api.controllers().then((cs) => {
       setControllers(cs);
       setController((c) => c || cs[0]?.path || "");
     }).catch(() => undefined);
+    void fleet.list().then(setCars).catch(() => undefined);
   }, []);
 
   const build = (e: FormEvent) => {
@@ -120,6 +122,12 @@ export function DeployPanel({ onInstalled }: { onInstalled?: (d: Deployed) => vo
       </div>
       <div className="field">
         <label htmlFor="deploy-car">{t("deploy.car_config")}</label>
+        {cars.length > 0 && (
+          <select aria-label={t("deploy.fleet")} value={cars.find((c) => c.path === carConfig)?.path ?? ""} onChange={(e) => setCarConfig(e.target.value)}>
+            <option value="">{t("deploy.fleet")}</option>
+            {cars.map((c) => <option key={c.name} value={c.path}>{c.name}</option>)}
+          </select>
+        )}
         <input id="deploy-car" data-testid="deploy-car" value={carConfig} onChange={(e) => setCarConfig(e.target.value)} required />
       </div>
       <div className="field">

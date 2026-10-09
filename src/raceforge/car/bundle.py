@@ -82,6 +82,8 @@ class Ev3Spec(_Model):
     drive_motor: MotorPort = "B"
     steer_motor_deg_per_rad: float  # gear ratio, sign included
     drive_counts_per_m: float  # tacho degrees per metre travelled, sign included
+    # Spec 0033: steering zero point (rad, + = left) from the "drive straight" calibration.
+    steer_trim_rad: float = Field(default=0.0, ge=-0.2, le=0.2)
     ultrasonic: dict[str, SensorPort] = Field(default_factory=dict[str, SensorPort])
     gyro: bool = True
     estop_touch_port: SensorPort | None = None

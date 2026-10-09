@@ -239,6 +239,15 @@ export function carSocketUrl(): string {
   return `${base.replace(/^http/, "ws")}/api/v1/car/live`;
 }
 
+/** The team's cars and calibration (spec 0033). */
+export const fleet = {
+  list: () => request<Schemas["FleetCar"][]>("/api/v1/cars"),
+  create: (name: string) => request<Schemas["FleetCar"]>(`/api/v1/cars/${encodeURIComponent(name)}`, { method: "POST" }),
+  apply: (name: string, changes: Record<string, number>) => request<Schemas["FleetCar"]>(`/api/v1/cars/${encodeURIComponent(name)}/apply`, { method: "POST", body: JSON.stringify({ changes }) }),
+  calibrateStraight: (body: Schemas["StraightCalibration"]) => request<Schemas["CalibrationResult"]>("/api/v1/calibration/straight", { method: "POST", body: JSON.stringify(body) }),
+  calibrateCircle: (body: Schemas["CircleCalibration"]) => request<Schemas["CalibrationResult"]>("/api/v1/calibration/circle", { method: "POST", body: JSON.stringify(body) }),
+};
+
 /** Race Control (spec 0031): save a timed race to the team workspace. */
 export const raceControl = {
   save: (body: Schemas["RaceResult"]) => request<Schemas["RaceSaved"]>("/api/v1/race-control/results", { method: "POST", body: JSON.stringify(body) }),

@@ -44,6 +44,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calibration/circle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Calibrate Circle */
+        post: operations["calibrate_circle_api_v1_calibration_circle_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calibration/straight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Calibrate Straight */
+        post: operations["calibrate_straight_api_v1_calibration_straight_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/car/bundle": {
         parameters: {
             query?: never;
@@ -118,6 +152,60 @@ export interface paths {
          * @description QR code that pairs TrackScout's drive mode with a car (spec 0010 C).
          */
         post: operations["car_pairing_code_api_v1_car_pairing_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fleet List */
+        get: operations["fleet_list_api_v1_cars_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cars/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fleet Create */
+        post: operations["fleet_create_api_v1_cars__name__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cars/{name}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fleet Apply
+         * @description Write calibration results into the car's config (previous version kept as .bak).
+         */
+        post: operations["fleet_apply_api_v1_cars__name__apply_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1513,6 +1601,38 @@ export interface components {
              */
             race: boolean;
         };
+        /** CalibrationResult */
+        CalibrationResult: {
+            /** Changes */
+            changes: {
+                [key: string]: number;
+            };
+            /** Details */
+            details: {
+                [key: string]: number | string;
+            };
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "straight" | "circle";
+        };
+        /** CalibrationSample */
+        CalibrationSample: {
+            /** Frame */
+            frame: {
+                [key: string]: unknown;
+            };
+            /** T Ms */
+            t_ms: number;
+        };
+        /** CarChanges */
+        CarChanges: {
+            /** Changes */
+            changes: {
+                [key: string]: number;
+            };
+        };
         /** CarPairingCode */
         CarPairingCode: {
             /** Code */
@@ -1555,6 +1675,15 @@ export interface components {
             measured_m: number;
             /** Model M */
             model_m: number;
+        };
+        /** CircleCalibration */
+        CircleCalibration: {
+            /** Car */
+            car: string;
+            /** Left */
+            left: components["schemas"]["CalibrationSample"][];
+            /** Right */
+            right: components["schemas"]["CalibrationSample"][];
         };
         /** Conflict */
         Conflict: {
@@ -2044,6 +2173,17 @@ export interface components {
             other: string;
             /** T */
             t: number;
+        };
+        /** FleetCar */
+        FleetCar: {
+            /** Car Name */
+            car_name: string;
+            /** Error */
+            error?: string | null;
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
         };
         /**
          * FloorplanResponse
@@ -3479,6 +3619,15 @@ export interface components {
             /** Target Connector */
             target_connector: string;
         };
+        /** StraightCalibration */
+        StraightCalibration: {
+            /** Car */
+            car: string;
+            /** Samples */
+            samples: components["schemas"]["CalibrationSample"][];
+            /** True Distance M */
+            true_distance_m: number;
+        };
         /** SyncResult */
         SyncResult: {
             /**
@@ -4060,6 +4209,72 @@ export interface operations {
             };
         };
     };
+    calibrate_circle_api_v1_calibration_circle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CircleCalibration"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalibrationResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calibrate_straight_api_v1_calibration_straight_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StraightCalibration"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalibrationResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     car_bundle_api_v1_car_bundle_post: {
         parameters: {
             query?: never;
@@ -4177,6 +4392,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CarPairingCode"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fleet_list_api_v1_cars_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetCar"][];
+                };
+            };
+        };
+    };
+    fleet_create_api_v1_cars__name__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetCar"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fleet_apply_api_v1_cars__name__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarChanges"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetCar"];
                 };
             };
             /** @description Validation Error */

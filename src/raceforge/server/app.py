@@ -26,8 +26,11 @@ from raceforge.api.models import (
     AssemblyExportRequest,
     BundleInfo,
     BundleRequest,
+    CalibrationResult,
+    CarChanges,
     CarPairingCode,
     CarPairingRequest,
+    CircleCalibration,
     ConnectorDef,
     ConstructSettings,
     ControllerInfo,
@@ -37,6 +40,7 @@ from raceforge.api.models import (
     DeployRequest,
     DeployResponse,
     ErrorMessage,
+    FleetCar,
     FloorplanResponse,
     Health,
     InboxAction,
@@ -69,6 +73,7 @@ from raceforge.api.models import (
     SimControl,
     SimProtocol,
     SimStart,
+    StraightCalibration,
     TeamJobRequest,
     TokenRequest,
     TrackScoutPairing,
@@ -414,6 +419,60 @@ def create_app(
         with contextlib.suppress(Exception):
             await ui.send_text(json.dumps({"type": "end"}))
             await ui.close()
+
+    # ---------------------------------------------------- fleet + calibration (spec 0033)
+    @app.get("/api/v1/cars")
+    def fleet_list() -> list[FleetCar]:
+        from raceforge.api import fleet
+
+        return fleet.list_cars()
+
+    @app.post("/api/v1/cars/{name}")
+    def fleet_create(name: str) -> FleetCar:
+        from raceforge.api import fleet
+
+        try:
+            return fleet.create_car(name)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/cars/{name}/apply")
+    def fleet_apply(name: str, req: CarChanges) -> FleetCar:
+        """Write calibration results into the car's config (previous version kept as .bak)."""
+        from raceforge.api import fleet
+
+        try:
+            return fleet.apply_changes(name, req.changes)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/calibration/straight")
+    def calibrate_straight(req: StraightCalibration) -> CalibrationResult:
+        from raceforge.api import calibration, fleet
+
+        try:
+            car = fleet.load(req.car)
+            return calibration.straight(
+                req.samples,
+                req.true_distance_m,
+                car.ev3.drive_counts_per_m,
+                car.ev3.steer_trim_rad,
+                car.robot.wheelbase_m,
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/api/v1/calibration/circle")
+    def calibrate_circle(req: CircleCalibration) -> CalibrationResult:
+        from raceforge.api import calibration, fleet
+
+        try:
+            car = fleet.load(req.car)
+            return calibration.circle(
+                req.left, req.right, car.robot.wheelbase_m, car.ev3.steer_motor_deg_per_rad
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.post("/api/v1/race-control/results")
     def race_control_save(req: RaceResult) -> RaceSaved:
