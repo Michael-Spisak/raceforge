@@ -174,6 +174,7 @@ export const workspace = {
   /** Team workers and jobs (spec 0020). */
   teamWorkers: () => request<Schemas["WorkerInfo"][]>(`${W}/workers`),
   teamJobs: () => request<Schemas["JobInfo"][]>(`${W}/jobs`),
+  liveSessions: () => request<Schemas["LiveSession"][]>(`${W}/live`),
   localWorker: () => request<Schemas["LocalWorkerStatus"]>(`${W}/worker/local`),
   setLocalWorker: (body: Schemas["LocalWorkerUpdate"]) => request<Schemas["LocalWorkerStatus"]>(`${W}/worker/local`, { method: "PUT", body: JSON.stringify(body) }),
   submitTeamJob: (req: Schemas["TeamJobRequest"]) => request<Schemas["JobInfo"]>(`${W}/jobs`, post(req)),
@@ -229,6 +230,12 @@ export function simSocketUrl(): string {
 export function carSocketUrl(): string {
   const base = engineBase() || `${window.location.protocol}//${window.location.host}`;
   return `${base.replace(/^http/, "ws")}/api/v1/car/live`;
+}
+
+/** Read-only view of a teammate's car through the team relay (spec 0027). */
+export function liveWatchUrl(session: string): string {
+  const base = engineBase() || `${window.location.protocol}//${window.location.host}`;
+  return `${base.replace(/^http/, "ws")}${W}/live/${encodeURIComponent(session)}/watch`;
 }
 
 export function ldrawBase(): string {

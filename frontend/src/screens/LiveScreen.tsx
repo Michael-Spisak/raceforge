@@ -1,8 +1,10 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, type CarPairingCode } from "../api/client";
+import { ApiError, api, type CarPairingCode, type Schemas, workspace } from "../api/client";
+import { Dashboard } from "../live/Dashboard";
 import { DeployPanel } from "../live/DeployPanel";
 import { LATENCY_WARN_MS, useCarLink } from "../live/useCarLink";
+import { useWorkspace } from "../store/workspace";
 import { TeleopPanel } from "../teleop/TeleopPanel";
 
 /** Car defaults (quick-start car): steering lock 30°, teleop speed slider up to 2 m/s. */
@@ -20,6 +22,17 @@ export function LiveScreen() {
   const [note, setNote] = useState("");
   const [phoneCode, setPhoneCode] = useState<CarPairingCode | null>(null);
   const [phoneError, setPhoneError] = useState("");
+  const loggedIn = !!useWorkspace((st) => st.status?.logged_in && st.status.workspace);
+  const [share, setShare] = useState(() => localStorage.getItem("rf.live.share") !== "0");
+  const [shareRate, setShareRate] = useState(() => Number(localStorage.getItem("rf.live.share_rate") ?? 10));
+  const [sessions, setSessions] = useState<Schemas["LiveSession"][]>([]);
+  useEffect(() => {
+    if (!loggedIn) return;
+    const load = () => void workspace.liveSessions().then(setSessions).catch(() => setSessions([]));
+    load();
+    const id = window.setInterval(load, 5000);
+    return () => window.clearInterval(id);
+  }, [loggedIn]);
   const pairPhone = () => {
     setPhoneError("");
     api.carPairingCode(url, token).then(setPhoneCode)
@@ -30,9 +43,12 @@ export function LiveScreen() {
     e.preventDefault();
     localStorage.setItem("rf.car.url", url);
     sessionStorage.setItem("rf.car.token", token);
-    link.connect(url, token);
+    localStorage.setItem("rf.live.share", share ? "1" : "0");
+    localStorage.setItem("rf.live.share_rate", String(shareRate));
+    link.connect(url, token, share, shareRate);
   };
-  const connected = link.state === "connected";
+  const watching = link.watching != null;
+  const connected = link.state === "connected" && !watching;
   const f = link.frame;
   const race = (f?.mode ?? link.car?.mode) === "race";
   const slow = link.rtt != null && link.rtt > LATENCY_WARN_MS;
@@ -50,6 +66,19 @@ export function LiveScreen() {
             <label htmlFor="car-token">{t("live.token")}</label>
             <input id="car-token" data-testid="car-token" type="password" value={token} onChange={(e) => setToken(e.target.value)} />
           </div>
+          {loggedIn && (
+            <div className="field">
+              <label>
+                <input type="checkbox" checked={share} data-testid="car-share" onChange={(e) => setShare(e.target.checked)} /> {t("live.share")}
+              </label>
+              {share && (
+                <label style={{ display: "block" }}>
+                  {t("live.share_rate")}{" "}
+                  <input type="number" min={1} max={20} style={{ width: 60 }} value={shareRate} onChange={(e) => setShareRate(Number(e.target.value))} /> Hz
+                </label>
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6 }}>
             <button type="submit" className="primary" data-testid="car-connect">{t("live.connect")}</button>
             {(connected || link.state === "connecting") && <button type="button" onClick={link.disconnect}>{t("live.disconnect")}</button>}
@@ -66,7 +95,30 @@ export function LiveScreen() {
           <p data-testid="car-link-state" className={link.state === "error" ? "error" : "muted"}>
             {t(`live.state_${link.state}`)}{link.detail && link.state !== "connected" ? ` — ${link.detail}` : ""}
           </p>
+          {!watching && link.state !== "idle" && loggedIn && (
+            <p className="muted" data-testid="car-share-state">
+              {t(`live.share_${link.share.state}`)}
+              {link.share.run && ` · ${t("live.run_saved", { run: link.share.run })}`}
+            </p>
+          )}
         </form>
+        {loggedIn && (
+          <div className="panel" data-testid="team-live">
+            <h4 style={{ marginTop: 0 }}>{t("live.team_live")}</h4>
+            {sessions.length === 0 && <p className="muted">{t("live.team_none")}</p>}
+            <ul className="list">
+              {sessions.map((s) => (
+                <li key={s.id}>
+                  {s.car} <span className="muted">· {s.publisher}</span>{" "}
+                  {link.watching === s.id
+                    ? <button type="button" onClick={link.disconnect}>{t("live.stop_watching")}</button>
+                    : <button type="button" onClick={() => link.watch(s.id)}>{t("live.watch")}</button>}
+                </li>
+              ))}
+            </ul>
+            {watching && <p className="muted">{t("live.watching", { car: link.car?.name ?? "", who: link.detail })}</p>}
+          </div>
+        )}
         {connected && (
           <TeleopPanel
             send={(msg) => link.send(msg)}
@@ -105,6 +157,9 @@ export function LiveScreen() {
             <dt>{t("live.faults")}</dt><dd className={f?.faults?.length ? "error" : ""}>{f?.faults?.length ? f.faults.join(", ") : "–"}</dd>
           </dl>
         </div>
+        {(link.state === "connected" || f) && (
+          <Dashboard frame={f} lastFrameAt={link.lastFrameAt} rtt={watching ? null : link.rtt} onEvent={link.pushEvent} />
+        )}
         <div className="panel">
           <h4 style={{ marginTop: 0 }}>{t("live.events")}</h4>
           <ul className="list" data-testid="car-events">
