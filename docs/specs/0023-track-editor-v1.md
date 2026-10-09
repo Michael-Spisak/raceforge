@@ -1,4 +1,4 @@
-# Spec: Track editor v1 — race setup, objects, surfaces, check distances, validation
+# Spec 0023: Track editor v1 — race setup, objects, surfaces, check distances, validation
 
 - **Status:** approved (owner, 2026-10-09: car width = track setting, separate finish line, validation advisory)
 - **Owner:** Michael Spisak

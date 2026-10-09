@@ -121,6 +121,9 @@ export const api = {
     request<Schemas["PrintedPreview"]>("/api/v1/parts/printed/preview", { method: "POST", body: JSON.stringify(req) }),
   importPrinted: (req: Schemas["PrintedImportRequest"]) =>
     request<PartSummary>("/api/v1/parts/printed", { method: "POST", body: JSON.stringify(req) }),
+  partConnectors: (key: string) => request<Schemas["ConnectorDef"][]>(`/api/v1/parts/${encodeURIComponent(key)}/connectors`),
+  setPartConnectors: (key: string, defs: Schemas["ConnectorDef"][]) =>
+    request<Schemas["ConnectorDef"][]>(`/api/v1/parts/${encodeURIComponent(key)}/connectors`, { method: "PUT", body: JSON.stringify(defs) }),
   controllers: () => request<ControllerInfo[]>("/api/v1/controllers"),
   replay: (path: string) => request<ReplaySummary>("/api/v1/replays", { method: "POST", body: JSON.stringify({ path }) }),
   /** TrackScout passes the engine can show (spec 0009). */
@@ -148,6 +151,7 @@ export const api = {
   deleteQuickTrack: (name: string) => request<null>(`/api/v1/tracks/quick/${encodeURIComponent(name)}`, { method: "DELETE" }),
   /** Training jobs (spec 0013): one at a time in the engine; poll the job for progress. */
   trainBenchmark: (req: TrainBenchRequest) => request<TrainJob>("/api/v1/train/benchmark", { method: "POST", body: JSON.stringify(req) }),
+  trainRL: (req: Schemas["TrainRLRequest"]) => request<TrainJob>("/api/v1/train/rl", { method: "POST", body: JSON.stringify(req) }),
   trainTune: (req: TrainTuneRequest) => request<TrainJob>("/api/v1/train/tune", { method: "POST", body: JSON.stringify(req) }),
   trainJobs: () => request<TrainJob[]>("/api/v1/train/jobs"),
   trainCancel: (id: string) => request<TrainJob>(`/api/v1/train/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
@@ -165,6 +169,14 @@ const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.strin
 /** Team workspace (spec 0006): the engine talks to the backend and keeps a local copy for offline use. */
 export const workspace = {
   status: (probe = false) => request<WorkspaceStatus>(`${W}/status?probe=${probe}`),
+  /** Team workers and jobs (spec 0020). */
+  teamWorkers: () => request<Schemas["WorkerInfo"][]>(`${W}/workers`),
+  teamJobs: () => request<Schemas["JobInfo"][]>(`${W}/jobs`),
+  localWorker: () => request<Schemas["LocalWorkerStatus"]>(`${W}/worker/local`),
+  setLocalWorker: (body: Schemas["LocalWorkerUpdate"]) => request<Schemas["LocalWorkerStatus"]>(`${W}/worker/local`, { method: "PUT", body: JSON.stringify(body) }),
+  submitTeamJob: (req: Schemas["TeamJobRequest"]) => request<Schemas["JobInfo"]>(`${W}/jobs`, post(req)),
+  cancelTeamJob: (id: string) => request<Schemas["JobInfo"]>(`${W}/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  saveJobParams: (id: string, path: string) => request<{ path: string }>(`${W}/jobs/${encodeURIComponent(id)}/save-params`, post({ path })),
   login: (body: WorkspaceLogin) => request<WorkspaceStatus>(`${W}/login`, post(body)),
   register: (body: WorkspaceRegister) => request<UserInfo>(`${W}/register`, post(body)),
   logout: () => request<WorkspaceStatus>(`${W}/logout`, { method: "POST" }),

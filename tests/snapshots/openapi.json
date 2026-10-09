@@ -612,6 +612,77 @@
         "title": "Conflict",
         "type": "object"
       },
+      "ConnectorDef": {
+        "additionalProperties": false,
+        "description": "A connector in the part's own frame (core frame, metres).",
+        "properties": {
+          "axis": {
+            "default": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Axis",
+            "type": "array"
+          },
+          "id": {
+            "pattern": "^[A-Za-z0-9_-]{1,32}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "pos": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Pos",
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "pin_hole",
+              "axle_hole",
+              "pin",
+              "axle",
+              "stud",
+              "anti_stud",
+              "screw_hole",
+              "fixed_mount"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "pos"
+        ],
+        "title": "ConnectorDef",
+        "type": "object"
+      },
       "ConstructLimits": {
         "additionalProperties": false,
         "description": "Size/weight limits from the race rules; empty until the teacher defines them.",
@@ -2041,6 +2112,187 @@
         "title": "InviteRequest",
         "type": "object"
       },
+      "JobInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "default": 1,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "cancel_requested": {
+            "title": "Cancel Requested",
+            "type": "boolean"
+          },
+          "controller_name": {
+            "title": "Controller Name",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "benchmark",
+              "tune",
+              "rl"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "log_tail": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Log Tail",
+            "type": "array"
+          },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "high",
+              "critical"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "progress": {
+            "additionalProperties": true,
+            "title": "Progress",
+            "type": "object"
+          },
+          "raceforge_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raceforge Version"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "target_worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Worker Id"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          },
+          "worker_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Name"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "kind",
+          "status",
+          "controller_name",
+          "created_by",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "worker_id",
+          "worker_name",
+          "progress",
+          "result",
+          "error",
+          "log_tail",
+          "cancel_requested"
+        ],
+        "title": "JobInfo",
+        "type": "object"
+      },
       "LDrawPart": {
         "additionalProperties": false,
         "description": "A part of the LDraw library that is not in the catalogue yet (spec 0018).",
@@ -2309,6 +2561,86 @@
           "pending"
         ],
         "title": "LocalVersion",
+        "type": "object"
+      },
+      "LocalWorkerStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Log",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/WorkerPolicy"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "registered": {
+            "title": "Registered",
+            "type": "boolean"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          }
+        },
+        "required": [
+          "enabled",
+          "registered",
+          "policy",
+          "available"
+        ],
+        "title": "LocalWorkerStatus",
+        "type": "object"
+      },
+      "LocalWorkerUpdate": {
+        "additionalProperties": false,
+        "description": "Switch this computer's team worker on/off and set when it takes jobs (spec 0020 C).",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/WorkerPolicy"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "LocalWorkerUpdate",
         "type": "object"
       },
       "PartSummary": {
@@ -4487,12 +4819,53 @@
         "title": "ScenePart",
         "type": "object"
       },
+      "ScheduleWindow": {
+        "additionalProperties": false,
+        "description": "A weekly time window; ``end`` before ``start`` crosses midnight (days = start days).",
+        "properties": {
+          "days": {
+            "items": {
+              "enum": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat",
+                "sun"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Days",
+            "type": "array"
+          },
+          "end": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "start",
+          "end"
+        ],
+        "title": "ScheduleWindow",
+        "type": "object"
+      },
       "Scope": {
         "enum": [
           "read",
           "sim_train",
           "edit",
-          "admin"
+          "admin",
+          "worker"
         ],
         "title": "Scope",
         "type": "string"
@@ -4838,6 +5211,65 @@
         "title": "SyncResult",
         "type": "object"
       },
+      "TeamJobRequest": {
+        "additionalProperties": false,
+        "description": "Run a training job on a team worker (spec 0020): exactly one of bench/tune/rl.",
+        "properties": {
+          "bench": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainBenchRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "high",
+              "critical"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "rl": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainRLRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Worker Id"
+          },
+          "tune": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainTuneRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "TeamJobRequest",
+        "type": "object"
+      },
       "TokenRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5118,10 +5550,22 @@
           "kind": {
             "enum": [
               "benchmark",
-              "tune"
+              "tune",
+              "rl"
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "mean_reward": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Reward"
           },
           "out": {
             "anyOf": [
@@ -5167,6 +5611,11 @@
             "title": "State",
             "type": "string"
           },
+          "steps_done": {
+            "default": 0,
+            "title": "Steps Done",
+            "type": "integer"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
@@ -5189,6 +5638,42 @@
           "total"
         ],
         "title": "TrainJob",
+        "type": "object"
+      },
+      "TrainRLRequest": {
+        "additionalProperties": false,
+        "description": "PPO training (spec 0022); the policy goes into a params YAML for onnx_policy.py.",
+        "properties": {
+          "out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Out"
+          },
+          "race": {
+            "$ref": "#/components/schemas/TrainRace"
+          },
+          "steps": {
+            "default": 200000,
+            "maximum": 50000000.0,
+            "minimum": 256.0,
+            "title": "Steps",
+            "type": "integer"
+          },
+          "train_tracks": {
+            "default": 8,
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Train Tracks",
+            "type": "integer"
+          }
+        },
+        "title": "TrainRLRequest",
         "type": "object"
       },
       "TrainRace": {
@@ -5591,6 +6076,110 @@
           "message"
         ],
         "title": "Warning",
+        "type": "object"
+      },
+      "WorkerInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "busy": {
+            "title": "Busy",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "info": {
+            "additionalProperties": true,
+            "title": "Info",
+            "type": "object"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "created_by",
+          "created_at",
+          "last_seen_at",
+          "online",
+          "busy",
+          "info"
+        ],
+        "title": "WorkerInfo",
+        "type": "object"
+      },
+      "WorkerPolicy": {
+        "additionalProperties": false,
+        "description": "When this computer takes team jobs (spec 0020 part C).",
+        "properties": {
+          "idle_minutes": {
+            "default": 10.0,
+            "maximum": 240.0,
+            "minimum": 1.0,
+            "title": "Idle Minutes",
+            "type": "number"
+          },
+          "mode": {
+            "default": "idle",
+            "enum": [
+              "always",
+              "idle",
+              "schedule",
+              "paused"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "processes": {
+            "default": 0,
+            "maximum": 256.0,
+            "minimum": 0.0,
+            "title": "Processes",
+            "type": "integer"
+          },
+          "schedule": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleWindow"
+            },
+            "title": "Schedule",
+            "type": "array"
+          }
+        },
+        "title": "WorkerPolicy",
         "type": "object"
       },
       "WorkspaceInfo": {
@@ -6487,6 +7076,106 @@
         "summary": "Parts Printed Mesh"
       }
     },
+    "/api/v1/parts/{key}/connectors": {
+      "get": {
+        "description": "Connectors of a part in its own frame (spec 0021).",
+        "operationId": "part_connectors_api_v1_parts__key__connectors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectorDef"
+                  },
+                  "title": "Response Part Connectors Api V1 Parts  Key  Connectors Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Part Connectors"
+      },
+      "put": {
+        "description": "Replace the connectors of a 3D-printed part (clicked on its mesh, spec 0021).",
+        "operationId": "part_set_connectors_api_v1_parts__key__connectors_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/ConnectorDef"
+                },
+                "title": "Defs",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectorDef"
+                  },
+                  "title": "Response Part Set Connectors Api V1 Parts  Key  Connectors Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Part Set Connectors"
+      }
+    },
     "/api/v1/quickstart": {
       "post": {
         "operationId": "quickstart_api_v1_quickstart_post",
@@ -7158,6 +7847,45 @@
         "summary": "Train Job Cancel"
       }
     },
+    "/api/v1/train/rl": {
+      "post": {
+        "description": "Start PPO training (spec 0022); needs the optional extra ``rl``.",
+        "operationId": "train_rl_api_v1_train_rl_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainRLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Train Rl"
+      }
+    },
     "/api/v1/train/tune": {
       "post": {
         "description": "Start an Optuna tuning job over the controller's Tunable params.",
@@ -7275,6 +8003,154 @@
           }
         },
         "summary": "Ws Invite"
+      }
+    },
+    "/api/v1/workspace/jobs": {
+      "get": {
+        "operationId": "ws_jobs_api_v1_workspace_jobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobInfo"
+                  },
+                  "title": "Response Ws Jobs Api V1 Workspace Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Jobs"
+      },
+      "post": {
+        "description": "Queue a benchmark/tune for the team's workers (the controller file is sent along).",
+        "operationId": "ws_submit_job_api_v1_workspace_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Submit Job"
+      }
+    },
+    "/api/v1/workspace/jobs/{job_id}/cancel": {
+      "post": {
+        "operationId": "ws_cancel_job_api_v1_workspace_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Cancel Job"
+      }
+    },
+    "/api/v1/workspace/jobs/{job_id}/save-params": {
+      "post": {
+        "description": "Write a finished tune job's parameters to ``path``.",
+        "operationId": "ws_save_job_params_api_v1_workspace_jobs__job_id__save_params_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanOpen"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanOpen"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Save Job Params"
       }
     },
     "/api/v1/workspace/login": {
@@ -7990,6 +8866,84 @@
           }
         },
         "summary": "Ws Version"
+      }
+    },
+    "/api/v1/workspace/worker/local": {
+      "get": {
+        "description": "This computer as a team worker (spec 0020 part C).",
+        "operationId": "ws_local_worker_api_v1_workspace_worker_local_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalWorkerStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Local Worker"
+      },
+      "put": {
+        "description": "Switch this computer's worker on/off (registers it once) and set its policy.",
+        "operationId": "ws_set_local_worker_api_v1_workspace_worker_local_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalWorkerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalWorkerStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Set Local Worker"
+      }
+    },
+    "/api/v1/workspace/workers": {
+      "get": {
+        "operationId": "ws_workers_api_v1_workspace_workers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkerInfo"
+                  },
+                  "title": "Response Ws Workers Api V1 Workspace Workers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Workers"
       }
     },
     "/api/v1/workspace/workspaces": {

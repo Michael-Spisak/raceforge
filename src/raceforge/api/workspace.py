@@ -15,12 +15,15 @@ from urllib.parse import urlsplit
 
 import segno  # pyright: ignore[reportMissingTypeStubs]
 
+from raceforge import __version__
+from raceforge.api.local_worker import LocalWorker
 from raceforge.api.models import (
     InboxAction,
     ReceiveRequest,
     SaveAssembly,
     SaveFiles,
     SaveQuickstart,
+    TeamJobRequest,
     TrackScoutPairing,
     WorkspaceLogin,
     WorkspaceRegister,
@@ -28,8 +31,11 @@ from raceforge.api.models import (
 from raceforge.backend.models import (
     ApiTokenInfo,
     InviteInfo,
+    JobCreate,
+    JobInfo,
     TotpSetup,
     UserInfo,
+    WorkerInfo,
     WorkspaceInfo,
 )
 from raceforge.capture import rftx
@@ -95,6 +101,7 @@ class WorkspaceApi:
         self.relay = Relay(self.ws, self.inbox)
         self.open_usb = open_usb
         self.open_ble = open_ble
+        self.local_worker = LocalWorker(self.ws, factory)
 
     def status(self, probe: bool) -> WorkspaceStatus:
         return self.ws.status(probe)
@@ -209,6 +216,79 @@ class WorkspaceApi:
             workspace_id=self.ws.workspace_id,
             warning=warning,
         )
+
+    # ------------------------------------------------- team workers & jobs (spec 0020)
+    def _ws_id(self) -> str:
+        if self.ws.workspace_id is None:
+            raise BackendError(409, "log in and pick a workspace first")
+        return self.ws.workspace_id
+
+    def workers(self) -> list[WorkerInfo]:
+        return self.ws.client().workers(self._ws_id())
+
+    def jobs(self) -> list[JobInfo]:
+        return self.ws.client().jobs(self._ws_id())
+
+    def cancel_job(self, job_id: str) -> JobInfo:
+        return self.ws.client().cancel_job(job_id)
+
+    def submit_job(self, req: TeamJobRequest) -> JobInfo:
+        """Queue a benchmark/tune for the team's workers; controller source travels inline."""
+        from raceforge.api.tracks import QuickTracks
+
+        if sum(x is not None for x in (req.bench, req.tune, req.rl)) != 1:
+            raise ValueError("give exactly one of bench, tune or rl")
+        if req.rl is not None:
+            from raceforge.api.train import ONNX_TEMPLATE
+
+            controller, race = ONNX_TEMPLATE, req.rl.race
+        else:
+            spec = req.bench or req.tune
+            assert spec is not None
+            controller, race = Path(spec.controller).expanduser(), spec.race
+        if not controller.is_file():
+            raise ValueError(f"controller not found: {controller}")
+        request: dict[str, Any] = {"race": race.model_dump(mode="json")}
+        if race.quick_track:  # drawn tracks live on this laptop: send the drawing along
+            q = QuickTracks().get(race.quick_track)
+            if q.loop:
+                q = q.model_copy(update={"laps": race.laps})
+            request["race"]["quick"] = q.model_dump(mode="json")
+        params_yaml = None
+        if req.rl is not None:
+            request.update(steps=req.rl.steps, train_tracks=req.rl.train_tracks)
+        elif req.tune is not None:
+            request.update(
+                trials=req.tune.trials,
+                train_tracks=req.tune.train_tracks,
+                timeout_s=req.tune.timeout_s,
+            )
+        elif req.bench is not None and req.bench.params:
+            params_yaml = Path(req.bench.params).expanduser().read_text(encoding="utf-8")
+        elif controller.with_suffix(".yaml").is_file():
+            params_yaml = controller.with_suffix(".yaml").read_text(encoding="utf-8")
+        job = JobCreate(
+            kind="rl" if req.rl else "tune" if req.tune else "benchmark",
+            request=request,
+            controller_name=controller.name,
+            controller_source=controller.read_text(encoding="utf-8"),
+            params_yaml=params_yaml,
+            priority=req.priority,
+            target_worker_id=req.target_worker_id,
+            raceforge_version=__version__,  # only workers running the same code take it
+        )
+        return self.ws.client().create_job(self._ws_id(), job)
+
+    def save_job_params(self, job_id: str, path: str) -> str:
+        """Write the tuned params of a finished tune job to ``path`` (YAML for Deploy)."""
+        job = self.ws.client().job(job_id)
+        text = (job.result or {}).get("params_yaml")
+        if job.status != "done" or not isinstance(text, str):
+            raise ValueError("only a finished tune or RL job has parameters")
+        out = Path(path).expanduser()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        return str(out)
 
     def invites(self) -> list[InviteInfo]:
         return self.ws.client().invites()

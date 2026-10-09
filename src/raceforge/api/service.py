@@ -14,6 +14,7 @@ from raceforge.api.models import (
     BudgetLine,
     BudgetView,
     CarScene,
+    ConnectorDef,
     ControllerInfo,
     CorridorResponse,
     EditorConnector,
@@ -98,6 +99,64 @@ class Engine:
                 )
             )
         return out
+
+    def part_connectors(self, key: str) -> list[ConnectorDef]:
+        """Connectors of a catalogue part in its own (core) frame, metres (spec 0021)."""
+        part = self.cat.part(key)
+        return [
+            ConnectorDef(
+                id=c.id,
+                type=c.type.value,  # pyright: ignore[reportArgumentType]
+                pos=_v3(np.array(c.pose.position.as_tuple())),
+                axis=_v3(np.array(c.axis.as_tuple())),
+            )
+            for c in part.connectors
+        ]
+
+    def set_printed_connectors(self, key: str, defs: list[ConnectorDef]) -> list[ConnectorDef]:
+        """Replace the connectors of a 3D-printed part; earlier versions keep resolving."""
+        from raceforge.core.connectors import ConnectorType, Gender
+        from raceforge.core.frames import LDU_M, core_point_to_ldraw
+        from raceforge.parts.catalogue import ConnectorSpec, save_local_entry
+
+        entry = self.cat.entry(key)
+        if entry.printed is None:
+            raise ValueError(f"{key} is not a 3D-printed part")
+        if len({d.id for d in defs}) != len(defs):
+            raise ValueError("connector ids must be unique")
+        female = {"pin_hole", "axle_hole", "anti_stud", "screw_hole"}
+        specs: list[ConnectorSpec] = []
+        for d in defs:
+            n = float(np.linalg.norm(d.axis))
+            if n < 1e-9:
+                raise ValueError(f"connector {d.id}: axis must not be zero")
+            axis = tuple(float(v) / n for v in d.axis)
+            ax_ld = core_point_to_ldraw((axis[0], axis[1], axis[2]))
+            specs.append(
+                ConnectorSpec(
+                    id=d.id,
+                    type=ConnectorType(d.type),
+                    pos_ldu=core_point_to_ldraw(d.pos),
+                    axis_ld=(ax_ld[0] * LDU_M, ax_ld[1] * LDU_M, ax_ld[2] * LDU_M),
+                    gender=Gender.NEUTRAL
+                    if d.type == "fixed_mount"
+                    else Gender.FEMALE
+                    if d.type in female
+                    else Gender.MALE,
+                )
+            )
+        old_hash = self.cat.ref(key).content_hash
+        updated = entry.model_copy(
+            update={
+                "connectors": specs,
+                "previous_hashes": [*entry.previous_hashes, old_hash],
+            }
+        )
+        if self.cat.key_for_entry(updated) == key:  # nothing changed
+            return self.part_connectors(key)
+        save_local_entry(updated)
+        self.cat.extend(updated)
+        return self.part_connectors(key)
 
     def mesh_url(self, key: str) -> str | None:
         return f"/api/v1/parts/printed/{key}/mesh" if self.cat.entry(key).printed else None

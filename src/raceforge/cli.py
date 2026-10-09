@@ -279,6 +279,42 @@ def _bench_config(args: argparse.Namespace) -> "BenchConfig":
     )
 
 
+def _cmd_train_rl(args: argparse.Namespace) -> int:
+    """Spec 0022: PPO in the simulator → ONNX policy in a params YAML for onnx_policy.py."""
+    from raceforge.api.train import ONNX_TEMPLATE, EnvConfig, RLConfig, RLProgress, train_ppo
+
+    try:
+        bench = _bench_config(args)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    out = Path(args.out)
+    env = EnvConfig(
+        length_m=args.length, laps=args.laps, opponents=args.opponents, max_time_s=args.max_time
+    )
+
+    def line(p: RLProgress) -> None:
+        mean = "-" if p.mean_reward is None else f"{p.mean_reward:.1f}"
+        print(f"  {p.steps}/{p.total} steps · mean episode reward {mean}", flush=True)
+
+    try:
+        res = train_ppo(
+            RLConfig(
+                steps=args.steps, train_tracks=args.train_tracks, env=env, bench=bench, out=out
+            ),
+            line,
+        )
+    except ImportError as e:
+        print(f"error: {e}: install the extra: uv sync --extra rl", file=sys.stderr)
+        return 1
+    v = res.validation
+    if v is not None:
+        print(f"held-out score {v.score:.1f} · finished {v.finished_rate:.0%}")
+    print(f"policy written to {out}")
+    print(f"deploy it with: raceforge bundle {ONNX_TEMPLATE} --params {out} ...")
+    return 0
+
+
 def _cmd_train(args: argparse.Namespace) -> int:
     from raceforge.api.train import RunResult, Trial, TuneConfig, benchmark, tune
 
@@ -328,6 +364,87 @@ def _cmd_train(args: argparse.Namespace) -> int:
             "use more --train-tracks or --trials"
         )
     return 0
+
+
+def _cmd_worker(args: argparse.Namespace) -> int:
+    """Spec 0020: register this computer as a team worker and run the team's jobs."""
+    import socket
+    from datetime import datetime
+
+    from raceforge.api.models import WorkerPolicy
+    from raceforge.api.worker_policy import SystemProbe, decide
+    from raceforge.api.worker_runner import (
+        WorkerConfig,
+        config_path,
+        load_config,
+        run_worker,
+        save_config,
+    )
+    from raceforge.api.workspace import default_root
+    from raceforge.workspace.client import BackendClient, BackendError, OfflineError
+    from raceforge.workspace.sync import Workspace
+
+    cmd = args.worker_command
+    try:
+        if cmd == "register":
+            ws = Workspace(default_root())
+            status = ws.status()
+            if ws.workspace_id is None or status.server_url is None:
+                print("error: log in and pick a workspace on the Team tab first", file=sys.stderr)
+                return 1
+            name = args.name or socket.gethostname().removesuffix(".local")
+            reg = ws.client().register_worker(ws.workspace_id, name)
+            path = save_config(
+                WorkerConfig(status.server_url, reg.token, reg.worker.id, name, ws.workspace_id)
+            )
+            print(f"registered worker {name!r}; token saved to {path} (owner-only)")
+            print("start it with: raceforge worker run")
+            return 0
+        cfg = load_config()
+        if cfg is None:
+            print(
+                f"error: not registered (no {config_path()}): raceforge worker register",
+                file=sys.stderr,
+            )
+            return 1
+        client = BackendClient(cfg.server, access=cfg.token)
+        policy = cfg.worker_policy()
+        if cmd == "run" and (args.mode or args.idle_only or args.idle_minutes):
+            changes: dict[str, object] = (
+                {"mode": args.mode or "idle"} if (args.mode or args.idle_only) else {}
+            )
+            if args.idle_minutes:
+                changes["idle_minutes"] = args.idle_minutes
+            policy = WorkerPolicy.model_validate({**policy.model_dump(), **changes})
+        if cmd == "status":
+            info = client.worker_heartbeat({})
+            state = ("online" if info.online else "offline", "busy" if info.busy else "idle")
+            avail = decide(policy, datetime.now(), SystemProbe())
+            why = "can take jobs" if avail.available else f"waiting: {avail.reason}"
+            print(f"{info.name}: {state[0]}, {state[1]}; policy {policy.mode} ({why})")
+            return 0
+        if cmd == "remove":
+            ws = Workspace(default_root())
+            ws.client().remove_worker(cfg.worker_id)
+            config_path().unlink(missing_ok=True)
+            print(f"worker {cfg.name!r} removed; its token is revoked")
+            return 0
+        print(
+            f"worker {cfg.name!r} ({policy.mode}) waiting for jobs on {cfg.server}"
+            " (Ctrl+C to stop)",
+            flush=True,
+        )
+        try:
+            n = run_worker(
+                client, policy=policy, once=args.once, out=lambda s: print(s, flush=True)
+            )
+        except KeyboardInterrupt:
+            return 0
+        print(f"{n} job(s) done")
+        return 0
+    except (BackendError, OfflineError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
 
 
 def _cmd_capture(args: argparse.Namespace) -> int:
@@ -529,6 +646,26 @@ def main(argv: list[str] | None = None) -> int:
     ui.add_argument("--browser", action="store_true", help="open the UI in the default browser")
     ui.set_defaults(func=_cmd_ui)
 
+    wk = sub.add_parser("worker", help="run the team's training jobs on this computer (spec 0020)")
+    wsub = wk.add_subparsers(dest="worker_command", required=True)
+    wreg = wsub.add_parser("register", help="register this computer in the current workspace")
+    wreg.add_argument("--name", help="worker name (default: host name)")
+    wrun = wsub.add_parser("run", help="wait for jobs and run them")
+    wrun.add_argument(
+        "--mode",
+        choices=["always", "idle", "schedule", "paused"],
+        help="when to take jobs (default: saved policy, else idle = nobody uses the computer)",
+    )
+    wrun.add_argument("--idle-only", action="store_true", help="same as --mode idle")
+    wrun.add_argument(
+        "--idle-minutes", type=float, help="idle mode: minutes without keyboard/mouse input"
+    )
+    wrun.add_argument("--once", action="store_true", help="run at most one job, then exit")
+    wsub.add_parser("status", help="show whether the backend sees this worker")
+    wsub.add_parser("remove", help="unregister this computer and revoke its token")
+    for p in wsub.choices.values():
+        p.set_defaults(func=_cmd_worker)
+
     tr = sub.add_parser("train", help="benchmark and tune controllers in the sim (spec 0013)")
     tsub = tr.add_subparsers(dest="train_command", required=True)
     tbench = tsub.add_parser("benchmark", help="score a controller on held-out corridors")
@@ -540,7 +677,11 @@ def main(argv: list[str] | None = None) -> int:
     ttune.add_argument("--timeout", type=float, help="stop after this many seconds")
     ttune.add_argument("--train-tracks", type=int, default=3, help="training corridors per trial")
     ttune.add_argument("--out", help="params YAML (default: <controller>.tuned.yaml)")
-    for p in (tbench, ttune):
+    trl = tsub.add_parser("rl", help="train a driving policy with PPO (needs the 'rl' extra)")
+    trl.add_argument("--steps", type=int, default=200_000, help="environment steps")
+    trl.add_argument("--train-tracks", type=int, default=8, help="training corridors")
+    trl.add_argument("--out", default="policy.yaml", help="params YAML for onnx_policy.py")
+    for p in (tbench, ttune, trl):
         p.add_argument("--tracks", type=int, default=5, help="held-out benchmark corridors")
         p.add_argument("--length", type=float, default=25.0, help="corridor length in m (20-120)")
         p.add_argument("--laps", type=int, default=1)
@@ -548,6 +689,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--max-time", type=float, default=240.0, help="seconds per race")
         p.add_argument("--workers", type=int, default=0, help="processes (0: CPUs - 1)")
         p.set_defaults(func=_cmd_train)
+    trl.set_defaults(func=_cmd_train_rl)
 
     cap = sub.add_parser("capture", help="TrackScout scans (.tscan, spec 0007)")
     csub = cap.add_subparsers(dest="capture_command", required=True)

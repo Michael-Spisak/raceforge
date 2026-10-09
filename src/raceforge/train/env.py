@@ -1,6 +1,5 @@
 """`RaceForgeEnv`: the Gymnasium environment for RL and imitation learning (spec 0013)."""
 
-import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -8,12 +7,12 @@ import gymnasium as gym
 import numpy as np
 from numpy.typing import NDArray
 
+from raceforge.control.policy_io import OBS_SIZE, PolicyIO, action_to_command, observation_vector
 from raceforge.sim.engine import CarCommand, Simulation, centreline_follower
 from raceforge.sim.simio import SimIO
+from raceforge.track.quick import QuickTrack
 from raceforge.train.common import TrackConfig, make_sim
 
-SECTORS = 36
-OBS_SIZE = SECTORS + 5  # sectors, speed, steering, yaw rate, last action (2)
 EGO = "ego"
 
 
@@ -39,20 +38,13 @@ class EnvConfig:
     reverse_factor: float = 0.5
     max_steer_rate_rad_s: float = 3.0  # LEGO steering motor; protects the gears (docs/PLAN.md §4)
     opponent_speed_m_s: float = 0.25
+    quick: QuickTrack | None = None  # drawn track (spec 0014): seeds then vary noise/objects
     reward: RewardWeights = field(default_factory=RewardWeights)
 
-
-def lidar_sectors(
-    angles: NDArray[np.float64], ranges: list[float | None], max_m: float
-) -> NDArray[np.float32]:
-    """Min distance per 10° sector (sector 0 starts at the forward axis, counter-clockwise),
-    divided by ``max_m``; sectors without a return read 1."""
-    out = np.ones(SECTORS, dtype=np.float32)
-    idx = (np.mod(angles, 2 * math.pi) / (2 * math.pi) * SECTORS).astype(int) % SECTORS
-    for i, r in zip(idx, ranges, strict=True):
-        if r is not None:
-            out[i] = min(out[i], min(r, max_m) / max_m)
-    return out
+    @property
+    def policy_io(self) -> PolicyIO:
+        """The observation/action mapping the ONNX controller on the car must use too."""
+        return PolicyIO(self.lidar_max_m, self.reverse_factor, self.max_steer_rate_rad_s)
 
 
 class RaceForgeEnv(gym.Env[NDArray[np.float32], NDArray[np.float32]]):
@@ -81,10 +73,10 @@ class RaceForgeEnv(gym.Env[NDArray[np.float32], NDArray[np.float32]]):
                 length_m=self.cfg.length_m,
                 laps=self.cfg.laps,
                 opponents=self.cfg.opponents,
+                quick=self.cfg.quick,
             )
         )
-        info = SimIO(self.sim, EGO).info
-        self.max_steer, self.top_speed = info.max_steer_rad, info.max_speed_m_s
+        self.io = SimIO(self.sim, EGO)
         self.steer = 0.0
         self.last_action = np.zeros(2, dtype=np.float32)
         self.seen_events = 0
@@ -98,13 +90,11 @@ class RaceForgeEnv(gym.Env[NDArray[np.float32], NDArray[np.float32]]):
         sim = self.sim
         assert sim is not None, "call reset() first"
         a = np.clip(np.nan_to_num(np.asarray(action, dtype=np.float32)), -1.0, 1.0)
-        target = float(a[0]) * self.max_steer
-        rate = self.cfg.max_steer_rate_rad_s * sim.control_dt
-        self.steer += max(-rate, min(rate, target - self.steer))
-        speed = float(a[1]) * self.top_speed
-        if speed < 0:
-            speed *= self.cfg.reverse_factor
-        sim.command(EGO, CarCommand(self.steer, speed))
+        cmd = action_to_command(
+            (float(a[0]), float(a[1])), self.io.info, self.steer, sim.control_dt, self.cfg.policy_io
+        )
+        self.steer = cmd.steering_rad
+        sim.command(EGO, CarCommand(cmd.steering_rad, cmd.speed_m_s))
         for i in range(self.cfg.opponents):
             name = f"opp{i + 1}"
             offset = 0.25 if i % 2 else -0.25
@@ -135,21 +125,7 @@ class RaceForgeEnv(gym.Env[NDArray[np.float32], NDArray[np.float32]]):
 
     # ------------------------------------------------------------------ observation
     def _obs(self) -> NDArray[np.float32]:
-        assert self.sim is not None
-        r = self.sim.readings(EGO)
-        obs = np.zeros(OBS_SIZE, dtype=np.float32)
-        if r.lidar is not None:
-            obs[:SECTORS] = lidar_sectors(
-                np.asarray(r.lidar.angles_rad, dtype=np.float64),
-                r.lidar.ranges_m,
-                self.cfg.lidar_max_m,
-            )
-        else:
-            obs[:SECTORS] = 1.0
-        speed = r.speed_m_s.value if r.speed_m_s is not None else 0.0
-        yaw_rate = r.yaw_rate_rad_s.value if r.yaw_rate_rad_s is not None else 0.0
-        obs[SECTORS] = speed / self.top_speed
-        obs[SECTORS + 1] = r.steering_rad / self.max_steer
-        obs[SECTORS + 2] = yaw_rate / math.pi
-        obs[SECTORS + 3 :] = self.last_action
-        return np.clip(obs, -1.0, 1.0)
+        """Same vector the ONNX controller builds on the car (raceforge.control.policy_io)."""
+        last = (float(self.last_action[0]), float(self.last_action[1]))
+        vec = observation_vector(self.io.read(), self.io.info, last, self.cfg.policy_io)
+        return np.asarray(vec, dtype=np.float32)

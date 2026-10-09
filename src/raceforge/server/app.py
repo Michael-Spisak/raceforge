@@ -26,6 +26,7 @@ from raceforge.api.models import (
     BundleRequest,
     CarPairingCode,
     CarPairingRequest,
+    ConnectorDef,
     ConstructSettings,
     ControllerInfo,
     CorridorResponse,
@@ -37,6 +38,8 @@ from raceforge.api.models import (
     InviteRequest,
     LDrawPart,
     LocalPartRequest,
+    LocalWorkerStatus,
+    LocalWorkerUpdate,
     PartSummary,
     PrintedImportRequest,
     PrintedPreview,
@@ -58,10 +61,12 @@ from raceforge.api.models import (
     SimControl,
     SimProtocol,
     SimStart,
+    TeamJobRequest,
     TokenRequest,
     TrackScoutPairing,
     TrainBenchRequest,
     TrainJob,
+    TrainRLRequest,
     TrainTuneRequest,
     WorkspaceLogin,
     WorkspaceName,
@@ -79,9 +84,11 @@ from raceforge.api.workspace import WorkspaceApi
 from raceforge.backend.models import (
     ApiTokenInfo,
     InviteInfo,
+    JobInfo,
     TotpCode,
     TotpSetup,
     UserInfo,
+    WorkerInfo,
     WorkspaceInfo,
 )
 from raceforge.capture.inbox import InboxPass
@@ -197,6 +204,24 @@ def create_app(
         """Add an LDraw part to the team's local catalogue (unverified)."""
         try:
             return eng.add_local_part(req)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/parts/{key}/connectors")
+    def part_connectors(key: str) -> list[ConnectorDef]:
+        """Connectors of a part in its own frame (spec 0021)."""
+        try:
+            return eng.part_connectors(key)
+        except KeyError as exc:
+            raise HTTPException(404, f"no part {key!r}") from exc
+
+    @app.put("/api/v1/parts/{key}/connectors")
+    def part_set_connectors(key: str, defs: list[ConnectorDef]) -> list[ConnectorDef]:
+        """Replace the connectors of a 3D-printed part (clicked on its mesh, spec 0021)."""
+        try:
+            return eng.set_printed_connectors(key, defs)
+        except KeyError as exc:
+            raise HTTPException(404, f"no part {key!r}") from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
@@ -335,6 +360,45 @@ def create_app(
 
     # ---- team workspace (spec 0006)
     w = "/api/v1/workspace"
+
+    # ---------------------------------------------------- team workers & jobs (spec 0020)
+    @app.get(f"{w}/workers")
+    def ws_workers() -> list[WorkerInfo]:
+        return ws().workers()
+
+    @app.get(f"{w}/worker/local")
+    def ws_local_worker() -> LocalWorkerStatus:
+        """This computer as a team worker (spec 0020 part C)."""
+        return ws().local_worker.status()
+
+    @app.put(f"{w}/worker/local")
+    def ws_set_local_worker(req: LocalWorkerUpdate) -> LocalWorkerStatus:
+        """Switch this computer's worker on/off (registers it once) and set its policy."""
+        return ws().local_worker.update(req)
+
+    @app.get(f"{w}/jobs")
+    def ws_jobs() -> list[JobInfo]:
+        return ws().jobs()
+
+    @app.post(f"{w}/jobs")
+    def ws_submit_job(req: TeamJobRequest) -> JobInfo:
+        """Queue a benchmark/tune for the team's workers (the controller file is sent along)."""
+        try:
+            return ws().submit_job(req)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post(f"{w}/jobs/{{job_id}}/cancel")
+    def ws_cancel_job(job_id: str) -> JobInfo:
+        return ws().cancel_job(job_id)
+
+    @app.post(f"{w}/jobs/{{job_id}}/save-params")
+    def ws_save_job_params(job_id: str, req: ScanOpen) -> ScanOpen:
+        """Write a finished tune job's parameters to ``path``."""
+        try:
+            return ScanOpen(path=ws().save_job_params(job_id, req.path))
+        except (ValueError, OSError) as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get(f"{w}/status")
     def ws_status(probe: bool = False) -> WorkspaceStatus:
@@ -493,6 +557,16 @@ def create_app(
             raise HTTPException(409, str(exc)) from exc
         except (ImportError, OSError, ValueError, SyntaxError) as exc:
             raise HTTPException(422, f"{type(exc).__name__}: {exc}") from exc
+
+    @app.post("/api/v1/train/rl")
+    def train_rl(req: TrainRLRequest) -> TrainJob:
+        """Start PPO training (spec 0022); needs the optional extra ``rl``."""
+        try:
+            return train_jobs.start_rl(req)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.get("/api/v1/train/jobs")
     def train_job_list() -> list[TrainJob]:

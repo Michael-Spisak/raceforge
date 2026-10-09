@@ -109,7 +109,7 @@ export function TracksScreen() {
     else editClick(p);
   };
 
-  // ---- track editor (spec 0020)
+  // ---- track editor (spec 0023)
   const setEdit = (f: (e: EditState) => EditState) => change({ ...draft, edit: f(draft.edit) });
   const setSetup = (patch: Partial<NonNullable<TrackEdit["race_setup"]>>) =>
     setEdit((e) => ({ ...e, race_setup: { no_go_zones: [], ...e.race_setup, ...patch } }));

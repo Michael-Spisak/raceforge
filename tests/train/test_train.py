@@ -1,5 +1,6 @@
 """Spec 0013: RaceForgeEnv (AC1), benchmark (AC2), classic tuning (AC3)."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -60,3 +61,21 @@ def test_benchmark_on_a_drawn_track() -> None:
     rect = QuickTrack(points=[(0, 0), (10, 0), (10, 5), (0, 5)], width_m=1.6, laps=1)
     res = benchmark(CENTERING, None, BenchConfig(tracks=2, max_time_s=150.0, workers=2, quick=rect))
     assert [r.seed for r in res.runs] == [1000, 1001] and res.finished_rate == 1.0
+
+
+def test_benchmark_and_tune_continue_from_a_paused_attempt(tmp_path: Path) -> None:
+    """Spec 0020 part C AC8 (training side)."""
+    full = benchmark(CENTERING, None, SHORT)
+    resumed = benchmark(CENTERING, None, SHORT, done=full.runs[:1])
+    # ``error`` may carry wall-clock deadline warnings; the race itself is deterministic
+    assert [replace(r, error="") for r in resumed.runs] == [replace(r, error="") for r in full.runs]
+    assert resumed.score == full.score
+
+    cfg = TuneConfig(trials=3, train_tracks=1, bench=replace(SHORT, tracks=1))
+    seen: list[int] = []
+    first = tune(CENTERING, replace(cfg, trials=1), lambda t, _b: seen.append(t.number))
+    assert seen == [-1, 0]
+    seen.clear()
+    res = tune(CENTERING, cfg, lambda t, _b: seen.append(t.number), previous=first.trials)
+    assert seen == [1, 2]  # the default and trial 0 are not run again
+    assert [t.number for t in res.trials] == [-1, 0, 1, 2]

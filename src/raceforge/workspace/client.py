@@ -10,6 +10,8 @@ import httpx
 from raceforge.backend.models import (
     ApiTokenInfo,
     InviteInfo,
+    JobCreate,
+    JobInfo,
     ObjectInfo,
     Status,
     TokenPair,
@@ -18,6 +20,9 @@ from raceforge.backend.models import (
     UserInfo,
     VersionContent,
     VersionInfo,
+    WorkerInfo,
+    WorkerJob,
+    WorkerRegistration,
     WorkspaceInfo,
 )
 
@@ -144,6 +149,62 @@ class BackendClient:
 
     def revoke_token(self, token_id: str) -> None:
         self.request("DELETE", f"/tokens/{token_id}")
+
+    # ------------------------------------------------------------ workers & jobs (spec 0020)
+    def register_worker(self, workspace_id: str, name: str) -> WorkerRegistration:
+        body = {"workspace_id": workspace_id, "name": name}
+        return WorkerRegistration.model_validate(self.request("POST", "/workers", json=body).json())
+
+    def workers(self, workspace_id: str) -> list[WorkerInfo]:
+        r = self.request("GET", f"/workspaces/{workspace_id}/workers")
+        return [WorkerInfo.model_validate(x) for x in r.json()]
+
+    def remove_worker(self, worker_id: str) -> None:
+        self.request("DELETE", f"/workers/{worker_id}")
+
+    def create_job(self, workspace_id: str, job: JobCreate) -> JobInfo:
+        r = self.request(
+            "POST", f"/workspaces/{workspace_id}/jobs", json=job.model_dump(mode="json")
+        )
+        return JobInfo.model_validate(r.json())
+
+    def jobs(self, workspace_id: str, limit: int = 50) -> list[JobInfo]:
+        r = self.request("GET", f"/workspaces/{workspace_id}/jobs", params={"limit": limit})
+        return [JobInfo.model_validate(x) for x in r.json()]
+
+    def job(self, job_id: str) -> JobInfo:
+        return JobInfo.model_validate(self.request("GET", f"/jobs/{job_id}").json())
+
+    def cancel_job(self, job_id: str) -> JobInfo:
+        return JobInfo.model_validate(self.request("POST", f"/jobs/{job_id}/cancel").json())
+
+    # worker-token calls
+    def worker_heartbeat(self, info: dict[str, Any]) -> WorkerInfo:
+        r = self.request("POST", "/worker/heartbeat", json={"info": info})
+        return WorkerInfo.model_validate(r.json())
+
+    def worker_claim(self) -> WorkerJob | None:
+        r = self.request("POST", "/worker/claim")
+        return None if r.status_code == 204 else WorkerJob.model_validate(r.json())
+
+    def job_progress(
+        self,
+        job_id: str,
+        progress: dict[str, Any],
+        log: list[str],
+        partial: dict[str, Any] | None = None,
+    ) -> bool:
+        """Report progress (``partial``: results so far); True when the user asked to cancel."""
+        body = {"progress": progress, "log": log, "partial": partial}
+        r = self.request("POST", f"/worker/jobs/{job_id}/progress", json=body)
+        return bool(r.json()["cancel"])
+
+    def job_finish(
+        self, job_id: str, status: str, result: dict[str, Any] | None = None, error: str = ""
+    ) -> JobInfo:
+        body = {"status": status, "result": result, "error": error}
+        r = self.request("POST", f"/worker/jobs/{job_id}/finish", json=body)
+        return JobInfo.model_validate(r.json())
 
     # ------------------------------------------------------------ data
     def workspaces(self) -> list[WorkspaceInfo]:

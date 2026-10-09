@@ -51,3 +51,43 @@ def test_import_printed_part(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         "/api/v1/parts/printed/preview", json={**req, "path": str(tmp_path / "x.step")}
     )
     assert bad.status_code == 422
+
+
+def test_connectors_on_a_printed_part(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Spec 0021: connectors clicked on the mesh; old assemblies keep working; pins dock on."""
+    monkeypatch.setenv("RACEFORGE_LOCAL_CATALOGUE", str(tmp_path / "catalogue.local.yaml"))
+    monkeypatch.setenv("RACEFORGE_WORKSPACE_DIR", str(tmp_path / "workspace"))
+    mesh = tmp_path / "mount.stl"
+    trimesh.creation.box(extents=[40, 20, 10]).export(mesh)
+    client = TestClient(create_app(Engine(Catalogue.load()), frontend_dist=None))
+    part = client.post("/api/v1/parts/printed", json={"path": str(mesh), "name": "Mount"}).json()
+    key = part["key"]
+    start = client.post("/api/v1/quickstart", json={}).json()["assembly"]
+    edit = "/api/v1/assembly/edit"
+    old = client.post(
+        edit, json={"assembly": start, "op": {"kind": "add", "key": key, "position": [0, 0, 0.3]}}
+    ).json()
+    assert client.get(f"/api/v1/parts/{key}/connectors").json() == []
+
+    holes = [{"id": "h1", "type": "pin_hole", "pos": [0.012, 0, 0.005], "axis": [0, 0, 2]}]
+    r = client.put(f"/api/v1/parts/{key}/connectors", json=holes)
+    assert r.status_code == 200, r.text
+    [c] = r.json()
+    assert c["id"] == "h1" and c["type"] == "pin_hole"
+    assert all(abs(a - b) < 1e-9 for a, b in zip(c["pos"], [0.012, 0, 0.005], strict=True))
+    assert all(abs(a - b) < 1e-9 for a, b in zip(c["axis"], [0, 0, 1], strict=True))
+
+    # the assembly saved before the change still evaluates (previous hash resolves)
+    again = client.post(edit, json={"assembly": old["assembly"]}).json()
+    assert again["problems"] == [] and any(p["key"] == key for p in again["parts"])
+    # a pin docks onto the new hole
+    docked = client.post(
+        edit,
+        json={
+            "assembly": old["assembly"],
+            "op": {"kind": "attach", "key": "2780", "path": old["selected"]},
+        },
+    ).json()
+    assert docked["candidates"] >= 2 and docked["problems"] == []
+    bad = client.put("/api/v1/parts/2780/connectors", json=holes)
+    assert bad.status_code == 422  # only printed parts

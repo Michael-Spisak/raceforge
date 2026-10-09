@@ -1,6 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, api, type ControllerInfo, type QuickTrackInfo, type TrainJob, type TrainRace } from "../api/client";
+import { ApiError, api, workspace, type ControllerInfo, type QuickTrackInfo, type TrainJob, type TrainRace } from "../api/client";
+import { useWorkspace } from "../store/workspace";
+import { TeamJobs } from "./TeamJobs";
 
 const fmt = (v: number | null | undefined, digits = 1) => (v == null ? "–" : v.toFixed(digits));
 const message = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
@@ -10,7 +12,8 @@ export function TrainScreen() {
   const { t } = useTranslation();
   const [controllers, setControllers] = useState<ControllerInfo[]>([]);
   const [controller, setController] = useState("");
-  const [mode, setMode] = useState<"benchmark" | "tune">("benchmark");
+  const [mode, setMode] = useState<"benchmark" | "tune" | "rl">("benchmark");
+  const [steps, setSteps] = useState(200000);
   const [params, setParams] = useState("");
   const [trials, setTrials] = useState(30);
   const [trainTracks, setTrainTracks] = useState(3);
@@ -19,6 +22,14 @@ export function TrainScreen() {
   const [jobs, setJobs] = useState<TrainJob[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const loggedIn = !!useWorkspace((st) => st.status?.logged_in && st.status.workspace);
+  const [runOn, setRunOn] = useState("local"); // local | team | a worker id
+  const [priority, setPriority] = useState<"normal" | "high" | "critical">("normal");
+  const [workers, setWorkers] = useState<{ id: string; name: string }[]>([]);
+  const [teamRefresh, setTeamRefresh] = useState(0);
+  useEffect(() => {
+    if (loggedIn) void workspace.teamWorkers().then(setWorkers).catch(() => undefined);
+  }, [loggedIn, teamRefresh]);
 
   const load = useCallback(() => api.trainJobs().then(setJobs).catch(() => undefined), []);
   useEffect(() => {
@@ -39,9 +50,19 @@ export function TrainScreen() {
   const start = (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    if (runOn !== "local") {
+      const target = { target_worker_id: runOn === "team" ? null : runOn, priority };
+      const spec = mode === "benchmark"
+        ? { bench: { controller, params: params || null, race } }
+        : mode === "rl" ? { rl: { steps, train_tracks: trainTracks, out: null, race } }
+          : { tune: { controller, trials, train_tracks: trainTracks, timeout_s: null, out: null, race } };
+      workspace.submitTeamJob({ ...spec, ...target }).then(() => setTeamRefresh((n) => n + 1)).catch((err: unknown) => setError(message(err)));
+      return;
+    }
     const req = mode === "benchmark"
       ? api.trainBenchmark({ controller, params: params || null, race })
-      : api.trainTune({ controller, trials, train_tracks: trainTracks, timeout_s: null, out: null, race });
+      : mode === "rl" ? api.trainRL({ steps, train_tracks: trainTracks, out: null, race })
+        : api.trainTune({ controller, trials, train_tracks: trainTracks, timeout_s: null, out: null, race });
     req.then((job) => { setSelected(job.id); return load(); }).catch((err: unknown) => setError(message(err)));
   };
 
@@ -71,6 +92,7 @@ export function TrainScreen() {
             <div style={{ display: "flex", gap: 12 }}>
               <label><input type="radio" checked={mode === "benchmark"} onChange={() => setMode("benchmark")} /> {t("train.mode_benchmark")}</label>
               <label><input type="radio" checked={mode === "tune"} onChange={() => setMode("tune")} data-testid="train-mode-tune" /> {t("train.mode_tune")}</label>
+              <label><input type="radio" checked={mode === "rl"} onChange={() => { setMode("rl"); setTrainTracks((n) => Math.max(n, 8)); }} data-testid="train-mode-rl" /> {t("train.mode_rl")}</label>
             </div>
           </div>
           {mode === "benchmark" ? (
@@ -78,6 +100,18 @@ export function TrainScreen() {
               <label htmlFor="train-params">{t("train.params")}</label>
               <input id="train-params" value={params} onChange={(e) => setParams(e.target.value)} />
             </div>
+          ) : mode === "rl" ? (
+            <>
+              <div className="field">
+                <label htmlFor="train-steps">{t("train.steps")}</label>
+                <input id="train-steps" type="number" min={256} step={10000} value={steps} onChange={(e) => setSteps(Number(e.target.value))} />
+              </div>
+              <div className="field">
+                <label htmlFor="train-rl-tracks">{t("train.rl_tracks")}</label>
+                <input id="train-rl-tracks" type="number" min={1} max={200} value={trainTracks} onChange={(e) => setTrainTracks(Number(e.target.value))} />
+              </div>
+              <p className="muted">{t("train.rl_help")}</p>
+            </>
           ) : (
             <>
               <div className="field">
@@ -103,7 +137,25 @@ export function TrainScreen() {
           {num("laps", t("train.laps"), 1, 10)}
           {num("opponents", t("train.opponents"), 0, 5)}
           {num("max_time_s", t("train.max_time"), 10, 3600, 10)}
-          <button type="submit" className="primary" disabled={running || !controller} data-testid="train-start">{t("train.start")}</button>
+          {loggedIn && (
+            <div className="field">
+              <label htmlFor="train-run-on">{t("train.run_on")}</label>
+              <select id="train-run-on" data-testid="train-run-on" value={runOn} onChange={(e) => setRunOn(e.target.value)}>
+                <option value="local">{t("train.run_local")}</option>
+                <option value="team">{t("train.run_team")}</option>
+                {workers.map((w) => <option key={w.id} value={w.id}>{t("train.run_worker", { name: w.name })}</option>)}
+              </select>
+            </div>
+          )}
+          {loggedIn && runOn !== "local" && (
+            <div className="field">
+              <label htmlFor="train-priority">{t("train.priority")}</label>
+              <select id="train-priority" value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
+                {(["normal", "high", "critical"] as const).map((p) => <option key={p} value={p}>{t(`train.priority_${p}`)}</option>)}
+              </select>
+            </div>
+          )}
+          <button type="submit" className="primary" disabled={(runOn === "local" && running) || !controller} data-testid="train-start">{t("train.start")}</button>
           {error && <p className="error" role="alert">{error}</p>}
           <p className="muted">{t("train.help")}</p>
         </form>
@@ -122,6 +174,7 @@ export function TrainScreen() {
         </div>
       </aside>
       <section className="main" style={{ display: "block", overflow: "auto", padding: 12 }}>
+        {loggedIn && runOn !== "local" && <TeamJobs refresh={teamRefresh} controllerPath={controller} />}
         {job && <JobView job={job} />}
       </section>
     </div>
@@ -130,7 +183,7 @@ export function TrainScreen() {
 
 function JobView({ job }: { job: TrainJob }) {
   const { t } = useTranslation();
-  const done = job.kind === "benchmark" ? job.runs.length : Math.max(0, job.trials.length - 1);
+  const done = job.kind === "benchmark" ? job.runs.length : job.kind === "rl" ? job.steps_done : Math.max(0, job.trials.length - 1);
   const overfit = job.state === "done" && job.kind === "tune" && job.score != null && job.default_score != null && job.score > job.default_score;
   return (
     <div className="panel" data-testid="train-job">
@@ -139,6 +192,7 @@ function JobView({ job }: { job: TrainJob }) {
       </h3>
       <p>
         {t("train.progress", { done, total: job.total })}
+        {job.kind === "rl" && job.mean_reward != null && ` · ${t("train.mean_reward", { r: job.mean_reward.toFixed(1) })}`}
         {job.state === "running" && (
           <button type="button" style={{ marginLeft: 8 }} onClick={() => void api.trainCancel(job.id)}>{t("train.cancel")}</button>
         )}
@@ -152,7 +206,7 @@ function JobView({ job }: { job: TrainJob }) {
         </p>
       )}
       {overfit && <p className="warning">{t("train.overfit")}</p>}
-      {job.out && <p data-testid="train-out">{t("train.written", { path: job.out })}</p>}
+      {job.out && <p data-testid="train-out">{t(job.kind === "rl" ? "train.policy_written" : "train.written", { path: job.out })}</p>}
       {job.kind === "tune" && job.trials.length > 0 && (
         <table className="table">
           <thead><tr><th>{t("train.trial")}</th><th>Score</th><th>{t("train.best")}</th></tr></thead>

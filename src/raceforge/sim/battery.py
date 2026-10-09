@@ -1,4 +1,4 @@
-"""Battery and power model (spec 0021): sag under load, state of charge, brownout."""
+"""Battery and power model (spec 0024): sag under load, state of charge, brownout."""
 
 from dataclasses import dataclass
 

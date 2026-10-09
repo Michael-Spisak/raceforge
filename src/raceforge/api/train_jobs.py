@@ -15,6 +15,7 @@ from raceforge.api.models import (
     TrainBenchRequest,
     TrainJob,
     TrainRace,
+    TrainRLRequest,
     TrainRun,
     TrainTrial,
     TrainTuneRequest,
@@ -23,6 +24,13 @@ from raceforge.api.train import BenchConfig, RunResult, Trial, TuneConfig, bench
 from raceforge.control.controller import load_controller_class
 
 MAX_JOBS = 20
+
+
+def policies_dir() -> Path:
+    """Where the engine writes trained policies (spec 0022), next to the workspace cache."""
+    from raceforge.api.workspace import default_root
+
+    return default_root().parent / "policies"
 
 
 class CancelledError(Exception):
@@ -140,6 +148,53 @@ class TrainJobs:
             params = Path(req.params).expanduser() if req.params else None
             res = benchmark(controller, params, bench, progress)
             self._finish(job.id, "done", score=res.score, finished_rate=res.finished_rate)
+
+        self._thread(job.id, work)
+        return job
+
+    def start_rl(self, req: TrainRLRequest) -> TrainJob:
+        """PPO training (spec 0022) in this engine; needs the optional extra ``rl``."""
+        try:
+            import stable_baselines3  # noqa: F401  # pyright: ignore[reportMissingImports, reportUnusedImport]
+        except ImportError as e:
+            raise ValueError("RL needs the optional extra: uv sync --extra rl") from e
+        from raceforge.api.train import ONNX_TEMPLATE, EnvConfig, RLConfig, RLProgress, train_ppo
+
+        bench = _bench(req.race)
+        out = (
+            Path(req.out).expanduser()
+            if req.out
+            else policies_dir() / f"ppo-{int(time.time())}.yaml"
+        )
+        job = self._start("rl", str(ONNX_TEMPLATE), req.steps)
+
+        def progress(p: RLProgress) -> None:
+            self._update(job.id, steps_done=p.steps, mean_reward=p.mean_reward)
+
+        def work() -> None:
+            env = EnvConfig(
+                length_m=req.race.length_m,
+                laps=req.race.laps,
+                opponents=req.race.opponents,
+                max_time_s=min(req.race.max_time_s, 120.0),
+                quick=bench.quick,
+            )
+            res = train_ppo(
+                RLConfig(
+                    steps=req.steps, train_tracks=req.train_tracks, env=env, bench=bench, out=out
+                ),
+                progress,
+            )
+            v = res.validation
+            self._finish(
+                job.id,
+                "done",
+                steps_done=res.steps,
+                out=str(out),
+                score=v.score if v else None,
+                finished_rate=v.finished_rate if v else None,
+                runs=[_run(r) for r in v.runs] if v else [],
+            )
 
         self._thread(job.id, work)
         return job

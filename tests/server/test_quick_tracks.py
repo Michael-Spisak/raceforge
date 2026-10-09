@@ -56,7 +56,7 @@ def test_laps_and_obstacles() -> None:
 
 
 def test_edited_track_roundtrip_and_race(client: TestClient) -> None:
-    """Spec 0020: edited setup is saved, validated and raced on."""
+    """Spec 0023: edited setup is saved, validated and raced on."""
     edit = {
         "race_setup": {"grid_cars": 2},
         "checks": [{"a": [0, 0], "b": [10, 0], "measured_m": 10}],
@@ -81,7 +81,7 @@ def test_edited_track_roundtrip_and_race(client: TestClient) -> None:
 
 
 def test_sim_start_with_battery(client: TestClient) -> None:
-    """Spec 0021: the battery option reaches the sim and the car still finishes."""
+    """Spec 0024: the battery option reaches the sim and the car still finishes."""
     start = {"controller": str(TEMPLATES_DIR / "centering.py"), "battery": True, "speed": 1000}
     client.put("/api/v1/tracks/quick/b", json=RECT)
     start["quick_track"] = "b"

@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import ValidationError
 from sqlalchemy import delete, func, select, text
@@ -30,6 +30,12 @@ from raceforge.backend.models import (
     FileSetContent,
     InviteCreate,
     InviteInfo,
+    JobCreate,
+    JobFinish,
+    JobInfo,
+    JobPriority,
+    JobProgress,
+    JobProgressAck,
     LoginRequest,
     ObjectCopy,
     ObjectCreate,
@@ -47,6 +53,11 @@ from raceforge.backend.models import (
     VersionContent,
     VersionCreate,
     VersionInfo,
+    WorkerHeartbeat,
+    WorkerInfo,
+    WorkerJob,
+    WorkerRegister,
+    WorkerRegistration,
     WorkspaceInfo,
 )
 from raceforge.backend.security import (
@@ -355,8 +366,12 @@ class Backend:
                 raise ApiError(401, "user disabled")
             if tok.last_used_at is None or now - tok.last_used_at > timedelta(minutes=1):
                 tok.last_used_at = now
-            # A token never has more rights than its user's current role.
-            scopes = frozenset(tok.scopes) & ROLE_SCOPES[user.role]
+            # A token never has more rights than its user's current role. Worker tokens (spec 0020)
+            # only ever have the worker scope, and no other token can get it.
+            if tok.client == "worker":
+                scopes = frozenset(tok.scopes) & {Scope.WORKER}
+            else:
+                scopes = frozenset(tok.scopes) & ROLE_SCOPES[user.role]
             return Actor(
                 user_id=user.id,
                 username=user.username,
@@ -481,6 +496,8 @@ class Backend:
         if actor.token_kind != "access":
             raise ApiError(403, "API tokens can only be created from a login session")
         scopes = set(req.scopes)
+        if Scope.WORKER in scopes or req.client == "worker":
+            raise ApiError(422, "worker tokens come from registering a worker (POST /workers)")
         if Scope.ADMIN in scopes:
             if req.client == "mcp":
                 raise ApiError(422, "MCP tokens can never have the admin scope")
@@ -526,6 +543,332 @@ class Backend:
                 self.require(actor, Scope.ADMIN)
             tok.revoked_at = tok.revoked_at or self.clock()
             self._audit(s, actor, "token.revoke", tok.id)
+
+    # ------------------------------------------------------------------ workers & jobs (spec 0020)
+    WORKER_ONLINE = timedelta(minutes=2)  # also the lease: a running job's worker must be seen
+    LOG_LINES = 2000
+    MAX_ATTEMPTS = 3  # part C: the 3rd lost worker ends the job as error
+    AVOID_LOST = timedelta(minutes=2)  # a lost worker does not get its job back this soon
+    PRIORITIES: ClassVar[tuple[JobPriority, ...]] = ("normal", "high", "critical")  # index = db
+
+    def _worker_info(self, s: Session, w: db.Worker) -> WorkerInfo:
+        busy = (
+            s.scalars(
+                select(db.Job.id).where(db.Job.worker_id == w.id, db.Job.status == "running")
+            ).first()
+            is not None
+        )
+        online = w.last_seen_at is not None and self.clock() - w.last_seen_at <= self.WORKER_ONLINE
+        return WorkerInfo(
+            id=w.id,
+            workspace_id=w.workspace_id,
+            name=w.name,
+            created_by=self._usernames(s, {w.created_by}).get(w.created_by, ""),
+            created_at=w.created_at,
+            last_seen_at=w.last_seen_at,
+            online=online,
+            busy=busy,
+            info=w.info,
+        )
+
+    def register_worker(self, actor: Actor, req: WorkerRegister) -> WorkerRegistration:
+        """A member registers a computer; the worker token can only use the /worker endpoints."""
+        self.require(actor, Scope.SIM_TRAIN)
+        secret = new_secret("rfw")
+        now = self.clock()
+        with self.db.session() as s:
+            if s.get(db.Workspace, req.workspace_id) is None:
+                raise ApiError(404, "workspace not found")
+            tok = db.Token(
+                id=new_object_id(),
+                user_id=actor.user_id,
+                kind="api",
+                token_hash=token_hash(secret),
+                name=f"worker {req.name}",
+                scopes=[Scope.WORKER],
+                client="worker",
+                totp_verified=False,
+                created_at=now,
+                expires_at=None,
+            )
+            s.add(tok)
+            s.flush()
+            w = db.Worker(
+                id=new_object_id(),
+                workspace_id=req.workspace_id,
+                name=req.name,
+                token_id=tok.id,
+                created_by=actor.user_id,
+                created_at=now,
+                last_seen_at=None,
+                info={},
+                removed_at=None,
+            )
+            s.add(w)
+            s.flush()
+            self._audit(
+                s, actor, "worker.register", w.id, workspace=req.workspace_id, name=req.name
+            )
+            return WorkerRegistration(worker=self._worker_info(s, w), token=secret)
+
+    def list_workers(self, actor: Actor, workspace_id: str) -> list[WorkerInfo]:
+        self.require(actor, Scope.READ)
+        with self.db.session() as s:
+            self._reap_lost(s, workspace_id)
+            rows = s.scalars(
+                select(db.Worker)
+                .where(db.Worker.workspace_id == workspace_id, db.Worker.removed_at.is_(None))
+                .order_by(db.Worker.name)
+            )
+            return [self._worker_info(s, w) for w in rows]
+
+    def remove_worker(self, actor: Actor, worker_id: str) -> None:
+        """Revokes the worker's token; a running job goes back to the queue."""
+        self.require(actor, Scope.SIM_TRAIN)
+        now = self.clock()
+        with self.db.session() as s:
+            w = s.get(db.Worker, worker_id)
+            if w is None or w.removed_at is not None:
+                raise ApiError(404, "worker not found")
+            if w.created_by != actor.user_id:
+                self.require(actor, Scope.ADMIN)
+            w.removed_at = now
+            tok = s.get(db.Token, w.token_id)
+            if tok is not None:
+                tok.revoked_at = tok.revoked_at or now
+            for job in s.scalars(
+                select(db.Job).where(db.Job.worker_id == w.id, db.Job.status == "running")
+            ):
+                self._requeue(job, f"worker {w.name} removed")
+            self._audit(s, actor, "worker.remove", w.id)
+
+    # part C: leases and requeueing --------------------------------------------------------
+    def _log(self, j: db.Job, *lines: str) -> None:
+        j.log = "\n".join([*j.log.splitlines(), *lines][-self.LOG_LINES :])
+
+    def _requeue(self, j: db.Job, why: str, lost: bool = False) -> None:
+        """Back to the queue; the partial result stays in the payload for the next worker."""
+        if j.cancel_requested:  # the user cancelled meanwhile: do not run it again
+            j.status, j.worker_id, j.finished_at = "cancelled", None, self.clock()
+            self._log(j, f"{why}; cancelled")
+            return
+        payload = dict(j.payload)
+        if lost and j.worker_id:
+            payload["lost_on"] = [*payload.get("lost_on", []), j.worker_id]
+            payload["last_lost"] = j.worker_id
+            j.attempt += 1
+        j.payload = payload
+        j.status, j.worker_id, j.started_at = "queued", None, None
+        j.queued_at = self.clock()
+        self._log(j, f"{why}; back in the queue (attempt {j.attempt})")
+
+    def _reap_lost(self, s: Session, workspace_id: str) -> None:
+        """Running jobs whose worker was not seen within the lease go back to the queue."""
+        limit = self.clock() - self.WORKER_ONLINE
+        rows = s.execute(
+            select(db.Job, db.Worker)
+            .join(db.Worker, db.Job.worker_id == db.Worker.id)
+            .where(db.Job.workspace_id == workspace_id, db.Job.status == "running")
+        ).all()
+        for j, w in rows:
+            if w.last_seen_at is not None and w.last_seen_at >= limit:
+                continue
+            if j.attempt >= self.MAX_ATTEMPTS and not j.cancel_requested:
+                j.status, j.finished_at = "error", self.clock()
+                j.error = f"worker lost {j.attempt} times (last: {w.name})"
+                self._log(j, j.error)
+            else:
+                self._requeue(j, f"worker {w.name} lost", lost=True)
+
+    def _job_info(self, s: Session, j: db.Job) -> JobInfo:
+        worker = s.get(db.Worker, j.worker_id) if j.worker_id else None
+        return JobInfo(
+            id=j.id,
+            workspace_id=j.workspace_id,
+            kind=j.kind,  # pyright: ignore[reportArgumentType]
+            status=j.status,  # pyright: ignore[reportArgumentType]
+            controller_name=str(j.payload.get("controller_name", "")),
+            created_by=self._usernames(s, {j.created_by}).get(j.created_by, ""),
+            created_at=j.created_at,
+            started_at=j.started_at,
+            finished_at=j.finished_at,
+            worker_id=j.worker_id,
+            worker_name=worker.name if worker else None,
+            progress=j.progress,
+            result=j.result,
+            error=j.error,
+            log_tail=j.log.splitlines()[-50:],
+            cancel_requested=j.cancel_requested,
+            priority=self._priority_name(j.priority),
+            target_worker_id=j.target_worker_id,
+            raceforge_version=j.raceforge_version,
+            attempt=j.attempt,
+        )
+
+    def _priority_name(self, value: int) -> JobPriority:
+        return self.PRIORITIES[value] if 0 <= value < len(self.PRIORITIES) else "normal"
+
+    def create_job(self, actor: Actor, workspace_id: str, req: JobCreate) -> JobInfo:
+        self.require(actor, Scope.SIM_TRAIN)
+        if req.priority == "critical":
+            self.require(actor, Scope.ADMIN)  # race-critical jobs jump the queue: admin only
+        with self.db.session() as s:
+            if s.get(db.Workspace, workspace_id) is None:
+                raise ApiError(404, "workspace not found")
+            if req.target_worker_id is not None:
+                target = s.get(db.Worker, req.target_worker_id)
+                if target is None or target.removed_at or target.workspace_id != workspace_id:
+                    raise ApiError(422, "target worker not found in this workspace")
+            j = db.Job(
+                id=new_object_id(),
+                workspace_id=workspace_id,
+                kind=req.kind,
+                status="queued",
+                payload=req.model_dump(mode="json"),
+                result=None,
+                progress={},
+                log="",
+                error="",
+                worker_id=None,
+                cancel_requested=False,
+                created_by=actor.user_id,
+                created_at=self.clock(),
+                priority=self.PRIORITIES.index(req.priority),
+                target_worker_id=req.target_worker_id,
+                raceforge_version=req.raceforge_version,
+                attempt=1,
+                queued_at=self.clock(),
+            )
+            s.add(j)
+            s.flush()
+            self._audit(s, actor, "job.create", j.id, kind=req.kind)
+            return self._job_info(s, j)
+
+    def list_jobs(self, actor: Actor, workspace_id: str, limit: int = 50) -> list[JobInfo]:
+        self.require(actor, Scope.READ)
+        with self.db.session() as s:
+            self._reap_lost(s, workspace_id)
+            rows = s.scalars(
+                select(db.Job)
+                .where(db.Job.workspace_id == workspace_id)
+                .order_by(db.Job.created_at.desc())
+                .limit(limit)
+            )
+            return [self._job_info(s, j) for j in rows]
+
+    def get_job(self, actor: Actor, job_id: str) -> JobInfo:
+        self.require(actor, Scope.READ)
+        with self.db.session() as s:
+            j = s.get(db.Job, job_id)
+            if j is None:
+                raise ApiError(404, "job not found")
+            self._reap_lost(s, j.workspace_id)
+            return self._job_info(s, j)
+
+    def cancel_job(self, actor: Actor, job_id: str) -> JobInfo:
+        self.require(actor, Scope.SIM_TRAIN)
+        with self.db.session() as s:
+            j = s.get(db.Job, job_id)
+            if j is None:
+                raise ApiError(404, "job not found")
+            if j.status == "queued":
+                j.status, j.finished_at = "cancelled", self.clock()
+            elif j.status == "running":
+                j.cancel_requested = True  # the worker stops after the current step
+            self._audit(s, actor, "job.cancel", j.id)
+            return self._job_info(s, j)
+
+    def _worker_of(self, s: Session, actor: Actor) -> db.Worker:
+        self.require(actor, Scope.WORKER)
+        w = s.scalars(select(db.Worker).where(db.Worker.token_id == actor.token_id)).first()
+        if w is None or w.removed_at is not None:
+            raise ApiError(403, "this token does not belong to an active worker")
+        w.last_seen_at = self.clock()
+        return w
+
+    def worker_heartbeat(self, actor: Actor, req: WorkerHeartbeat) -> WorkerInfo:
+        with self.db.session() as s:
+            w = self._worker_of(s, actor)
+            if req.info:
+                w.info = dict(req.info)
+            return self._worker_info(s, w)
+
+    def _claimable(self, j: db.Job, w: db.Worker) -> bool:
+        lost_here = j.payload.get("last_lost") == w.id
+        recent = j.queued_at is not None and self.clock() - j.queued_at < self.AVOID_LOST
+        return not (lost_here and recent)
+
+    def worker_claim(self, actor: Actor) -> WorkerJob | None:
+        """Highest-priority, oldest queued job this worker may run, or None. One job at a time."""
+        with self.db.session() as s:
+            w = self._worker_of(s, actor)
+            running = s.scalars(
+                select(db.Job).where(db.Job.worker_id == w.id, db.Job.status == "running")
+            ).first()
+            if running is not None:
+                raise ApiError(409, f"finish job {running.id} first")
+            self._reap_lost(s, w.workspace_id)
+            version = w.info.get("raceforge")
+            q = (
+                select(db.Job)
+                .where(
+                    db.Job.workspace_id == w.workspace_id,
+                    db.Job.status == "queued",
+                    (db.Job.target_worker_id.is_(None)) | (db.Job.target_worker_id == w.id),
+                    (db.Job.raceforge_version.is_(None))
+                    | (db.Job.raceforge_version == str(version)),
+                )
+                .order_by(db.Job.priority.desc(), db.Job.created_at)
+                .limit(3)  # few locked rows, so parallel claims still find work
+            )
+            if s.bind is not None and s.bind.dialect.name == "postgresql":
+                q = q.with_for_update(skip_locked=True)  # two workers never get the same job
+            j = next((j for j in s.scalars(q) if self._claimable(j, w)), None)
+            if j is None:
+                return None
+            j.status, j.worker_id, j.started_at = "running", w.id, self.clock()
+            p = j.payload
+            return WorkerJob(
+                id=j.id,
+                kind=j.kind,  # pyright: ignore[reportArgumentType]
+                request=dict(p.get("request", {})),
+                controller_name=str(p["controller_name"]),
+                controller_source=str(p["controller_source"]),
+                params_yaml=p.get("params_yaml"),
+                attempt=j.attempt,
+                resume=p.get("partial"),
+            )
+
+    def _running_job(self, s: Session, actor: Actor, job_id: str) -> db.Job:
+        w = self._worker_of(s, actor)
+        j = s.get(db.Job, job_id)
+        if j is None or j.worker_id != w.id or j.status != "running":
+            raise ApiError(404, "no running job with this id for this worker")
+        return j
+
+    def job_progress(self, actor: Actor, job_id: str, req: JobProgress) -> JobProgressAck:
+        with self.db.session() as s:
+            j = self._running_job(s, actor, job_id)
+            if req.progress:
+                j.progress = dict(req.progress)
+            if req.log:
+                self._log(j, *req.log)
+            if req.partial is not None:
+                j.payload = {**j.payload, "partial": req.partial}
+            return JobProgressAck(cancel=j.cancel_requested)
+
+    def job_finish(self, actor: Actor, job_id: str, req: JobFinish) -> JobInfo:
+        with self.db.session() as s:
+            j = self._running_job(s, actor, job_id)
+            # paused: the worker's owner needs the computer, someone else goes on
+            if req.status == "paused":
+                if req.result is not None:
+                    j.payload = {**j.payload, "partial": req.result}
+                self._requeue(j, "paused on the worker")
+                return self._job_info(s, j)
+            j.status, j.result, j.error = req.status, req.result, req.error
+            j.finished_at = self.clock()
+            return self._job_info(s, j)
 
     # ------------------------------------------------------------------ workspaces
     def list_workspaces(self, actor: Actor) -> list[WorkspaceInfo]:

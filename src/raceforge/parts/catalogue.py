@@ -90,6 +90,9 @@ class CatalogueEntry(_Model):
     # local: added by the team (LDraw part, spec 0018, or 3D-printed part, spec 0019)
     origin: Literal["curated", "local"] = "curated"
     printed: PrintedSpec | None = None
+    # Content hashes of earlier versions of this local part (e.g. before its connectors were
+    # edited): assemblies that reference them keep resolving to this entry (spec 0021).
+    previous_hashes: list[str] = Field(default_factory=list[str])
 
     def all_connectors(self) -> list[ConnectorSpec]:
         out: list[ConnectorSpec] = []
@@ -279,7 +282,11 @@ class Catalogue:
         return self._by_hash[content_hash_hex]
 
     def parts_by_hash(self) -> dict[str, Part]:
-        return {self._refs[k].content_hash: p for k, p in self._parts.items()}
+        out = {self._refs[k].content_hash: p for k, p in self._parts.items()}
+        for key, e in self.entries.items():
+            for old in e.previous_hashes:
+                out.setdefault(old, self._parts[key])
+        return out
 
     @cached_property
     def _parts(self) -> dict[str, Part]:
@@ -296,7 +303,11 @@ class Catalogue:
 
     @cached_property
     def _by_hash(self) -> dict[str, str]:
-        return {r.content_hash: k for k, r in self._refs.items()}
+        out = {r.content_hash: k for k, r in self._refs.items()}
+        for key, e in self.entries.items():
+            for old in e.previous_hashes:
+                out.setdefault(old, key)
+        return out
 
     def _build_part(self, e: CatalogueEntry) -> Part:
         connectors = [

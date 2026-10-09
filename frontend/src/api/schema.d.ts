@@ -310,6 +310,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parts/{key}/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Part Connectors
+         * @description Connectors of a part in its own frame (spec 0021).
+         */
+        get: operations["part_connectors_api_v1_parts__key__connectors_get"];
+        /**
+         * Part Set Connectors
+         * @description Replace the connectors of a 3D-printed part (clicked on its mesh, spec 0021).
+         */
+        put: operations["part_set_connectors_api_v1_parts__key__connectors_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quickstart": {
         parameters: {
             query?: never;
@@ -610,6 +634,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/train/rl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Train Rl
+         * @description Start PPO training (spec 0022); needs the optional extra ``rl``.
+         */
+        post: operations["train_rl_api_v1_train_rl_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/train/tune": {
         parameters: {
             query?: never;
@@ -659,6 +703,64 @@ export interface paths {
         put?: never;
         /** Ws Invite */
         post: operations["ws_invite_api_v1_workspace_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Jobs */
+        get: operations["ws_jobs_api_v1_workspace_jobs_get"];
+        put?: never;
+        /**
+         * Ws Submit Job
+         * @description Queue a benchmark/tune for the team's workers (the controller file is sent along).
+         */
+        post: operations["ws_submit_job_api_v1_workspace_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ws Cancel Job */
+        post: operations["ws_cancel_job_api_v1_workspace_jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/jobs/{job_id}/save-params": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ws Save Job Params
+         * @description Write a finished tune job's parameters to ``path``.
+         */
+        post: operations["ws_save_job_params_api_v1_workspace_jobs__job_id__save_params_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1006,6 +1108,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/worker/local": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ws Local Worker
+         * @description This computer as a team worker (spec 0020 part C).
+         */
+        get: operations["ws_local_worker_api_v1_workspace_worker_local_get"];
+        /**
+         * Ws Set Local Worker
+         * @description Switch this computer's worker on/off (registers it once) and set its policy.
+         */
+        put: operations["ws_set_local_worker_api_v1_workspace_worker_local_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/workers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Workers */
+        get: operations["ws_workers_api_v1_workspace_workers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/workspaces": {
         parameters: {
             query?: never;
@@ -1255,6 +1398,38 @@ export interface components {
             slug: string;
             /** Versions */
             versions: components["schemas"]["LocalVersion"][];
+        };
+        /**
+         * ConnectorDef
+         * @description A connector in the part's own frame (core frame, metres).
+         */
+        ConnectorDef: {
+            /**
+             * Axis
+             * @default [
+             *       0,
+             *       0,
+             *       1
+             *     ]
+             */
+            axis: [
+                number,
+                number,
+                number
+            ];
+            /** Id */
+            id: string;
+            /** Pos */
+            pos: [
+                number,
+                number,
+                number
+            ];
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "pin_hole" | "axle_hole" | "pin" | "axle" | "stud" | "anti_stud" | "screw_hole" | "fixed_mount";
         };
         /**
          * ConstructLimits
@@ -1856,6 +2031,69 @@ export interface components {
              */
             role: "member" | "admin";
         };
+        /** JobInfo */
+        JobInfo: {
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt: number;
+            /** Cancel Requested */
+            cancel_requested: boolean;
+            /** Controller Name */
+            controller_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Error */
+            error: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "benchmark" | "tune" | "rl";
+            /** Log Tail */
+            log_tail: string[];
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "normal" | "high" | "critical";
+            /** Progress */
+            progress: {
+                [key: string]: unknown;
+            };
+            /** Raceforge Version */
+            raceforge_version?: string | null;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Started At */
+            started_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "error" | "cancelled";
+            /** Target Worker Id */
+            target_worker_id?: string | null;
+            /** Worker Id */
+            worker_id: string | null;
+            /** Worker Name */
+            worker_name: string | null;
+            /** Workspace Id */
+            workspace_id: string;
+        };
         /**
          * LDrawPart
          * @description A part of the LDraw library that is not in the catalogue yet (spec 0018).
@@ -1944,6 +2182,36 @@ export interface components {
             pending: boolean;
             /** Semver */
             semver: string | null;
+        };
+        /** LocalWorkerStatus */
+        LocalWorkerStatus: {
+            /** Available */
+            available: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Log */
+            log?: string[];
+            /** Name */
+            name?: string | null;
+            policy: components["schemas"]["WorkerPolicy"];
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Registered */
+            registered: boolean;
+            /** Worker Id */
+            worker_id?: string | null;
+        };
+        /**
+         * LocalWorkerUpdate
+         * @description Switch this computer's team worker on/off and set when it takes jobs (spec 0020 C).
+         */
+        LocalWorkerUpdate: {
+            /** Enabled */
+            enabled: boolean;
+            policy?: components["schemas"]["WorkerPolicy"];
         };
         /** PartSummary */
         PartSummary: {
@@ -2780,10 +3048,22 @@ export interface components {
             real_color: number;
         };
         /**
+         * ScheduleWindow
+         * @description A weekly time window; ``end`` before ``start`` crosses midnight (days = start days).
+         */
+        ScheduleWindow: {
+            /** Days */
+            days: ("mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun")[];
+            /** End */
+            end: string;
+            /** Start */
+            start: string;
+        };
+        /**
          * Scope
          * @enum {string}
          */
-        Scope: "read" | "sim_train" | "edit" | "admin";
+        Scope: "read" | "sim_train" | "edit" | "admin" | "worker";
         /** SensorSpec */
         SensorSpec: {
             /**
@@ -2919,6 +3199,23 @@ export interface components {
              */
             pushed: number;
         };
+        /**
+         * TeamJobRequest
+         * @description Run a training job on a team worker (spec 0020): exactly one of bench/tune/rl.
+         */
+        TeamJobRequest: {
+            bench?: components["schemas"]["TrainBenchRequest"] | null;
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "normal" | "high" | "critical";
+            rl?: components["schemas"]["TrainRLRequest"] | null;
+            /** Target Worker Id */
+            target_worker_id?: string | null;
+            tune?: components["schemas"]["TrainTuneRequest"] | null;
+        };
         /** TokenRequest */
         TokenRequest: {
             /**
@@ -3018,7 +3315,9 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "benchmark" | "tune";
+            kind: "benchmark" | "tune" | "rl";
+            /** Mean Reward */
+            mean_reward?: number | null;
             /** Out */
             out?: string | null;
             /**
@@ -3035,6 +3334,11 @@ export interface components {
              * @enum {string}
              */
             state: "running" | "done" | "error" | "cancelled";
+            /**
+             * Steps Done
+             * @default 0
+             */
+            steps_done: number;
             /** Total */
             total: number;
             /**
@@ -3042,6 +3346,25 @@ export interface components {
              * @default []
              */
             trials: components["schemas"]["TrainTrial"][];
+        };
+        /**
+         * TrainRLRequest
+         * @description PPO training (spec 0022); the policy goes into a params YAML for onnx_policy.py.
+         */
+        TrainRLRequest: {
+            /** Out */
+            out?: string | null;
+            race?: components["schemas"]["TrainRace"];
+            /**
+             * Steps
+             * @default 200000
+             */
+            steps: number;
+            /**
+             * Train Tracks
+             * @default 8
+             */
+            train_tracks: number;
         };
         /**
          * TrainRace
@@ -3214,6 +3537,56 @@ export interface components {
             code: string;
             /** Message */
             message: string;
+        };
+        /** WorkerInfo */
+        WorkerInfo: {
+            /** Busy */
+            busy: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Id */
+            id: string;
+            /** Info */
+            info: {
+                [key: string]: unknown;
+            };
+            /** Last Seen At */
+            last_seen_at: string | null;
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /**
+         * WorkerPolicy
+         * @description When this computer takes team jobs (spec 0020 part C).
+         */
+        WorkerPolicy: {
+            /**
+             * Idle Minutes
+             * @default 10
+             */
+            idle_minutes: number;
+            /**
+             * Mode
+             * @default idle
+             * @enum {string}
+             */
+            mode: "always" | "idle" | "schedule" | "paused";
+            /**
+             * Processes
+             * @default 0
+             */
+            processes: number;
+            /** Schedule */
+            schedule?: components["schemas"]["ScheduleWindow"][];
         };
         /** WorkspaceInfo */
         WorkspaceInfo: {
@@ -3819,6 +4192,72 @@ export interface operations {
             };
         };
     };
+    part_connectors_api_v1_parts__key__connectors_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorDef"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    part_set_connectors_api_v1_parts__key__connectors_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectorDef"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorDef"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     quickstart_api_v1_quickstart_post: {
         parameters: {
             query?: never;
@@ -4375,6 +4814,39 @@ export interface operations {
             };
         };
     };
+    train_rl_api_v1_train_rl_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainRLRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     train_tune_api_v1_train_tune_post: {
         parameters: {
             query?: never;
@@ -4468,6 +4940,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InviteInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_jobs_api_v1_workspace_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"][];
+                };
+            };
+        };
+    };
+    ws_submit_job_api_v1_workspace_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_cancel_job_api_v1_workspace_jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_save_job_params_api_v1_workspace_jobs__job_id__save_params_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanOpen"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanOpen"];
                 };
             };
             /** @description Validation Error */
@@ -5084,6 +5675,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_local_worker_api_v1_workspace_worker_local_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalWorkerStatus"];
+                };
+            };
+        };
+    };
+    ws_set_local_worker_api_v1_workspace_worker_local_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalWorkerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalWorkerStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_workers_api_v1_workspace_workers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerInfo"][];
                 };
             };
         };

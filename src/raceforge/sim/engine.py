@@ -282,7 +282,7 @@ class Simulation:
             self.data.actuator(h.prefix + a).ctrl = duty
 
     def _power(self, st: _CarState, duty: float) -> None:
-        """Battery step for one physics step; events for low charge and brownout (spec 0021)."""
+        """Battery step for one physics step; events for low charge and brownout (spec 0024)."""
         assert st.battery is not None
         h = st.handle
         wheel = float(np.mean([self.data.joint(h.prefix + j).qvel[0] for j in st.driven_joints]))

@@ -177,7 +177,7 @@ class SimStart(ApiModel):
     quickstart: QuickStartParams | None = None
     record_path: str | None = None
     quick_track: str | None = None  # name of a saved quick track (spec 0014) instead of `corridor`
-    battery: bool = False  # model the motor battery: sag, charge, brownout (spec 0021)
+    battery: bool = False  # model the motor battery: sag, charge, brownout (spec 0024)
     assembly: dict[str, Any] | None = None  # edited car (Construct editor, spec 0015) for "ego"
 
 
@@ -467,6 +467,64 @@ class TrainTuneRequest(ApiModel):
     race: TrainRace = TrainRace()
 
 
+class TrainRLRequest(ApiModel):
+    """PPO training (spec 0022); the policy goes into a params YAML for onnx_policy.py."""
+
+    steps: int = Field(default=200_000, ge=256, le=50_000_000)
+    train_tracks: int = Field(default=8, ge=1, le=200)
+    out: str | None = None  # params YAML (default: engine data folder / policies)
+    race: "TrainRace" = Field(default_factory=lambda: TrainRace())
+
+
+Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+HhMm = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class ScheduleWindow(ApiModel):
+    """A weekly time window; ``end`` before ``start`` crosses midnight (days = start days)."""
+
+    days: list[Weekday] = Field(min_length=1)
+    start: str = HhMm
+    end: str = HhMm
+
+
+class WorkerPolicy(ApiModel):
+    """When this computer takes team jobs (spec 0020 part C)."""
+
+    mode: Literal["always", "idle", "schedule", "paused"] = "idle"
+    idle_minutes: float = Field(default=10.0, ge=1.0, le=240.0)  # no keyboard/mouse input
+    schedule: list[ScheduleWindow] = Field(default_factory=list[ScheduleWindow])
+    processes: int = Field(default=0, ge=0, le=256)  # parallel races; 0: CPU count - 1
+
+
+class TeamJobRequest(ApiModel):
+    """Run a training job on a team worker (spec 0020): exactly one of bench/tune/rl."""
+
+    bench: "TrainBenchRequest | None" = None
+    tune: "TrainTuneRequest | None" = None
+    rl: "TrainRLRequest | None" = None
+    target_worker_id: str | None = None  # part C: only this worker; None = any team worker
+    priority: Literal["normal", "high", "critical"] = "normal"  # critical: admins only
+
+
+class LocalWorkerUpdate(ApiModel):
+    """Switch this computer's team worker on/off and set when it takes jobs (spec 0020 C)."""
+
+    enabled: bool
+    policy: WorkerPolicy = Field(default_factory=lambda: WorkerPolicy())
+
+
+class LocalWorkerStatus(ApiModel):
+    enabled: bool  # the worker loop runs in this engine
+    registered: bool  # in the current workspace
+    name: str | None = None
+    worker_id: str | None = None
+    policy: WorkerPolicy
+    available: bool  # the policy allows jobs right now
+    reason: str = ""  # paused | outside_schedule | on_battery | user_active | idle_unknown
+    log: list[str] = Field(default_factory=list[str])
+
+
 class TrainRun(ApiModel):
     seed: int
     finished: bool
@@ -485,12 +543,14 @@ class TrainTrial(ApiModel):
 
 class TrainJob(ApiModel):
     id: str
-    kind: Literal["benchmark", "tune"]
+    kind: Literal["benchmark", "tune", "rl"]
     controller: str
     state: Literal["running", "done", "error", "cancelled"]
     started_at: float
     finished_at: float | None = None
-    total: int  # runs (benchmark) or trials (tune)
+    total: int  # runs (benchmark), trials (tune) or environment steps (rl)
+    steps_done: int = 0  # rl
+    mean_reward: float | None = None  # rl: mean episode reward of the last rollout
     runs: list[TrainRun] = []
     trials: list[TrainTrial] = []
     score: float | None = None  # benchmark score / held-out score of the tuned params
@@ -529,7 +589,7 @@ class QuickTrackPreview(ApiModel):
     start_line: tuple[tuple[float, float], tuple[float, float]] | None = None
     direction: tuple[float, float] | None = None
     objects: list[QuickTrackObject] = []
-    # Track editor (spec 0020).
+    # Track editor (spec 0023).
     finish_line: tuple[tuple[float, float], tuple[float, float]] | None = None
     start_grid: list[tuple[float, float, float]] = []  # x, y, yaw (rad)
     checkpoints: list[tuple[tuple[float, float], tuple[float, float]]] = []
@@ -665,3 +725,15 @@ class BudgetView(ApiModel):
 
 
 AssemblyEditResponse.model_rebuild()
+
+
+# ------------------------------------------------------------------ part connectors (spec 0021)
+class ConnectorDef(ApiModel):
+    """A connector in the part's own frame (core frame, metres)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,32}$")
+    type: Literal[
+        "pin_hole", "axle_hole", "pin", "axle", "stud", "anti_stud", "screw_hole", "fixed_mount"
+    ]
+    pos: V3
+    axis: V3 = (0.0, 0.0, 1.0)
