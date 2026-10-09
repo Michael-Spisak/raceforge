@@ -775,7 +775,7 @@ class FloorplanResponse(ApiModel):
 
 
 class CorridorWidthRequest(ApiModel):
-    points: list[tuple[float, float]] = Field(min_length=2)
+    points: list[tuple[float, float]] = Field(min_length=2, max_length=500)
 
 
 class CorridorWidth(ApiModel):

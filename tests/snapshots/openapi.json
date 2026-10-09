@@ -981,6 +981,7 @@
               ],
               "type": "array"
             },
+            "maxItems": 500,
             "minItems": 2,
             "title": "Points",
             "type": "array"
@@ -7738,7 +7739,7 @@
             "schema": {
               "default": 0.05,
               "maximum": 0.5,
-              "minimum": 0.01,
+              "minimum": 0.03,
               "title": "Resolution",
               "type": "number"
             }

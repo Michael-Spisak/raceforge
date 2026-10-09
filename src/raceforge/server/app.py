@@ -629,7 +629,7 @@ def create_app(
     @app.get("/api/v1/scans/{sha256}/floorplan")
     def scan_floorplan(
         sha256: str,
-        resolution: Annotated[float, Query(ge=0.01, le=0.5)] = 0.05,
+        resolution: Annotated[float, Query(ge=0.03, le=0.5)] = 0.05,
         z_min: Annotated[float, Query(ge=-1.0, le=3.0)] = 0.05,
         z_max: Annotated[float, Query(ge=-1.0, le=3.0)] = 0.5,
     ) -> FloorplanResponse:
