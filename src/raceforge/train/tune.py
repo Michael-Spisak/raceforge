@@ -4,7 +4,7 @@ The objective is the benchmark score on training corridors (seeds from 0); the b
 are then scored on the held-out corridors and written as a params YAML for `raceforge bundle`.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -54,8 +54,10 @@ def tune(
     controller: Path,
     cfg: TuneConfig | None = None,
     progress: Callable[[Trial, Trial], None] | None = None,
+    previous: Sequence[Trial] = (),
 ) -> TuneResult:
-    """``progress(trial, best)`` runs after every trial."""
+    """``progress(trial, best)`` runs after every new trial. ``previous``: trials of an earlier,
+    paused attempt (spec 0020; number -1 = the defaults); they count towards ``cfg.trials``."""
     cfg = cfg or TuneConfig()
     cls = load_controller_class(controller)
     space = cls.Params.tunables()
@@ -67,11 +69,13 @@ def tune(
     def score(values: dict[str, Any]) -> float:
         return benchmark(controller, {**defaults, **values}, train).score
 
-    default_score = score({})
-    trials: list[Trial] = [Trial(-1, {}, default_score)]
-    best = trials[0]
-    if progress:
-        progress(best, best)
+    old_default = next((t for t in previous if t.number < 0), None)
+    old = sorted((t for t in previous if t.number >= 0), key=lambda t: t.number)
+    trials: list[Trial] = [old_default or Trial(-1, {}, score({})), *old]
+    default_score = trials[0].score
+    best = min(trials, key=lambda t: t.score)
+    if progress and old_default is None:
+        progress(trials[0], best)
 
     def objective(t: optuna.Trial) -> float:
         nonlocal best
@@ -91,7 +95,23 @@ def tune(
     study = optuna.create_study(
         direction="minimize", sampler=optuna.samplers.TPESampler(seed=cfg.seed)
     )
-    study.optimize(objective, n_trials=cfg.trials, timeout=cfg.timeout_s)
+    dists = {
+        name: optuna.distributions.FloatDistribution(low, high, step=step)
+        for name, (low, high, step) in space.items()
+    }
+    for t in old:  # the sampler learns from the earlier attempt; new trials number on from it
+        try:
+            frozen = optuna.trial.create_trial(
+                params={k: v for k, v in t.params.items() if k in dists},
+                distributions={k: d for k, d in dists.items() if k in t.params},
+                value=t.score,
+            )
+        except ValueError:  # a value off Optuna's grid: the trial still counts, unseen by TPE
+            frozen = optuna.trial.create_trial(state=optuna.trial.TrialState.FAIL)
+        study.add_trial(frozen)
+    remaining = cfg.trials - len(old)
+    if remaining > 0:
+        study.optimize(objective, n_trials=remaining, timeout=cfg.timeout_s)
 
     best_params = {**defaults, **best.params}
     tuned = cls.Params.model_validate(best_params)  # range check before writing
