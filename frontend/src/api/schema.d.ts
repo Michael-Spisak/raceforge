@@ -949,6 +949,7 @@ export interface components {
             /**
              * @default {
              *       "axis": "z",
+             *       "candidate": 0,
              *       "delta": [
              *         0,
              *         0,
@@ -980,6 +981,11 @@ export interface components {
                 [key: string]: unknown;
             };
             budget?: components["schemas"]["BudgetView"] | null;
+            /**
+             * Candidates
+             * @default 0
+             */
+            candidates: number;
             /** Derived */
             derived: {
                 [key: string]: unknown;
@@ -1276,6 +1282,11 @@ export interface components {
              */
             axis: "x" | "y" | "z";
             /**
+             * Candidate
+             * @default 0
+             */
+            candidate: number;
+            /**
              * Delta
              * @default [
              *       0,
@@ -1295,7 +1306,7 @@ export interface components {
              * @default none
              * @enum {string}
              */
-            kind: "none" | "move" | "rotate" | "delete" | "add" | "snap" | "duplicate" | "mirror";
+            kind: "none" | "move" | "rotate" | "delete" | "add" | "snap" | "duplicate" | "mirror" | "attach";
             /**
              * Path
              * @default []

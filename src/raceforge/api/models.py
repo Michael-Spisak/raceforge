@@ -488,7 +488,9 @@ class QuickTrackPreview(ApiModel):
 class EditOp(ApiModel):
     """One edit; ``none`` only evaluates. Moves and turns use world axes (m, quarter turns)."""
 
-    kind: Literal["none", "move", "rotate", "delete", "add", "snap", "duplicate", "mirror"] = "none"
+    kind: Literal[
+        "none", "move", "rotate", "delete", "add", "snap", "duplicate", "mirror", "attach"
+    ] = "none"
     path: list[str] = []
     paths: list[
         list[str]
@@ -496,7 +498,8 @@ class EditOp(ApiModel):
     delta: V3 = (0.0, 0.0, 0.0)
     axis: Literal["x", "y", "z"] = "z"
     turns: int = Field(default=1, ge=-3, le=3)
-    key: str | None = None  # catalogue part to add
+    key: str | None = None  # catalogue part to add / attach
+    candidate: int = Field(default=0, ge=0)  # attach: which docking position (cycles)
     position: V3 = (0.0, 0.0, 0.05)
 
 
@@ -551,6 +554,7 @@ class AssemblyEditResponse(ApiModel):
     problems: list[str]
     selected: list[str] | None = None
     selected_many: list[list[str]] = []  # the selection after a group operation
+    candidates: int = 0  # attach: number of docking positions for the part
     snapped: SnapInfo | None = None
     rules: list["RuleCheck"] = []
     overlaps: list[list[list[str]]] = []  # pairs of part paths (spec 0016)

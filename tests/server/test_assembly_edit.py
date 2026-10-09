@@ -135,3 +135,26 @@ def test_export_edited_car() -> None:
     base_beams = sum(1 for p in base["parts"] if p["key"] == "32524")
     assert int(bom["32524"][4]) == base_beams + 1
     assert client.post("/api/v1/assembly/export/nope", json=body).status_code == 404
+
+
+def test_attach_docks_a_part_onto_a_free_connector() -> None:
+    client = TestClient(create_app(Engine(), frontend_dist=None))
+    base = _edit(client, client.post("/api/v1/quickstart", json={}).json()["assembly"])
+    beam = _edit(client, base["assembly"], kind="add", key="32524", position=[0, 0, 0.3])
+    first = _edit(client, beam["assembly"], kind="attach", key="2780", path=beam["selected"])
+    assert first["candidates"] > 1 and first["problems"] == []
+    assert len(first["assembly"]["connections"]) == len(beam["assembly"]["connections"]) + 1
+    second = _edit(
+        client, beam["assembly"], kind="attach", key="2780", path=beam["selected"], candidate=1
+    )
+    pin1 = next(p for p in first["parts"] if p["path"] == first["selected"])
+    pin2 = next(p for p in second["parts"] if p["path"] == second["selected"])
+    assert pin1["quat"] != pin2["quat"] or pin1["pos"] != pin2["pos"]  # another docking position
+    r = client.post(
+        "/api/v1/assembly/edit",
+        json={
+            "assembly": beam["assembly"],
+            "op": {"kind": "attach", "key": "rpi5", "path": beam["selected"]},
+        },
+    )
+    assert r.status_code == 422  # nothing on the Pi fits a pin hole

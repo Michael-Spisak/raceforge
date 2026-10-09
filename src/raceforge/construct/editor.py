@@ -419,3 +419,80 @@ def snap(
     if not exists:
         moved = moved.model_copy(update={"connections": [*moved.connections, conn]})
     return SnapResult(moved, True, a.id, other.path, b.id, d)
+
+
+# ------------------------------------------------------------------ attach (spec 0015 part D)
+def _rotation_from_to(u: Arr, v: Arr) -> Arr:
+    """Proper rotation turning unit vector ``u`` onto unit vector ``v``."""
+    c = float(u @ v)
+    if c > 1 - 1e-9:
+        return np.eye(3)
+    if c < -1 + 1e-9:
+        # 180°: about any axis perpendicular to u
+        perp = np.cross(u, [1.0, 0.0, 0.0])
+        if np.linalg.norm(perp) < 1e-6:
+            perp = np.cross(u, [0.0, 1.0, 0.0])
+        k = perp / np.linalg.norm(perp)
+        return 2 * np.outer(k, k) - np.eye(3)
+    w = np.cross(u, v)
+    k = np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
+    return np.eye(3) + k + k @ k / (1 + c)
+
+
+@dataclass(frozen=True)
+class AttachCandidate:
+    connector: str  # of the new part
+    target_connector: str
+    rotation: Arr
+    position: Arr
+
+
+def attach_candidates(
+    assembly: Assembly, cat: Catalogue, key: str, target: list[str]
+) -> list[AttachCandidate]:
+    """Ways to put catalogue part ``key`` onto a free connector of the part at ``target``: each
+    compatible connector pair, both directions along the axis; the connectors meet at one point."""
+    parts = {p.path: p for p in view(assembly, cat)}
+    me = parts.get(tuple(target))
+    if me is None:
+        raise EditError(f"no part at {target}")
+    used = {(tuple(p.instances), p.connector) for c in assembly.connections for p in (c.a, c.b)}
+    new_part = cat.part(key)
+    out: list[AttachCandidate] = []
+    for b in me.connectors:
+        if (tuple(target), b.id) in used:
+            continue
+        for a in new_part.connectors:
+            if not are_compatible(a.type, b.type):
+                continue
+            a_pos = np.array(a.pose.position.as_tuple())
+            a_axis = _unit(np.array(a.axis.as_tuple()))
+            for sign in (1.0, -1.0):
+                rot = _rotation_from_to(a_axis, sign * b.axis)
+                out.append(AttachCandidate(a.id, b.id, rot, b.position - rot @ a_pos))
+    return out
+
+
+def attach(
+    assembly: Assembly, cat: Catalogue, key: str, target: list[str], candidate: int = 0
+) -> tuple[Assembly, list[str], int]:
+    """Add ``key`` docked onto ``target`` (candidate ``candidate`` modulo the number of candidates);
+    returns the assembly, the new part's path and the number of candidates (0: nothing fits)."""
+    options = attach_candidates(assembly, cat, key, target)
+    if not options:
+        return assembly, [], 0
+    c = options[candidate % len(options)]
+    assembly, path = add(
+        assembly, cat, key, (float(c.position[0]), float(c.position[1]), float(c.position[2]))
+    )
+    sub, inst = _parent_and_item(assembly, path)
+    inst = inst.model_copy(
+        update={"pose": Pose(position=inst.pose.position, orientation=_quat(c.rotation))}
+    )
+    assembly = _with_item(assembly, sub, inst, inst.id)
+    conn = Connection(
+        a=ConnectorPath(instances=path, connector=c.connector),
+        b=ConnectorPath(instances=target, connector=c.target_connector),
+    )
+    assembly = assembly.model_copy(update={"connections": [*assembly.connections, conn]})
+    return assembly, path, len(options)

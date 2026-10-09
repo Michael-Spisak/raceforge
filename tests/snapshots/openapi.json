@@ -98,6 +98,7 @@
             "$ref": "#/components/schemas/EditOp",
             "default": {
               "axis": "z",
+              "candidate": 0,
               "delta": [
                 0.0,
                 0.0,
@@ -146,6 +147,11 @@
                 "type": "null"
               }
             ]
+          },
+          "candidates": {
+            "default": 0,
+            "title": "Candidates",
+            "type": "integer"
           },
           "derived": {
             "additionalProperties": true,
@@ -878,6 +884,12 @@
             "title": "Axis",
             "type": "string"
           },
+          "candidate": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Candidate",
+            "type": "integer"
+          },
           "delta": {
             "default": [
               0.0,
@@ -921,7 +933,8 @@
               "add",
               "snap",
               "duplicate",
-              "mirror"
+              "mirror",
+              "attach"
             ],
             "title": "Kind",
             "type": "string"
