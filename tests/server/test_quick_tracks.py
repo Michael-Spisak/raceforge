@@ -55,7 +55,6 @@ def test_laps_and_obstacles() -> None:
     assert c.track.race_setups[0].laps == 2 and c.track.objects[0].class_id == "bin"
 
 
-<<<<<<< HEAD
 def test_edited_track_roundtrip_and_race(client: TestClient) -> None:
     """Spec 0020: edited setup is saved, validated and raced on."""
     edit = {
@@ -73,13 +72,19 @@ def test_edited_track_roundtrip_and_race(client: TestClient) -> None:
         "quick_track": "edited",
         "speed": 1000,
     }
-=======
+    with client.websocket_connect("/api/v1/sim") as ws:
+        ws.send_json(start)
+        msg = ws.receive_json()
+        while msg["type"] != "result":
+            msg = ws.receive_json()
+    assert msg["finished"], msg
+
+
 def test_sim_start_with_battery(client: TestClient) -> None:
     """Spec 0021: the battery option reaches the sim and the car still finishes."""
     start = {"controller": str(TEMPLATES_DIR / "centering.py"), "battery": True, "speed": 1000}
     client.put("/api/v1/tracks/quick/b", json=RECT)
     start["quick_track"] = "b"
->>>>>>> 53f1fd1 (Spec 0021: battery and power model in the simulator)
     with client.websocket_connect("/api/v1/sim") as ws:
         ws.send_json(start)
         msg = ws.receive_json()
