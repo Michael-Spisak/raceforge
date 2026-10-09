@@ -9,7 +9,7 @@ type EditorPartView = Schemas["EditorPartView"];
 
 const pathKey = (p: readonly string[]) => p.join("/");
 
-function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartView; selected: boolean; flagged: boolean; onSelect: (path: string[]) => void }) {
+function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartView; selected: boolean; flagged: boolean; onSelect: (path: string[], additive: boolean) => void }) {
   const [object, setObject] = useState<Group | null>(null);
   useEffect(() => {
     let alive = true;
@@ -24,7 +24,7 @@ function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartVie
   const size: [number, number, number] = [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]];
   const click = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    onSelect(part.path);
+    onSelect(part.path, e.nativeEvent.shiftKey);
   };
   return (
     <group position={part.pos} quaternion={toThreeQuat(part.quat)} onClick={click}>
@@ -49,16 +49,17 @@ function EditorPart({ part, selected, flagged, onSelect }: { part: EditorPartVie
 /** Parts of the edited assembly; click selects (spec 0015). Connectors of the selection are dots. */
 export function EditorParts({ parts, selected, flagged, onSelect }: {
   parts: EditorPartView[];
-  selected: string[] | null;
+  selected: string[][];
   flagged?: ReadonlySet<string>; // path keys drawn in red (overlaps, rule violations)
-  onSelect: (path: string[]) => void;
+  onSelect: (path: string[], additive: boolean) => void;
 }) {
-  const sel = selected ? pathKey(selected) : "";
-  const current = parts.find((p) => pathKey(p.path) === sel);
+  const keys = new Set(selected.map(pathKey));
+  const last = selected[selected.length - 1];
+  const current = last ? parts.find((p) => pathKey(p.path) === pathKey(last)) : undefined;
   return (
     <group>
       {parts.map((p) => (
-        <EditorPart key={pathKey(p.path)} part={p} selected={pathKey(p.path) === sel} flagged={!!flagged?.has(pathKey(p.path))} onSelect={onSelect} />
+        <EditorPart key={pathKey(p.path)} part={p} selected={keys.has(pathKey(p.path))} flagged={!!flagged?.has(pathKey(p.path))} onSelect={onSelect} />
       ))}
       {current?.connectors.map((c) => (
         <mesh key={c.id} position={c.pos}>

@@ -85,3 +85,36 @@ def test_edited_car_drives_in_the_sim() -> None:
         while msg["type"] != "result":
             msg = ws.receive_json()
     assert msg["finished"], msg
+
+
+def test_group_rotate_duplicate_and_mirror() -> None:
+    client = TestClient(create_app(Engine(), frontend_dist=None))
+    base = _edit(client, client.post("/api/v1/quickstart", json={}).json()["assembly"])
+    left = _edit(client, base["assembly"], kind="add", key="32524", position=[0.0, 0.2, 0.3])
+    pinned = _edit(
+        client, left["assembly"], kind="add", key="2780", position=[0.0, 0.2 - 0.024, 0.3]
+    )
+    group = [left["selected"], pinned["selected"]]
+    n = len(pinned["parts"])
+
+    def pos(view: dict[str, Any], path: list[str]) -> list[float]:
+        return next(p["pos"] for p in view["parts"] if p["path"] == path)
+
+    # A quarter turn of the group about z keeps the distance between the two parts.
+    turned = _edit(client, pinned["assembly"], kind="rotate", paths=group, axis="z", turns=1)
+    gap = [a - b for a, b in zip(pos(turned, group[0]), pos(turned, group[1]), strict=True)]
+    gap0 = [a - b for a, b in zip(pos(pinned, group[0]), pos(pinned, group[1]), strict=True)]
+    assert abs(sum(g * g for g in gap) - sum(g * g for g in gap0)) < 1e-12
+    assert abs(gap[0] + gap0[1]) < 1e-9 and abs(gap[1] - gap0[0]) < 1e-9  # (x, y) -> (-y, x)
+
+    dup = _edit(client, pinned["assembly"], kind="duplicate", paths=group, delta=[0.1, 0, 0])
+    assert len(dup["parts"]) == n + 2 and len(dup["selected_many"]) == 2
+    copy = dup["selected_many"][0]
+    assert abs(pos(dup, copy)[0] - pos(pinned, group[0])[0] - 0.1) < 1e-9
+
+    mirrored = _edit(client, pinned["assembly"], kind="mirror", paths=group, axis="y")
+    m = mirrored["selected_many"][0]
+    assert abs(pos(mirrored, m)[1] + pos(pinned, group[0])[1]) < 1e-9
+
+    gone = _edit(client, dup["assembly"], kind="delete", paths=dup["selected_many"])
+    assert len(gone["parts"]) == n and gone["problems"] == []

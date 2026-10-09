@@ -936,6 +936,7 @@ export interface components {
              *       ],
              *       "kind": "none",
              *       "path": [],
+             *       "paths": [],
              *       "position": [
              *         0,
              *         0,
@@ -979,6 +980,11 @@ export interface components {
             rules: components["schemas"]["RuleCheck"][];
             /** Selected */
             selected?: string[] | null;
+            /**
+             * Selected Many
+             * @default []
+             */
+            selected_many: string[][];
             snapped?: components["schemas"]["SnapInfo"] | null;
             /** Warnings */
             warnings: components["schemas"]["Warning"][];
@@ -1261,12 +1267,17 @@ export interface components {
              * @default none
              * @enum {string}
              */
-            kind: "none" | "move" | "rotate" | "delete" | "add" | "snap";
+            kind: "none" | "move" | "rotate" | "delete" | "add" | "snap" | "duplicate" | "mirror";
             /**
              * Path
              * @default []
              */
             path: string[];
+            /**
+             * Paths
+             * @default []
+             */
+            paths: string[][];
             /**
              * Position
              * @default [

@@ -15,13 +15,16 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
   `POST /api/v1/workspace/save/assembly`, a parts editor in the Construct tab (click/list selection, keyboard
   moves on the stud grid with 1-LDU fine steps, 90° turns, delete, add from the catalogue, quick snap,
   undo/redo, live derived data and validation problems, save as version).
-- Out of scope (later parts): gizmo dragging, multi-select, submodel creation/linking/mirroring UI,
+- Part C (added 2026-10-09): multi-select (Shift+click), group move/turn (about the selection's pivot on the
+  LDU grid)/delete, duplicate (Ctrl+D, with the connections between the copied parts), mirror copy (M, across the
+  XZ plane: position y → −y, rotation M·R·M — exact for parts symmetric to their own mirror plane).
+- Out of scope (later parts): gizmo dragging, submodel creation/linking UI,
   precision snap (pick A then B), rule checker and budget panel, overlap highlighting, gears/kinematics,
   custom parts, MPD export of edited assemblies.
 
 ## Interfaces (additive)
 - `POST /api/v1/assembly/edit` — `AssemblyEditRequest {assembly, quickstart (drives/steering for derived
-  data), op: EditOp {kind: none|move|rotate|delete|add|snap, path, delta (m, world), axis, turns, key,
+  data), op: EditOp {kind: none|move|rotate|delete|add|snap|duplicate|mirror, path, paths (selection), delta (m, world), axis, turns, key,
   position}, snap: bool}` → `AssemblyEditResponse {assembly, parts: [EditorPartView{path, key, name,
   ldraw_id, category, color, pos, quat, bbox, mirrored, linked, connectors (world)}], derived, warnings,
   problems, selected, snapped?}`. Unknown parts/paths → 422.
@@ -45,4 +48,6 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
   (catalogue part, new id) work through the API on the quick-start car.
 - [ ] AC2: A pin dropped 3 mm beside a free beam's hole snaps onto the hole axis and records one connection.
 - [ ] AC2b: A car edited in the editor (a part deleted) drives and finishes a race in the sim.
+- [ ] AC2c: A group of two parts turned 90° about z keeps their distance ((x, y) → (−y, x)); duplicate adds the
+  copies at the offset; a mirror copy has y → −y; deleting the copies restores the part count without problems.
 - [ ] AC3: The editor in the app selects, moves, undoes and deletes parts (manual check by the owner).
