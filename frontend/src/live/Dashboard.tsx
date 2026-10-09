@@ -67,6 +67,7 @@ export function Dashboard({ frame, lastFrameAt, rtt, onEvent }: Props) {
   }, []);
 
   const f = frame;
+  const pose = poseOf(f);
   const now = lastFrameAt || Date.now();
   const rate = f?.loop?.rate_hz;
   const battery = f?.power?.ev3_battery_v ?? f?.power?.motor_battery_v;
@@ -134,7 +135,7 @@ export function Dashboard({ frame, lastFrameAt, rtt, onEvent }: Props) {
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           <Radar frame={f} />
-          {poseOf(f) && <TrackMap track={track} trail={trail.current} pose={poseOf(f)!.pose} confidence={poseOf(f)!.confidence} />}
+          {pose && <TrackMap track={track} trail={trail.current} pose={pose.pose} confidence={pose.confidence} />}
         </div>
       </div>
     </div>
