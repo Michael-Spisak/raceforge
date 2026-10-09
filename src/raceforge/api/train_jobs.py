@@ -5,6 +5,7 @@ only coordinates and keeps the progress the UI polls. Cancel takes effect after 
 race/trial.
 """
 
+import builtins
 import threading
 import time
 import uuid
@@ -12,6 +13,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 from raceforge.api.models import (
+    RecordingInfo,
+    TrainBCRequest,
     TrainBenchRequest,
     TrainJob,
     TrainRace,
@@ -24,6 +27,13 @@ from raceforge.api.train import BenchConfig, RunResult, Trial, TuneConfig, bench
 from raceforge.control.controller import load_controller_class
 
 MAX_JOBS = 20
+
+
+def runs_dir() -> Path:
+    """Recorded runs (MCAP) of the Simulate tab, e.g. teleop demonstrations (spec 0023)."""
+    from raceforge.api.workspace import default_root
+
+    return default_root().parent / "runs"
 
 
 def policies_dir() -> Path:
@@ -190,6 +200,105 @@ class TrainJobs:
                 job.id,
                 "done",
                 steps_done=res.steps,
+                out=str(out),
+                score=v.score if v else None,
+                finished_rate=v.finished_rate if v else None,
+                runs=[_run(r) for r in v.runs] if v else [],
+            )
+
+        self._thread(job.id, work)
+        return job
+
+    def recordings(self) -> "builtins.list[RecordingInfo]":
+        from raceforge.api.train import summarise
+
+        out: list[RecordingInfo] = []
+        folder = runs_dir()
+        for p in sorted(folder.glob("*.mcap"), key=lambda q: q.stat().st_mtime, reverse=True):
+            try:
+                r = summarise(p)
+                out.append(
+                    RecordingInfo(
+                        path=str(p),
+                        name=p.name,
+                        frames=r.frames,
+                        demo_frames=r.demo_frames,
+                        duration_s=round(r.duration_s, 2),
+                        modified=p.stat().st_mtime,
+                    )
+                )
+            except Exception as e:  # a damaged or half-written file must not hide the others
+                out.append(
+                    RecordingInfo(
+                        path=str(p),
+                        name=p.name,
+                        frames=0,
+                        demo_frames=0,
+                        duration_s=0,
+                        modified=p.stat().st_mtime,
+                        error=f"{type(e).__name__}: {e}"[:200],
+                    )
+                )
+        return out
+
+    def start_bc(self, req: TrainBCRequest) -> TrainJob:
+        """Behaviour cloning from recorded drives (spec 0023); needs torch (extra ``rl``)."""
+        try:
+            import torch  # noqa: F401  # pyright: ignore[reportMissingImports, reportUnusedImport]
+        except ImportError as e:
+            raise ValueError(
+                "imitation learning needs the optional extra: uv sync --extra rl"
+            ) from e
+        from raceforge.api.train import (
+            DEMO_STATES,
+            ONNX_TEMPLATE,
+            BCConfig,
+            BCProgress,
+            sim_robot_info,
+            summarise,
+            train_bc,
+        )
+
+        files = [Path(p).expanduser() for p in req.recordings] or sorted(runs_dir().glob("*.mcap"))
+        missing = [str(p) for p in files if not p.is_file()]
+        if missing or not files:
+            raise ValueError(f"recordings not found: {', '.join(missing) or 'none recorded yet'}")
+        states: tuple[str, ...] = DEMO_STATES
+        if req.all_states:
+            found: set[str] = set()
+            from raceforge.sim.record import read_frames
+
+            for p in files:
+                found |= {f.state for f in read_frames(p)}
+            states = tuple(sorted(found))
+        if sum(summarise(p, states).demo_frames for p in files) < 20:
+            raise ValueError(
+                "fewer than 20 demonstration frames: drive with teleop and record the run"
+            )
+        bench = _bench(req.race)
+        out = (
+            Path(req.out).expanduser()
+            if req.out
+            else policies_dir() / f"bc-{int(time.time())}.yaml"
+        )
+        job = self._start("bc", str(ONNX_TEMPLATE), req.epochs)
+
+        def progress(p: BCProgress) -> None:
+            self._update(job.id, steps_done=p.epoch, val_loss=p.val_loss)
+
+        def work() -> None:
+            res = train_bc(
+                files,
+                sim_robot_info(),
+                BCConfig(epochs=req.epochs, states=states, bench=bench, out=out),
+                progress,
+            )
+            v = res.validation
+            self._finish(
+                job.id,
+                "done",
+                steps_done=req.epochs,
+                val_loss=res.val_loss,
                 out=str(out),
                 score=v.score if v else None,
                 finished_rate=v.finished_rate if v else None,

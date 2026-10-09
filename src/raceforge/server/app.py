@@ -48,6 +48,7 @@ from raceforge.api.models import (
     QuickTrackInfo,
     QuickTrackPreview,
     ReceiveRequest,
+    RecordingInfo,
     ReplayRequest,
     ReplaySummary,
     SaveAssembly,
@@ -64,6 +65,7 @@ from raceforge.api.models import (
     TeamJobRequest,
     TokenRequest,
     TrackScoutPairing,
+    TrainBCRequest,
     TrainBenchRequest,
     TrainJob,
     TrainRLRequest,
@@ -563,6 +565,21 @@ def create_app(
         """Start PPO training (spec 0022); needs the optional extra ``rl``."""
         try:
             return train_jobs.start_rl(req)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/api/v1/train/recordings")
+    def train_recordings() -> list[RecordingInfo]:
+        """Recorded runs (e.g. teleop demonstrations) in the engine's runs folder (spec 0023)."""
+        return train_jobs.recordings()
+
+    @app.post("/api/v1/train/bc")
+    def train_bc(req: TrainBCRequest) -> TrainJob:
+        """Learn a policy from recorded drives (behaviour cloning, spec 0023)."""
+        try:
+            return train_jobs.start_bc(req)
         except RuntimeError as exc:
             raise HTTPException(409, str(exc)) from exc
         except ValueError as exc:

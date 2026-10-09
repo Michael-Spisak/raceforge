@@ -28,7 +28,7 @@ export function LocalWorkerPanel() {
     workspace.setLocalWorker({ enabled, policy }).then(setSt).catch((e: unknown) => setError(message(e)));
   };
   const p = st.policy;
-  const win = p.schedule[0] ?? { days: ["mon", "tue", "wed", "thu", "fri"] as Day[], start: "18:00", end: "07:00" };
+  const win = p.schedule?.[0] ?? { days: ["mon", "tue", "wed", "thu", "fri"] as Day[], start: "18:00", end: "07:00" };
   const setWin = (w: Partial<typeof win>) => save(st.enabled, { ...p, schedule: [{ ...win, ...w }] });
 
   return (
@@ -72,7 +72,7 @@ export function LocalWorkerPanel() {
         {st.available ? t("worker.ready") : t(`worker.reason_${st.reason || "paused"}`)}
         {st.name && ` · ${st.name}`}
       </p>
-      {st.enabled && st.log.length > 0 && <pre className="muted" style={{ maxHeight: 120, overflow: "auto" }}>{st.log.slice(-8).join("\n")}</pre>}
+      {st.enabled && (st.log ?? []).length > 0 && <pre className="muted" style={{ maxHeight: 120, overflow: "auto" }}>{(st.log ?? []).slice(-8).join("\n")}</pre>}
       <p className="muted">{t("worker.help")}</p>
       {error && <p className="error">{error}</p>}
     </div>
