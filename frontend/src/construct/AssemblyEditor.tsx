@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, api, type PartSummary, type QuickStartParams, type Schemas, versionLabel, workspace } from "../api/client";
 import { formatLength, useSettings } from "../store/settings";
+import { useEditedCar } from "../store/editedCar";
 import { useWorkspace } from "../store/workspace";
 import { EditorParts } from "../three/EditorParts";
 import { Viewport } from "../three/Viewport";
@@ -38,6 +39,7 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const busy = useRef(false);
+  const publish = useEditedCar((s) => s.set);
 
   const run = useCallback((assembly: Assembly, op: EditOp, record: boolean) => {
     if (busy.current) return;
@@ -50,12 +52,13 @@ export function AssemblyEditor({ start, params, onExit }: { start: Assembly; par
           setRedo([]);
         }
         setView(r);
+        if (!r.problems.length) publish(r.assembly, params);
         if (op.kind && op.kind !== "none") setSelected(r.selected ?? null);
         setNote(r.snapped ? t("editor.snapped", { a: r.snapped.connector, b: r.snapped.target.join(" / ") }) : "");
       })
       .catch((e: unknown) => setError(message(e)))
       .finally(() => { busy.current = false; });
-  }, [params, snapOn, view, t]);
+  }, [params, snapOn, view, t, publish]);
 
   useEffect(() => {
     run(start, { kind: "none" }, false);

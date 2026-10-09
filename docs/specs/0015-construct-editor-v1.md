@@ -17,7 +17,7 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
   undo/redo, live derived data and validation problems, save as version).
 - Out of scope (later parts): gizmo dragging, multi-select, submodel creation/linking/mirroring UI,
   precision snap (pick A then B), rule checker and budget panel, overlap highlighting, gears/kinematics,
-  custom parts, import/export of edited assemblies to MJCF/MPD (assembly → MJCF is weeks 8–9).
+  custom parts, MPD export of edited assemblies.
 
 ## Interfaces (additive)
 - `POST /api/v1/assembly/edit` — `AssemblyEditRequest {assembly, quickstart (drives/steering for derived
@@ -26,6 +26,9 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
   ldraw_id, category, color, pos, quat, bbox, mirrored, linked, connectors (world)}], derived, warnings,
   problems, selected, snapped?}`. Unknown parts/paths → 422.
 - `POST /api/v1/workspace/save/assembly {slug, assembly, message}` → `LocalVersion` (validated first).
+- `SimStart.assembly: dict | null`: race the edited car as "ego" (bodies and joints come from its connection
+  graph and joint roles; drives and steering motor from `SimStart.quickstart`). The Simulate tab offers
+  "car from the Construct editor" while the editor has a valid car open (session only).
 
 ## Behaviour
 - Parts are addressed by their instance chain (`path`). Moves and turns are given in world axes and converted
@@ -41,4 +44,5 @@ wheelbase, warnings) updated after every edit. The Assembly stays the single sou
 - [ ] AC1: Move (world delta), rotate (90°), delete (connections removed, no validation problems), add
   (catalogue part, new id) work through the API on the quick-start car.
 - [ ] AC2: A pin dropped 3 mm beside a free beam's hole snaps onto the hole axis and records one connection.
+- [ ] AC2b: A car edited in the editor (a part deleted) drives and finishes a race in the sim.
 - [ ] AC3: The editor in the app selects, moves, undoes and deletes parts (manual check by the owner).

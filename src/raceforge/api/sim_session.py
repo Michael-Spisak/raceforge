@@ -22,6 +22,8 @@ from raceforge.construct.quickstart import QuickStartParams, generate, vehicle_s
 from raceforge.control.controller import Controller, load_controller
 from raceforge.control.params import ControllerParams
 from raceforge.control.types import Command, Observation
+from raceforge.core.assembly import Assembly
+from raceforge.core.io import load_as
 from raceforge.sim.engine import Simulation
 from raceforge.sim.runner import SIM_SENSORS
 from raceforge.sim.simio import RaceSession
@@ -104,7 +106,12 @@ class SimSession:
             track = track.model_copy(
                 update={"race_setups": [setup.model_copy(update={"laps": start.laps})]}
             )
-        entries = [CarEntry("ego", car.assembly, spec, 0)]
+        ego = car.assembly
+        if start.assembly is not None:
+            # The edited car; drives and steering motor still come from the quick-start fields.
+            ego = load_as(Assembly, start.assembly)
+            ego.validate_against_parts(cat.parts_by_hash())
+        entries = [CarEntry("ego", ego, spec, 0)]
         entries += [
             CarEntry(f"opp{i + 1}", car.assembly, spec, i + 1, True) for i in range(start.opponents)
         ]
