@@ -4,6 +4,66 @@
  */
 
 export interface paths {
+    "/api/v1/car/bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Car Bundle
+         * @description Build a test-mode deploy bundle (spec 0012).
+         */
+        post: operations["car_bundle_api_v1_car_bundle_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/car/deploy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Car Deploy Bundle
+         * @description Install a bundle over SSH or write it to a USB stick (spec 0012).
+         */
+        post: operations["car_deploy_bundle_api_v1_car_deploy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/car/deploy/usb-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Car Usb Result
+         * @description What the car wrote back to the stick (null: not plugged into a car yet).
+         */
+        get: operations["car_usb_result_api_v1_car_deploy_usb_result_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/car/pairing-code": {
         parameters: {
             query?: never;
@@ -655,6 +715,44 @@ export interface components {
             /** User */
             user: string;
         };
+        /** BundleInfo */
+        BundleInfo: {
+            /** Car Name */
+            car_name: string;
+            /** Controller */
+            controller: string;
+            /** Digest */
+            digest: string;
+            /** Mode */
+            mode: string;
+            /** Name */
+            name: string;
+            /** Params */
+            params?: string | null;
+            /** Path */
+            path: string;
+            /** Speed Limit M S */
+            speed_limit_m_s?: number | null;
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: string[];
+        };
+        /**
+         * BundleRequest
+         * @description Build a test-mode bundle: controller file + optional params + car config (spec 0012).
+         */
+        BundleRequest: {
+            /** Car Config */
+            car_config: string;
+            /** Controller */
+            controller: string;
+            /** Name */
+            name?: string | null;
+            /** Params */
+            params?: string | null;
+        };
         /** CarPairingCode */
         CarPairingCode: {
             /** Code */
@@ -785,6 +883,26 @@ export interface components {
             track: {
                 [key: string]: unknown;
             };
+        };
+        /** DeployRequest */
+        DeployRequest: {
+            /** Bundle */
+            bundle: string;
+            /** Host */
+            host?: string | null;
+            /** Stick */
+            stick?: string | null;
+            /**
+             * Target
+             * @enum {string}
+             */
+            target: "ssh" | "usb";
+        };
+        /** DeployResponse */
+        DeployResponse: {
+            result?: components["schemas"]["InstallResult"] | null;
+            /** Usb Path */
+            usb_path?: string | null;
         };
         /** EgoView */
         EgoView: {
@@ -949,6 +1067,32 @@ export interface components {
             state: "receiving" | "waiting" | "uploading" | "uploaded" | "local_only";
             /** Version */
             version?: string | null;
+        };
+        /**
+         * InstallResult
+         * @description What the board's installer reports (one JSON line; ``result.json`` on a USB stick).
+         */
+        InstallResult: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Digest */
+            digest?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Previous */
+            previous?: string | null;
+            /**
+             * Rolled Back
+             * @default false
+             */
+            rolled_back: boolean;
+            /** Service */
+            service?: ("running" | "waiting" | "failed" | "unknown") | null;
         };
         /** InviteInfo */
         InviteInfo: {
@@ -1766,6 +1910,103 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    car_bundle_api_v1_car_bundle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    car_deploy_bundle_api_v1_car_deploy_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeployRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeployResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    car_usb_result_api_v1_car_deploy_usb_result_get: {
+        parameters: {
+            query: {
+                stick: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallResult"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     car_pairing_code_api_v1_car_pairing_code_post: {
         parameters: {
             query?: never;

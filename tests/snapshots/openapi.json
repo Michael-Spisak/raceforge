@@ -86,6 +86,119 @@
         "title": "ApiTokenInfo",
         "type": "object"
       },
+      "BundleInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "car_name": {
+            "title": "Car Name",
+            "type": "string"
+          },
+          "controller": {
+            "title": "Controller",
+            "type": "string"
+          },
+          "digest": {
+            "title": "Digest",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "speed_limit_m_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed Limit M S"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "name",
+          "digest",
+          "controller",
+          "car_name",
+          "mode"
+        ],
+        "title": "BundleInfo",
+        "type": "object"
+      },
+      "BundleRequest": {
+        "additionalProperties": false,
+        "description": "Build a test-mode bundle: controller file + optional params + car config (spec 0012).",
+        "properties": {
+          "car_config": {
+            "minLength": 1,
+            "title": "Car Config",
+            "type": "string"
+          },
+          "controller": {
+            "minLength": 1,
+            "title": "Controller",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params"
+          }
+        },
+        "required": [
+          "controller",
+          "car_config"
+        ],
+        "title": "BundleRequest",
+        "type": "object"
+      },
       "CarPairingCode": {
         "additionalProperties": false,
         "properties": {
@@ -345,6 +458,80 @@
           "centreline"
         ],
         "title": "CorridorResponse",
+        "type": "object"
+      },
+      "DeployRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle": {
+            "minLength": 1,
+            "title": "Bundle",
+            "type": "string"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "stick": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stick"
+          },
+          "target": {
+            "enum": [
+              "ssh",
+              "usb"
+            ],
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bundle",
+          "target"
+        ],
+        "title": "DeployRequest",
+        "type": "object"
+      },
+      "DeployResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstallResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usb_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usb Path"
+          }
+        },
+        "title": "DeployResponse",
         "type": "object"
       },
       "EgoView": {
@@ -749,6 +936,80 @@
           "slug"
         ],
         "title": "InboxPass",
+        "type": "object"
+      },
+      "InstallResult": {
+        "description": "What the board's installer reports (one JSON line; ``result.json`` on a USB stick).",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous"
+          },
+          "rolled_back": {
+            "default": false,
+            "title": "Rolled Back",
+            "type": "boolean"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "enum": [
+                  "running",
+                  "waiting",
+                  "failed",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "InstallResult",
         "type": "object"
       },
       "InviteInfo": {
@@ -2920,6 +3181,132 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/car/bundle": {
+      "post": {
+        "description": "Build a test-mode deploy bundle (spec 0012).",
+        "operationId": "car_bundle_api_v1_car_bundle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Car Bundle"
+      }
+    },
+    "/api/v1/car/deploy": {
+      "post": {
+        "description": "Install a bundle over SSH or write it to a USB stick (spec 0012).",
+        "operationId": "car_deploy_bundle_api_v1_car_deploy_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeployRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeployResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Car Deploy Bundle"
+      }
+    },
+    "/api/v1/car/deploy/usb-result": {
+      "get": {
+        "description": "What the car wrote back to the stick (null: not plugged into a car yet).",
+        "operationId": "car_usb_result_api_v1_car_deploy_usb_result_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "stick",
+            "required": true,
+            "schema": {
+              "title": "Stick",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InstallResult"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Car Usb Result Api V1 Car Deploy Usb Result Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Car Usb Result"
+      }
+    },
     "/api/v1/car/pairing-code": {
       "post": {
         "description": "QR code that pairs TrackScout's drive mode with a car (spec 0010 C).",
