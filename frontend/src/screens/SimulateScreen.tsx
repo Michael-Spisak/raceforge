@@ -13,7 +13,7 @@ import { TrackModel } from "../three/TrackModel";
 import { Viewport } from "../three/Viewport";
 import { TeleopPanel } from "../teleop/TeleopPanel";
 
-function Cars({ cars, history }: { cars: NonNullable<ReturnType<typeof useSimulation>["scene"]>["cars"]; history: RefObject<TimedPoses[]> }) {
+function Cars({ cars, history, onPick }: { cars: NonNullable<ReturnType<typeof useSimulation>["scene"]>["cars"]; history: RefObject<TimedPoses[]>; onPick: (car: string) => void }) {
   const [poses, setPoses] = useState<Record<string, Record<string, Pose>>>({});
   const clock = useRef<{ wall: number; sim: number } | null>(null);
   useFrame(() => {
@@ -26,20 +26,45 @@ function Cars({ cars, history }: { cars: NonNullable<ReturnType<typeof useSimula
     const t = a.t + Math.min(1, (now - clock.current.wall) * 30) * (b.t - a.t);
     setPoses(interpolate(a, b, t));
   });
-  return <>{cars.map((c) => <CarModel key={c.name} car={c} poses={poses[c.name]} />)}</>;
+  return (
+    <>
+      {cars.map((c) => (
+        <group key={c.name} onClick={(e) => { e.stopPropagation(); onPick(c.name); }}>
+          <CarModel car={c} poses={poses[c.name]} />
+        </group>
+      ))}
+    </>
+  );
 }
 
-function Follow({ frame, enabled, controls }: { frame: FrameMessage | null; enabled: boolean; controls: RefObject<OrbitControlsImpl | null> }) {
-  const tmp = useRef(new Vector3());
+/**
+ * Keeps the camera on ``car`` while the user orbits freely: only the car's movement is added to the
+ * camera and its target, so the chosen viewing angle and distance stay. A new car gets a start view
+ * behind it once.
+ */
+function Follow({ frame, car, enabled, controls }: { frame: FrameMessage | null; car: string; enabled: boolean; controls: RefObject<OrbitControlsImpl | null> }) {
+  const last = useRef<{ car: string; x: number; y: number } | null>(null);
+  const delta = useRef(new Vector3());
   useFrame(({ camera }) => {
-    const c = frame?.bodies["ego"]?.["chassis"];
-    if (!enabled || !c || !controls.current) return;
+    const c = frame?.bodies[car]?.["chassis"];
+    const ctl = controls.current;
+    if (!enabled || !c || !ctl) {
+      last.current = null;
+      return;
+    }
     const [x, y] = c[0];
-    const [w, , , z] = c[1];
-    const yaw = 2 * Math.atan2(z, w);
-    controls.current.target.set(x, y, 0.05);
-    tmp.current.set(x - Math.cos(yaw) * 0.8, y - Math.sin(yaw) * 0.8, 0.9);
-    camera.position.lerp(tmp.current, 0.1);
+    if (!last.current || last.current.car !== car) {
+      const [w, , , z] = c[1];
+      const yaw = 2 * Math.atan2(z, w);
+      ctl.target.set(x, y, 0.05);
+      camera.position.set(x - Math.cos(yaw) * 0.8, y - Math.sin(yaw) * 0.8, 0.9);
+    } else {
+      delta.current.set(x - last.current.x, y - last.current.y, 0);
+      ctl.target.add(delta.current);
+      camera.position.add(delta.current);
+    }
+    last.current = { car, x, y };
+    ctl.update();
   });
   return null;
 }
@@ -80,6 +105,7 @@ export function SimulateScreen() {
   const [useEdited, setUseEdited] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [follow, setFollow] = useState(true);
+  const [followCar, setFollowCar] = useState("ego");
   const [showSensors, setShowSensors] = useState(true);
   const [cut, setCut] = useState(true);
   const controls = useRef<OrbitControlsImpl | null>(null);
@@ -169,6 +195,14 @@ export function SimulateScreen() {
           </select>
         </div>
         <div className="field"><label><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> {t("simulate.follow")}</label></div>
+        {sim.scene && sim.scene.cars.length > 1 && (
+          <div className="field">
+            <label htmlFor="sim-follow-car">{t("simulate.follow_car")}</label>
+            <select id="sim-follow-car" data-testid="sim-follow-car" value={followCar} onChange={(e) => { setFollowCar(e.target.value); setFollow(true); }}>
+              {sim.scene.cars.map((c) => <option key={c.name} value={c.name}>{c.name === "ego" ? t("simulate.ego") : c.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="field"><label><input type="checkbox" checked={cut} onChange={(e) => setCut(e.target.checked)} /> {t("simulate.cutaway")}</label></div>
         <div className="field"><label><input type="checkbox" checked={showSensors} onChange={(e) => setShowSensors(e.target.checked)} /> {t("simulate.sensors")}</label></div>
         {running && (
@@ -200,10 +234,10 @@ export function SimulateScreen() {
         {sim.scene ? (
           <Viewport camera={[0, -2, 4]} target={[0, 0, 0]} controlsRef={controls} testId="sim-viewport">
             <TrackModel primitives={sim.scene.primitives} cut={cut} />
-            <Cars cars={sim.scene.cars} history={sim.history} />
+            <Cars cars={sim.scene.cars} history={sim.history} onPick={(c) => { setFollowCar(c); setFollow(true); }} />
             {sim.trail.length > 1 && <Line points={sim.trail.map(([x, y]) => [x, y, 0.005] as [number, number, number])} color="#cc79a7" lineWidth={2} />}
             {showSensors && <Sensors frame={f} />}
-            <Follow frame={f} enabled={follow} controls={controls} />
+            <Follow frame={f} car={followCar} enabled={follow} controls={controls} />
           </Viewport>
         ) : <div className="muted" style={{ padding: 24 }}>{sim.status === "connecting" ? t("common.loading") : ""}</div>}
         <div className="statusbar" data-testid="sim-status">
