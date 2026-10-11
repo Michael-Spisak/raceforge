@@ -14,6 +14,7 @@ interface Props {
   lastFrameAt: number;
   rtt: number | null;
   onEvent?: (e: CarEvent) => void;
+  silent?: boolean; // replay (spec 0034): no beeps
 }
 
 /** Pose from the frame, else from the controller's pose.* channels (spec 0029). */
@@ -27,7 +28,7 @@ function poseOf(f: CarFrame | null): { pose: { x: number; y: number; yaw: number
 }
 
 /** Live dashboard (spec 0027): health, plots, state timeline, top-down view, timer, alarms. */
-export function Dashboard({ frame, lastFrameAt, rtt, onEvent }: Props) {
+export function Dashboard({ frame, lastFrameAt, rtt, onEvent, silent = false }: Props) {
   const { t } = useTranslation();
   const plots = useRef(new Rolling(STATE_SPAN_MS));
   const trail = useRef<[number, number][]>([]);
@@ -54,7 +55,7 @@ export function Dashboard({ frame, lastFrameAt, rtt, onEvent }: Props) {
     prevFaults.current = frame.faults ?? [];
     const fresh = raised.filter((a) => a.key === "fault" || !active.some((x) => x.key === a.key));
     if (fresh.length) {
-      if (!muted) beep();
+      if (!muted && !silent) beep();
       for (const a of fresh) onEvent?.({ at: Date.now(), kind: t("dash.alarm"), detail: `${t(`dash.alarm_${a.key}`)}: ${a.value}` });
     }
     const keys = raised.map((a) => a.key).join();

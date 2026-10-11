@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 import { ApiError, api, type ReplaySummary } from "../api/client";
+import { RunPlayer } from "../replay/RunPlayer";
+import { useWorkspace } from "../store/workspace";
 
 function Plot({ title, t, series }: { title: string; t: number[]; series: { label: string; values: (number | null)[]; color: string }[] }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -41,6 +43,7 @@ export function ReplayScreen({ initialPath = "" }: { initialPath?: string }) {
   const [path, setPath] = useState(initialPath);
   const [data, setData] = useState<ReplaySummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loggedIn = !!useWorkspace((st) => st.status?.logged_in && st.status.workspace);
 
   const open = () => {
     setError(null);
@@ -65,6 +68,7 @@ export function ReplayScreen({ initialPath = "" }: { initialPath?: string }) {
         {data && <><h4>{t("replay.trajectory")}</h4><Trajectory points={data.truth_xy} /></>}
       </aside>
       <section className="main" style={{ overflow: "auto", display: "block" }}>
+        {loggedIn && !data && <RunPlayer />}
         {data && (
           <>
             <Plot title={t("replay.steering")} t={data.t} series={[{ label: "cmd", values: data.steering_cmd, color: "#0072b2" }]} />

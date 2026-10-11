@@ -4648,6 +4648,114 @@
         "title": "RuleCheck",
         "type": "object"
       },
+      "RunInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "drive": {
+            "title": "Drive",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "run": {
+            "title": "Run",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run",
+          "message",
+          "created_at",
+          "drive"
+        ],
+        "title": "RunInfo",
+        "type": "object"
+      },
+      "RunTimeline": {
+        "additionalProperties": false,
+        "description": "A recorded drive for the replay player: frames thinned to ``max_hz``, times in s.",
+        "properties": {
+          "car": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "number"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "frames": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Frames",
+            "type": "array"
+          },
+          "moved_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moved S"
+          },
+          "notes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "run": {
+            "title": "Run",
+            "type": "string"
+          },
+          "t": {
+            "items": {
+              "type": "number"
+            },
+            "title": "T",
+            "type": "array"
+          }
+        },
+        "required": [
+          "run",
+          "car",
+          "duration_s",
+          "moved_s",
+          "t",
+          "frames",
+          "events",
+          "notes"
+        ],
+        "title": "RunTimeline",
+        "type": "object"
+      },
       "SaveAssembly": {
         "additionalProperties": false,
         "description": "An edited assembly (Construct editor, spec 0015) as a new version of an `assembly` object.",
@@ -9491,6 +9599,131 @@
           }
         },
         "summary": "Ws Register"
+      }
+    },
+    "/api/v1/workspace/runs": {
+      "get": {
+        "description": "Recorded test drives and Race Control results of the workspace, newest first.",
+        "operationId": "ws_runs_api_v1_workspace_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunInfo"
+                  },
+                  "title": "Response Ws Runs Api V1 Workspace Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ws Runs"
+      }
+    },
+    "/api/v1/workspace/runs/compare": {
+      "get": {
+        "description": "Summaries of two drives and ``b - a`` (spec 0028 summary).",
+        "operationId": "ws_runs_compare_api_v1_workspace_runs_compare_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "title": "A",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "title": "B",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Ws Runs Compare Api V1 Workspace Runs Compare Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Runs Compare"
+      }
+    },
+    "/api/v1/workspace/runs/{run}/timeline": {
+      "get": {
+        "operationId": "ws_run_timeline_api_v1_workspace_runs__run__timeline_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run",
+            "required": true,
+            "schema": {
+              "title": "Run",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_hz",
+            "required": false,
+            "schema": {
+              "default": 10.0,
+              "maximum": 50,
+              "minimum": 0.5,
+              "title": "Max Hz",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTimeline"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ws Run Timeline"
       }
     },
     "/api/v1/workspace/save/assembly": {

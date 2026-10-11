@@ -239,6 +239,13 @@ export function carSocketUrl(): string {
   return `${base.replace(/^http/, "ws")}/api/v1/car/live`;
 }
 
+/** Recorded drives of the team workspace (spec 0034). */
+export const runs = {
+  list: () => request<Schemas["RunInfo"][]>(`${W}/runs`),
+  timeline: (run: string, maxHz = 10) => request<Schemas["RunTimeline"]>(`${W}/runs/${encodeURIComponent(run)}/timeline?max_hz=${maxHz}`),
+  compare: (a: string, b: string) => request<{ a: Record<string, unknown>; b: Record<string, unknown>; b_minus_a: Record<string, number> }>(`${W}/runs/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`),
+};
+
 /** The team's cars and calibration (spec 0033). */
 export const fleet = {
   list: () => request<Schemas["FleetCar"][]>("/api/v1/cars"),

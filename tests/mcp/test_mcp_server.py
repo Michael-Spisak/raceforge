@@ -77,3 +77,23 @@ def test_run_log_summary(tmp_path: Path) -> None:
     assert abs(s["distance_m"] - 1.0) < 1e-6 and s["speed_max_m_s"] == 2.0
     assert s["faults"] == ["lidar"] and s["deadline_misses"] == 2
     assert set(s["state_seconds"]) == {"run", "stop"}
+
+
+def test_replay_timeline_thins_frames_and_keeps_events() -> None:
+    """Spec 0034 AC1."""
+    from raceforge.api.runs import timeline
+
+    rows = [json.dumps({"rx_t": 100.0, "msg": {"type": "hello", "car": "car-1"}})]
+    for i in range(100):  # 2 s at 50 Hz; moves from 0.5 s
+        frame = {"meas": {"speed_m_s": 0.0 if i < 25 else 0.4}}
+        rows.append(
+            json.dumps({"rx_t": 100.0 + i * 0.02, "msg": {"type": "telemetry", "frame": frame}})
+        )
+    rows.append(
+        json.dumps({"rx_t": 101.0, "msg": {"type": "event", "kind": "fault", "detail": "x"}})
+    )
+    tl = timeline(rows, [{"rx_t": 101.5, "text": "door 3"}], max_hz=10)
+    assert tl["car"] == "car-1" and 19 <= len(tl["frames"]) <= 21
+    assert tl["events"] == [{"t": 1.0, "kind": "fault", "detail": "x"}]
+    assert tl["notes"] == [{"t": 1.5, "text": "door 3"}]
+    assert tl["moved_s"] == 0.5
