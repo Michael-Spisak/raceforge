@@ -835,3 +835,24 @@ class CalibrationResult(ApiModel):
 
 class CarChanges(ApiModel):
     changes: dict[str, float]
+
+
+# ------------------------------------------------------------------ run replay (spec 0034)
+class RunInfo(ApiModel):
+    run: str  # slug of the `run` object
+    message: str
+    created_at: str
+    drive: bool  # has telemetry (a test drive); False: a Race Control result
+
+
+class RunTimeline(ApiModel):
+    """A recorded drive for the replay player: frames thinned to ``max_hz``, times in s."""
+
+    run: str
+    car: str | None
+    duration_s: float
+    moved_s: float | None  # when the car first moved (syncs two drives in a comparison)
+    t: list[float]
+    frames: list[dict[str, Any]]
+    events: list[dict[str, Any]]
+    notes: list[dict[str, Any]]

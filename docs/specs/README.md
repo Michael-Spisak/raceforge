@@ -36,3 +36,4 @@ Detail questions are asked just-in-time while writing each spec.
 | 0031 | Race start v1 (button, start cable) + Race Control (lights, timing, laps) | 10–11 | implemented |
 | 0032 | Quick-track walls from the scan (rays to the scanned walls, centred line) | 8–9 | approved |
 | 0033 | Fleet + calibration v1 (car configs, steering trim, straight/circle wizards) | 6–7 | implemented |
+| 0034 | Run replay v1: play back team drives, compare two drives | 6–7 | implemented |

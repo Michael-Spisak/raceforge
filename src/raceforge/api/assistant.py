@@ -27,13 +27,12 @@ from raceforge.api.models import (
     TrainRLRequest,
     TrainTuneRequest,
 )
-from raceforge.api.runs import compare, summarize_file
+from raceforge.api.runs import compare, run_log, summarize_file
 from raceforge.api.service import Engine
 from raceforge.api.tracks import QuickTracks, validation
 from raceforge.api.train import BenchConfig, benchmark
 from raceforge.api.train_jobs import TrainJobs
 from raceforge.api.workspace import WorkspaceApi, default_root
-from raceforge.backend.models import FileSetContent
 from raceforge.track.procedural import CorridorParams
 
 DRAFT = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
@@ -424,18 +423,11 @@ class Assistant:
         ]
 
     def get_run_summary(self, run: str) -> dict[str, Any]:
-        obj = next((o for o in self.ws.ws.objects("run") if o.slug == run), None)
-        if obj is None or obj.latest is None:
-            raise AssistantError(f"no run {run!r} (see list_runs)")
-        files = FileSetContent.model_validate(self.ws.ws.version_content(obj.latest.id)).files
-        by_name = {f.path: f for f in files}
-        log = by_name.get("telemetry.jsonl.gz")
-        if log is None:
-            raise AssistantError(f"run {run!r} has no telemetry.jsonl.gz")
-        notes: list[dict[str, Any]] = []
-        if "notes.json" in by_name:
-            notes = json.loads(self.ws.ws.blob(by_name["notes.json"].sha256).read_text("utf-8"))
-        return {"run": run, **summarize_file(self.ws.ws.blob(log.sha256), notes)}
+        try:
+            path, notes = run_log(self.ws.ws, run)
+        except ValueError as e:
+            raise AssistantError(f"{e} (see list_runs)") from e
+        return {"run": run, **summarize_file(path, notes)}
 
     def compare_runs(self, a: str, b: str) -> dict[str, Any]:
         return compare(self.get_run_summary(a), self.get_run_summary(b))

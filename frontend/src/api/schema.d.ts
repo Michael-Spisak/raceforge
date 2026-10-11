@@ -1117,6 +1117,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ws Runs
+         * @description Recorded test drives and Race Control results of the workspace, newest first.
+         */
+        get: operations["ws_runs_api_v1_workspace_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/runs/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ws Runs Compare
+         * @description Summaries of two drives and ``b - a`` (spec 0028 summary).
+         */
+        get: operations["ws_runs_compare_api_v1_workspace_runs_compare_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/runs/{run}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ws Run Timeline */
+        get: operations["ws_run_timeline_api_v1_workspace_runs__run__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/save/assembly": {
         parameters: {
             query?: never;
@@ -3230,6 +3287,45 @@ export interface components {
              * @default []
              */
             paths: string[][];
+        };
+        /** RunInfo */
+        RunInfo: {
+            /** Created At */
+            created_at: string;
+            /** Drive */
+            drive: boolean;
+            /** Message */
+            message: string;
+            /** Run */
+            run: string;
+        };
+        /**
+         * RunTimeline
+         * @description A recorded drive for the replay player: frames thinned to ``max_hz``, times in s.
+         */
+        RunTimeline: {
+            /** Car */
+            car: string | null;
+            /** Duration S */
+            duration_s: number;
+            /** Events */
+            events: {
+                [key: string]: unknown;
+            }[];
+            /** Frames */
+            frames: {
+                [key: string]: unknown;
+            }[];
+            /** Moved S */
+            moved_s: number | null;
+            /** Notes */
+            notes: {
+                [key: string]: unknown;
+            }[];
+            /** Run */
+            run: string;
+            /** T */
+            t: number[];
         };
         /**
          * SaveAssembly
@@ -6099,6 +6195,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_runs_api_v1_workspace_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunInfo"][];
+                };
+            };
+        };
+    };
+    ws_runs_compare_api_v1_workspace_runs_compare_get: {
+        parameters: {
+            query: {
+                a: string;
+                b: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ws_run_timeline_api_v1_workspace_runs__run__timeline_get: {
+        parameters: {
+            query?: {
+                max_hz?: number;
+            };
+            header?: never;
+            path: {
+                run: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunTimeline"];
                 };
             };
             /** @description Validation Error */

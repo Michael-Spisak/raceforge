@@ -62,6 +62,8 @@ from raceforge.api.models import (
     RecordingInfo,
     ReplayRequest,
     ReplaySummary,
+    RunInfo,
+    RunTimeline,
     SaveAssembly,
     SaveFiles,
     SaveQuickstart,
@@ -473,6 +475,47 @@ def create_app(
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+    # ---------------------------------------------------- run replay (spec 0034)
+    @app.get(f"{w}/runs")
+    def ws_runs() -> list[RunInfo]:
+        """Recorded test drives and Race Control results of the workspace, newest first."""
+        wsp = ws().ws
+        out = [
+            RunInfo(
+                run=o.slug,
+                message=o.latest.message,
+                created_at=o.latest.created_at.isoformat(),
+                drive=o.slug.startswith("live-"),
+            )
+            for o in wsp.objects("run")
+            if o.latest is not None
+        ]
+        return sorted(out, key=lambda r: r.created_at, reverse=True)
+
+    @app.get(f"{w}/runs/{{run}}/timeline")
+    def ws_run_timeline(
+        run: str, max_hz: Annotated[float, Query(ge=0.5, le=50)] = 10.0
+    ) -> RunTimeline:
+        from raceforge.api.runs import run_log, timeline_file
+
+        try:
+            path, notes = run_log(ws().ws, run)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        return RunTimeline(run=run, **timeline_file(path, notes, max_hz))
+
+    @app.get(f"{w}/runs/compare")
+    def ws_runs_compare(a: str, b: str) -> dict[str, Any]:
+        """Summaries of two drives and ``b - a`` (spec 0028 summary)."""
+        from raceforge.api.runs import compare, run_log, summarize_file
+
+        try:
+            sa = summarize_file(*run_log(ws().ws, a))
+            sb = summarize_file(*run_log(ws().ws, b))
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        return compare(sa, sb)
 
     @app.post("/api/v1/race-control/results")
     def race_control_save(req: RaceResult) -> RaceSaved:
