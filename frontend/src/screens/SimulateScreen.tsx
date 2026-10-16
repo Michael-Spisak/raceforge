@@ -77,14 +77,14 @@ function Sensors({ frame }: { frame: FrameMessage | null }) {
       {Object.entries(ultrasonic).map(([name, u]) => {
         const len = u.value ?? 0.3;
         const end: [number, number, number] = [u.origin[0] + u.direction[0] * len, u.origin[1] + u.direction[1] * len, u.origin[2] + u.direction[2] * len];
-        return <Line key={name} points={[u.origin, end]} color={u.value == null ? "#ba2929" : "#2f7de1"} lineWidth={2} />;
+        return <Line key={name} points={[u.origin, end]} color={u.value == null ? "#d55e00" : "#0072b2"} lineWidth={2} />;
       })}
       {lidar_points.length > 0 && (
         <points>
           <bufferGeometry>
             <bufferAttribute attach="attributes-position" args={[new Float32Array(lidar_points.flatMap(([x, y]) => [x, y, 0.1])), 3]} />
           </bufferGeometry>
-          <pointsMaterial size={0.03} color="#f7931a" />
+          <pointsMaterial size={0.03} color="#e69f00" />
         </points>
       )}
     </group>
@@ -237,7 +237,7 @@ export function SimulateScreen() {
           <Viewport camera={[0, -2, 4]} target={[0, 0, 0]} controlsRef={controls} testId="sim-viewport">
             <TrackModel primitives={sim.scene.primitives} cut={cut} />
             <Cars cars={sim.scene.cars} history={sim.history} onPick={(c) => { setFollowCar(c); setFollow(true); }} />
-            {sim.trail.length > 1 && <Line points={sim.trail.map(([x, y]) => [x, y, 0.005] as [number, number, number])} color="#8a5cf6" lineWidth={2} />}
+            {sim.trail.length > 1 && <Line points={sim.trail.map(([x, y]) => [x, y, 0.005] as [number, number, number])} color="#cc79a7" lineWidth={2} />}
             {showSensors && <Sensors frame={f} />}
             <Follow frame={f} car={followCar} enabled={follow} controls={controls} />
           </Viewport>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type Health } from "./api/client";
 import { ConstructScreen } from "./screens/ConstructScreen";
@@ -18,12 +18,12 @@ import { badgeOf, useWorkspace } from "./store/workspace";
 export type Tab = "start" | "parts" | "construct" | "tracks" | "simulate" | "train" | "live" | "race" | "replay" | "scans" | "team";
 const TABS: Tab[] = ["start", "parts", "construct", "tracks", "simulate", "train", "live", "race", "replay", "scans", "team"];
 
-/** App icon: orange square with a white "forward" double chevron (design system recipe). */
+/** Mark: a kerb block (yellow and ink stripes) - the edge of the track the car drives along. */
 function AppIcon() {
   return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="14" fill="#f7931a" />
-      <path d="M12 18h12l14 14-14 14H12l14-14zM28 18h12l14 14-14 14H28l14-14z" fill="#fff" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect width="24" height="24" rx="3" fill="#ffcd00" />
+      <path d="M0 18 18 0h6L0 24zM12 24 24 12v6l-6 6z" fill="#14171c" />
     </svg>
   );
 }
@@ -36,6 +36,19 @@ export function App() {
   const { navPreset, setNavPreset, units, setUnits, language, setLanguage, colourMode, setColourMode } = useSettings();
   const wsBadge = badgeOf(useWorkspace((s) => s.status));
   const refreshWorkspace = useWorkspace((s) => s.refresh);
+  const nav = useRef<HTMLElement | null>(null);
+  const [kerb, setKerb] = useState<{ left: number; top: number; width: number } | null>(null);
+
+  // Slide the kerb under the active tab (and follow wraps on resize).
+  useLayoutEffect(() => {
+    const place = () => {
+      const b = nav.current?.querySelector<HTMLElement>('button[aria-current="page"]');
+      setKerb(b ? { left: b.offsetLeft, top: b.offsetTop + b.offsetHeight - 3, width: b.offsetWidth } : null);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [tab]);
 
   useEffect(() => {
     void refreshWorkspace(true);
@@ -58,12 +71,13 @@ export function App() {
           {t("app.title")}
           {health && <span className="ver">{health.version}</span>}
         </span>
-        <nav aria-label="main">
+        <nav aria-label="main" ref={nav}>
           {TABS.map((x) => (
             <button key={x} aria-current={tab === x ? "page" : undefined} onClick={() => setTab(x)} data-testid={`tab-${x}`}>
               {t(`nav.${x}`)}
             </button>
           ))}
+          {kerb && <span className="kerb" style={{ left: kerb.left, top: kerb.top, width: kerb.width }} aria-hidden="true" />}
         </nav>
         <span className="spacer" />
         <div className="prefs">
