@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type Health } from "./api/client";
 import { ConstructScreen } from "./screens/ConstructScreen";
@@ -14,19 +14,10 @@ import { TracksScreen } from "./screens/TracksScreen";
 import { TrainScreen } from "./screens/TrainScreen";
 import { type ColourMode, type NavPreset, type Units, useSettings } from "./store/settings";
 import { badgeOf, useWorkspace } from "./store/workspace";
+import { AppMark, TabIcon } from "./ui/icons";
 
 export type Tab = "start" | "parts" | "construct" | "tracks" | "simulate" | "train" | "live" | "race" | "replay" | "scans" | "team";
 const TABS: Tab[] = ["start", "parts", "construct", "tracks", "simulate", "train", "live", "race", "replay", "scans", "team"];
-
-/** Mark: a kerb block (yellow and ink stripes) - the edge of the track the car drives along. */
-function AppIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect width="24" height="24" rx="3" fill="#ffcd00" />
-      <path d="M0 18 18 0h6L0 24zM12 24 24 12v6l-6 6z" fill="#14171c" />
-    </svg>
-  );
-}
 
 export function App() {
   const { t } = useTranslation();
@@ -36,20 +27,6 @@ export function App() {
   const { navPreset, setNavPreset, units, setUnits, language, setLanguage, colourMode, setColourMode } = useSettings();
   const wsBadge = badgeOf(useWorkspace((s) => s.status));
   const refreshWorkspace = useWorkspace((s) => s.refresh);
-  const nav = useRef<HTMLElement | null>(null);
-  const [kerb, setKerb] = useState<{ left: number; top: number; width: number } | null>(null);
-
-  // Slide the kerb under the active tab (and follow wraps on resize).
-  useLayoutEffect(() => {
-    const place = () => {
-      const b = nav.current?.querySelector<HTMLElement>('button[aria-current="page"]');
-      setKerb(b ? { left: b.offsetLeft, top: b.offsetTop + b.offsetHeight - 3, width: b.offsetWidth } : null);
-    };
-    place();
-    window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [tab]);
-
   useEffect(() => {
     void refreshWorkspace(true);
     const id = setInterval(() => void refreshWorkspace(true), 15000);
@@ -63,48 +40,55 @@ export function App() {
     return () => clearInterval(id);
   }, []);
 
+  const led = offline ? "bad" : health ? "ok" : "warn";
   return (
     <div className="app">
-      <header className="topbar">
-        <span className="brand">
-          <AppIcon />
-          {t("app.title")}
-          {health && <span className="ver">{health.version}</span>}
-        </span>
-        <nav aria-label="main" ref={nav}>
+      <aside className="rail">
+        <div className="brand">
+          <AppMark />
+          <span>{t("app.title")}</span>
+        </div>
+        <nav aria-label="main" className="beam">
           {TABS.map((x) => (
             <button key={x} aria-current={tab === x ? "page" : undefined} onClick={() => setTab(x)} data-testid={`tab-${x}`}>
-              {t(`nav.${x}`)}
+              <span className="hole" aria-hidden="true" />
+              <TabIcon tab={x} />
+              <span className="label">{t(`nav.${x}`)}</span>
             </button>
           ))}
-          {kerb && <span className="kerb" style={{ left: kerb.left, top: kerb.top, width: kerb.width }} aria-hidden="true" />}
         </nav>
-        <span className="spacer" />
-        <div className="prefs">
-        <select aria-label={t("settings.nav")} value={navPreset} onChange={(e) => setNavPreset(e.target.value as NavPreset)}>
-          <option value="blender">Blender</option>
-          <option value="studio">Studio</option>
-          <option value="fusion">Fusion</option>
-        </select>
-        <select aria-label={t("settings.units")} value={units} onChange={(e) => setUnits(e.target.value as Units)}>
-          <option value="mm">mm</option>
-          <option value="studs">studs</option>
-        </select>
-        <select aria-label={t("settings.colours")} data-testid="colour-mode" value={colourMode} onChange={(e) => setColourMode(e.target.value as ColourMode)}>
-          <option value="function">{t("settings.colours_function")}</option>
-          <option value="real">{t("settings.colours_real")}</option>
-        </select>
-        <select aria-label={t("settings.language")} value={language} onChange={(e) => setLanguage(e.target.value as "de" | "en")}>
-          <option value="de">DE</option>
-          <option value="en">EN</option>
-        </select>
-        </div>
-        <div className="badges">
-        <button className={`badge ${wsBadge === "online" ? "ok" : wsBadge === "offline" ? "bad" : ""}`}
-                data-testid="workspace-status" onClick={() => setTab("team")}>{t(`team.badge_${wsBadge}`)}</button>
-        <span className={`badge ${offline ? "bad" : "ok"}`} data-testid="engine-status">{offline ? t("engine.offline") : t("engine.online")}</span>
-        </div>
-      </header>
+      </aside>
+      <div className="stage">
+        <header className="topbar">
+          <div className="lcd" role="status">
+            <span className={`led ${led}`} aria-hidden="true" />
+            <span className="lcd-main" data-testid="engine-status">{offline ? t("engine.offline") : t("engine.online")}</span>
+            <span className="lcd-dim">{t(`nav.${tab}`)}</span>
+            {health && <span className="lcd-dim">v{health.version}</span>}
+          </div>
+          <span className="spacer" />
+          <div className="prefs">
+            <select aria-label={t("settings.nav")} value={navPreset} onChange={(e) => setNavPreset(e.target.value as NavPreset)}>
+              <option value="blender">Blender</option>
+              <option value="studio">Studio</option>
+              <option value="fusion">Fusion</option>
+            </select>
+            <select aria-label={t("settings.units")} value={units} onChange={(e) => setUnits(e.target.value as Units)}>
+              <option value="mm">mm</option>
+              <option value="studs">studs</option>
+            </select>
+            <select aria-label={t("settings.colours")} data-testid="colour-mode" value={colourMode} onChange={(e) => setColourMode(e.target.value as ColourMode)}>
+              <option value="function">{t("settings.colours_function")}</option>
+              <option value="real">{t("settings.colours_real")}</option>
+            </select>
+            <select aria-label={t("settings.language")} value={language} onChange={(e) => setLanguage(e.target.value as "de" | "en")}>
+              <option value="de">DE</option>
+              <option value="en">EN</option>
+            </select>
+            <button className={`badge ${wsBadge === "online" ? "ok" : wsBadge === "offline" ? "bad" : ""}`}
+                    data-testid="workspace-status" onClick={() => setTab("team")}>{t(`team.badge_${wsBadge}`)}</button>
+          </div>
+        </header>
       {tab === "start" && <StartScreen health={health} onOpen={setTab} />}
       {tab === "parts" && <PartsScreen />}
       {tab === "construct" && <ConstructScreen />}
@@ -116,6 +100,7 @@ export function App() {
       {tab === "replay" && <ReplayScreen />}
       {tab === "scans" && <ScansScreen />}
       {tab === "team" && <TeamScreen />}
+      </div>
     </div>
   );
 }
