@@ -61,7 +61,7 @@ export function RaceChecklist({ connected, frame, radio, deployed, runRadioCheck
               </label>
             ) : (
               <span>
-                <span style={{ color: i.ok === true ? "#2a9d55" : i.ok === false ? "#d33" : "#888" }}>{mark(i.ok)}</span>{" "}
+                <span style={{ color: i.ok === true ? "var(--ok)" : i.ok === false ? "var(--bad)" : "var(--muted)" }}>{mark(i.ok)}</span>{" "}
                 {t(`race.item_${i.key}`)} {i.detail && <span className="muted">· {i.detail}</span>}
               </span>
             )}

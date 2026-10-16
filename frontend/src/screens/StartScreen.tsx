@@ -15,21 +15,23 @@ export function StartScreen({ health, onOpen }: { health: Health | null; onOpen:
     { tab: "scans", text: t("start.scans") },
   ];
   return (
-    <div style={{ overflow: "auto" }}>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h1 style={{ margin: 0 }}>{t("app.title")}</h1>
-        <p className="muted">{t("start.intro")}</p>
-        {health && !health.ldraw_available && <p className="warning">{t("engine.ldraw_missing")}</p>}
+    <div className="start">
+      <div className="start-inner">
+        <div className={`statebar ${health ? "ok" : "warn"}`}>
+          <span className="sb-t">{health ? t("engine.online") : t("engine.offline")}</span>
+          <span className="sb-d">{t("start.intro")}</span>
+        </div>
+        {health && !health.ldraw_available && <div className="note warn">{t("engine.ldraw_missing")}</div>}
+        <div className="start-grid">
+          {cards.map((c) => (
+            <button key={c.tab} onClick={() => onOpen(c.tab)} data-testid={`start-${c.tab}`}>
+              <h3>{t(`nav.${c.tab}`)}</h3>
+              <span className="muted">{c.text}</span>
+            </button>
+          ))}
+        </div>
+        {health && <p className="hint">v{health.version}</p>}
       </div>
-      <div className="start-grid">
-        {cards.map((c) => (
-          <button key={c.tab} onClick={() => onOpen(c.tab)} data-testid={`start-${c.tab}`}>
-            <h3>{t(`nav.${c.tab}`)}</h3>
-            <span className="muted">{c.text}</span>
-          </button>
-        ))}
-      </div>
-      {health && <p className="muted" style={{ padding: "0 24px" }}>v{health.version}</p>}
     </div>
   );
 }

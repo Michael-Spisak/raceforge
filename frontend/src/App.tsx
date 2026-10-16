@@ -18,6 +18,16 @@ import { badgeOf, useWorkspace } from "./store/workspace";
 export type Tab = "start" | "parts" | "construct" | "tracks" | "simulate" | "train" | "live" | "race" | "replay" | "scans" | "team";
 const TABS: Tab[] = ["start", "parts", "construct", "tracks", "simulate", "train", "live", "race", "replay", "scans", "team"];
 
+/** App icon: orange square with a white "forward" double chevron (design system recipe). */
+function AppIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <rect width="64" height="64" rx="14" fill="#f7931a" />
+      <path d="M12 18h12l14 14-14 14H12l14-14zM28 18h12l14 14-14 14H28l14-14z" fill="#fff" />
+    </svg>
+  );
+}
+
 export function App() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("start");
@@ -43,7 +53,11 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="brand">{t("app.title")}</span>
+        <span className="brand">
+          <AppIcon />
+          {t("app.title")}
+          {health && <span className="ver">{health.version}</span>}
+        </span>
         <nav aria-label="main">
           {TABS.map((x) => (
             <button key={x} aria-current={tab === x ? "page" : undefined} onClick={() => setTab(x)} data-testid={`tab-${x}`}>
@@ -52,6 +66,7 @@ export function App() {
           ))}
         </nav>
         <span className="spacer" />
+        <div className="prefs">
         <select aria-label={t("settings.nav")} value={navPreset} onChange={(e) => setNavPreset(e.target.value as NavPreset)}>
           <option value="blender">Blender</option>
           <option value="studio">Studio</option>
@@ -69,9 +84,12 @@ export function App() {
           <option value="de">DE</option>
           <option value="en">EN</option>
         </select>
+        </div>
+        <div className="badges">
         <button className={`badge ${wsBadge === "online" ? "ok" : wsBadge === "offline" ? "bad" : ""}`}
                 data-testid="workspace-status" onClick={() => setTab("team")}>{t(`team.badge_${wsBadge}`)}</button>
         <span className={`badge ${offline ? "bad" : "ok"}`} data-testid="engine-status">{offline ? t("engine.offline") : t("engine.online")}</span>
+        </div>
       </header>
       {tab === "start" && <StartScreen health={health} onOpen={setTab} />}
       {tab === "parts" && <PartsScreen />}

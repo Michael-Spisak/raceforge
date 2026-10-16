@@ -46,7 +46,7 @@ function TouchJoystick({ onChange }: { onChange: (x: number, y: number, active: 
     >
       <div
         style={{
-          position: "absolute", width: 44, height: 44, borderRadius: "50%", background: "var(--c1, #0072b2)",
+          position: "absolute", width: 44, height: 44, borderRadius: "50%", background: "var(--accent)",
           left: SIZE / 2 - 22 + (knob?.x ?? 0) * (SIZE / 2 - 22), top: SIZE / 2 - 22 - (knob?.y ?? 0) * (SIZE / 2 - 22),
           opacity: knob ? 1 : 0.5,
         }}
@@ -80,7 +80,7 @@ export function TeleopPanel(props: {
     <div className="panel" data-testid="teleop-panel">
       <h4 style={{ marginTop: 0 }}>{t("teleop.title")}</h4>
       <button className="stop-button" data-testid="teleop-stop" onClick={props.onStop}
-              style={{ width: "100%", background: "#c62828", color: "#fff", fontWeight: 700, padding: "10px 0" }}>
+              style={{ width: "100%", background: "var(--bad)", borderColor: "var(--bad)", color: "var(--card)", fontWeight: 700, padding: "10px 0" }}>
         {t("teleop.stop")}
       </button>
       <label style={{ display: "block", marginTop: 8 }}>
