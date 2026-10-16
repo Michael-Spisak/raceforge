@@ -95,7 +95,7 @@ export function Dashboard({ frame, lastFrameAt, rtt, onEvent, silent = false }: 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
           {lights.map(([key, level, value]) => (
             <span key={key} data-testid={`dash-light-${key}`} title={t(`dash.${key}`)}>
-              <span style={{ color: { ok: "#2a9d55", warn: "#d99a00", bad: "#d33", none: "#888" }[level] }}>●</span>{" "}
+              <span style={{ color: { ok: "var(--ok)", warn: "var(--warn)", bad: "var(--bad)", none: "var(--muted)" }[level] }}>●</span>{" "}
               {t(`dash.${key}`)} <span className="muted">{value}</span>
             </span>
           ))}
@@ -110,15 +110,15 @@ export function Dashboard({ frame, lastFrameAt, rtt, onEvent, silent = false }: 
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 8 }}>
         <Plot title={t("dash.speed")} unit="m/s" now={now} lines={[
-          [plots.current.series((x) => x.cmd?.speed_m_s), "#888", t("dash.commanded")],
-          [plots.current.series((x) => x.meas?.speed_m_s), "#2a6fd3", t("dash.measured")],
+          [plots.current.series((x) => x.cmd?.speed_m_s), "var(--c2)", t("dash.commanded")],
+          [plots.current.series((x) => x.meas?.speed_m_s), "var(--c1)", t("dash.measured")],
         ]} />
         <Plot title={t("dash.steering")} unit="°" now={now} lines={[
-          [plots.current.series((x) => (x.cmd ? x.cmd.steering_rad * DEG : null)), "#888", t("dash.commanded")],
-          [plots.current.series((x) => (x.meas?.steering_rad != null ? x.meas.steering_rad * DEG : null)), "#2a6fd3", t("dash.measured")],
+          [plots.current.series((x) => (x.cmd ? x.cmd.steering_rad * DEG : null)), "var(--c2)", t("dash.commanded")],
+          [plots.current.series((x) => (x.meas?.steering_rad != null ? x.meas.steering_rad * DEG : null)), "var(--c1)", t("dash.measured")],
         ]} />
-        <Plot title={t("dash.battery")} unit="V" now={now} lines={[[plots.current.series((x) => x.power?.ev3_battery_v ?? x.power?.motor_battery_v), "#d99a00", ""]]} />
-        <Plot title={t("dash.loop")} unit="Hz" now={now} lines={[[plots.current.series((x) => x.loop?.rate_hz), "#2a9d55", ""]]} />
+        <Plot title={t("dash.battery")} unit="V" now={now} lines={[[plots.current.series((x) => x.power?.ev3_battery_v ?? x.power?.motor_battery_v), "var(--c4)", ""]]} />
+        <Plot title={t("dash.loop")} unit="Hz" now={now} lines={[[plots.current.series((x) => x.loop?.rate_hz), "var(--c1)", ""]]} />
       </div>
       <StateTimeline spans={plots.current.states()} now={now} />
       <div className="panel">
@@ -188,7 +188,7 @@ function Plot({ title, unit, lines, now }: { title: string; unit: string; lines:
   );
 }
 
-const STATE_COLOURS = ["#2a6fd3", "#2a9d55", "#d99a00", "#8a4fd3", "#d33", "#1aa3a3", "#c2569b"];
+const STATE_COLOURS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)"];
 const colourOf = (state: string) => {
   let h = 0;
   for (const c of state) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -238,17 +238,17 @@ function Radar({ frame }: { frame: CarFrame | null }) {
   const ranges = sensors.filter(([, s]) => s.kind === "range") as [string, { kind: "range"; distance_m: number | null }][];
   return (
     <div>
-      <svg viewBox={`0 0 ${S} ${S}`} width={S} height={S} role="img" aria-label={t("dash.topdown")} style={{ background: "var(--panel-2, #0001)", borderRadius: 4 }}>
+      <svg viewBox={`0 0 ${S} ${S}`} width={S} height={S} role="img" aria-label={t("dash.topdown")} style={{ background: "var(--bg)", borderRadius: 4 }}>
         {[1, 2, 3].map((m) => <circle key={m} cx={S / 2} cy={S / 2} r={(m / R) * (S / 2)} fill="none" stroke="currentColor" opacity={0.15} />)}
-        {pts.map(([px, py], i) => <circle key={i} cx={px} cy={py} r={1.5} fill="#d33" />)}
-        <polygon points={`${S / 2},${S / 2 - 9} ${S / 2 - 5},${S / 2 + 6} ${S / 2 + 5},${S / 2 + 6}`} fill="#2a6fd3" />
+        {pts.map(([px, py], i) => <circle key={i} cx={px} cy={py} r={1.5} fill="var(--c1)" />)}
+        <polygon points={`${S / 2},${S / 2 - 9} ${S / 2 - 5},${S / 2 + 6} ${S / 2 + 5},${S / 2 + 6}`} fill="var(--c2)" />
       </svg>
       {ranges.length > 0 && (
         <ul className="list" style={{ maxWidth: S }}>
           {ranges.map(([id, s]) => (
             <li key={id}>
               {id}: {s.distance_m == null ? "–" : `${s.distance_m.toFixed(2)} m`}
-              <div style={{ background: "#2a6fd3", height: 4, width: `${Math.min(100, ((s.distance_m ?? 0) / R) * 100)}%` }} />
+              <div style={{ background: "var(--c2)", height: 4, width: `${Math.min(100, ((s.distance_m ?? 0) / R) * 100)}%` }} />
             </li>
           ))}
         </ul>
@@ -271,12 +271,12 @@ function TrackMap({ track, trail, pose, confidence }: { track: QuickTrack | null
   const centre = track ? [...track.points, ...(track.loop && track.points[0] ? [track.points[0]] : [])] : [];
   const path = (p: [number, number][]) => p.map(([x, y]) => `${px(x).toFixed(1)},${py(y).toFixed(1)}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${S} ${S}`} width={S} height={S} role="img" aria-label={t("dash.map")} style={{ background: "var(--panel-2, #0001)", borderRadius: 4 }}>
+    <svg viewBox={`0 0 ${S} ${S}`} width={S} height={S} role="img" aria-label={t("dash.map")} style={{ background: "var(--bg)", borderRadius: 4 }}>
       {track && <polyline points={path(centre)} fill="none" stroke="currentColor" opacity={0.15} strokeWidth={track.width_m * scale} strokeLinejoin="round" />}
       {track && <polyline points={path(centre)} fill="none" stroke="currentColor" opacity={0.4} strokeDasharray="4 4" />}
-      <polyline points={path(trail)} fill="none" stroke="#2a6fd3" strokeWidth={1.5} />
+      <polyline points={path(trail)} fill="none" stroke="var(--c1)" strokeWidth={2} />
       <g transform={`translate(${px(pose.x)} ${py(pose.y)}) rotate(${(-pose.yaw * DEG + 90).toFixed(1)})`}>
-        <polygon points="0,-8 -5,6 5,6" fill="#2a6fd3" opacity={0.4 + 0.6 * confidence} />
+        <polygon points="0,-8 -5,6 5,6" fill="var(--c2)" opacity={0.4 + 0.6 * confidence} />
       </g>
       <text x={4} y={S - 4} fontSize={10} fill="currentColor" opacity={0.7}>{t("dash.confidence", { pct: (confidence * 100).toFixed(0) })}</text>
     </svg>

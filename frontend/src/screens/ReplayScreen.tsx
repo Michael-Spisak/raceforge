@@ -71,8 +71,8 @@ export function ReplayScreen({ initialPath = "" }: { initialPath?: string }) {
         {loggedIn && !data && <RunPlayer />}
         {data && (
           <>
-            <Plot title={t("replay.steering")} t={data.t} series={[{ label: "cmd", values: data.steering_cmd, color: "#0072b2" }]} />
-            <Plot title={t("replay.speed")} t={data.t} series={[{ label: "cmd", values: data.speed_cmd, color: "#e69f00" }, { label: "meas", values: data.speed_meas, color: "#009e73" }]} />
+            <Plot title={t("replay.steering")} t={data.t} series={[{ label: "cmd", values: data.steering_cmd, color: "var(--c1)" }]} />
+            <Plot title={t("replay.speed")} t={data.t} series={[{ label: "cmd", values: data.speed_cmd, color: "var(--c2)" }, { label: "meas", values: data.speed_meas, color: "var(--c1)" }]} />
           </>
         )}
       </section>

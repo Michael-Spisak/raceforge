@@ -98,7 +98,7 @@ export function RunPlayer() {
             <div style={{ position: "relative", height: 10 }}>
               {marks.map((m, i) => (
                 <span key={i} title={m.text} onClick={() => jump(m.t)}
-                      style={{ position: "absolute", left: `${(m.t / Math.max(run.duration_s, 0.001)) * 100}%`, width: 3, height: 10, background: m.text.startsWith("📝") ? "#2a6fd3" : "#d99a00", cursor: "pointer" }} />
+                      style={{ position: "absolute", left: `${(m.t / Math.max(run.duration_s, 0.001)) * 100}%`, width: 3, height: 10, background: m.text.startsWith("📝") ? "var(--c2)" : "var(--c1)", cursor: "pointer" }} />
               ))}
             </div>
             <ul className="list" style={{ maxHeight: 120, overflow: "auto" }}>
@@ -124,11 +124,11 @@ function Comparison({ a, b, diff }: { a: Timeline; b: Timeline; diff: Record<str
     <div className="panel" data-testid="run-compare">
       <strong>{t("runs.compare_title", { a: a.run, b: b.run })}</strong>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={t("runs.compare_title", { a: a.run, b: b.run })}>
-        <polyline points={path(sa)} fill="none" stroke="#2a6fd3" strokeWidth={1.5} />
-        <polyline points={path(sb)} fill="none" stroke="#d99a00" strokeWidth={1.5} />
+        <polyline points={path(sa)} fill="none" stroke="var(--c1)" strokeWidth={2} />
+        <polyline points={path(sb)} fill="none" stroke="var(--c2)" strokeWidth={2} />
       </svg>
       <div className="muted" style={{ fontSize: 11 }}>
-        <span style={{ color: "#2a6fd3" }}>━</span> {a.run} · <span style={{ color: "#d99a00" }}>━</span> {b.run} · {t("runs.synced")}
+        <span style={{ color: "var(--c1)" }}>━</span> {a.run} · <span style={{ color: "var(--c2)" }}>━</span> {b.run} · {t("runs.synced")}
       </div>
       {diff && (
         <dl className="kv">
