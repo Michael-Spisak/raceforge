@@ -37,3 +37,5 @@ Detail questions are asked just-in-time while writing each spec.
 | 0032 | Quick-track walls from the scan (rays to the scanned walls, centred line) | 8–9 | approved |
 | 0033 | Fleet + calibration v1 (car configs, steering trim, straight/circle wizards) | 6–7 | implemented |
 | 0034 | Run replay v1: play back team drives, compare two drives | 6–7 | implemented |
+| 0011 | EV3RT 1.1 bridge (EV3 runs EV3RT; UART/BT serial link; build, install, bench check) | 4–5 | implemented (AC5 open) |
+| 0035 | EV3RT standalone (C controllers on the EV3, also in the sim) | 5–6 | approved |

@@ -44,3 +44,10 @@ MUJOCO_LOG.TXT
 raceforge-backend.db
 raceforge-blobs/
 !.env.example
+
+# EV3RT host test build output
+ev3rt/tests/build/
+
+# iCloud Drive conflict copies ("file 2.py"): never commit them
+* 2.*
+* 2

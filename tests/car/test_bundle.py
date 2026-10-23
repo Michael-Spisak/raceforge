@@ -55,6 +55,7 @@ def test_build_copies_files_and_hashes(tmp_path: Path) -> None:
         "deadline_ms": 15.0,
         "test_speed_limit_m_s": None,
         "radio_usb_ids": [],
+        "start": None,  # spec 0031: no start gate unless the car config asks for one
     }
 
 
