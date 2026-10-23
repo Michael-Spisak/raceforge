@@ -3,11 +3,16 @@ CC ?= cc
 CFLAGS ?= -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -Wshadow -Wconversion -Wno-sign-conversion -fsanitize=address,undefined
 OUT ?= build
 
-all: test check-apps
+all: test check-apps $(OUT)/host_bridge
 
 $(OUT)/test_bridge: test_bridge.c ../common/rf_proto.c ../common/rf_bridge.c ../common/rf_proto.h ../common/rf_bridge.h
 	mkdir -p $(OUT)
 	$(CC) $(CFLAGS) -I../common -o $@ test_bridge.c ../common/rf_proto.c ../common/rf_bridge.c -lm
+
+# The bridge on the host with simulated motors, for end-to-end tests of the laptop side (tests/car).
+$(OUT)/host_bridge: host_bridge.c ../common/rf_proto.c ../common/rf_bridge.c ../common/rf_proto.h ../common/rf_bridge.h
+	mkdir -p $(OUT)
+	$(CC) -std=c99 -O1 -g -Wall -Wextra -Werror -I../common -o $@ host_bridge.c ../common/rf_proto.c ../common/rf_bridge.c -lm
 
 test: $(OUT)/test_bridge
 	./$(OUT)/test_bridge

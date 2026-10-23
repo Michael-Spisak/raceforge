@@ -19,11 +19,16 @@ pub struct SerialTransport {
 }
 
 impl SerialTransport {
-    /// Configure `device` with `stty` (raw, `baud`) and open it for reading and writing.
+    /// Open `device` and configure it with `stty` (raw, `baud`). `stty` works on the already open
+    /// device (as its stdin), so the settings hold on Linux and on macOS (which resets a serial
+    /// port when its last handle closes, and spells `-F` as `-f`).
     pub fn open(device: &Path, baud: u32) -> io::Result<Self> {
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(device)?;
         let status = Command::new("stty")
-            .arg("-F")
-            .arg(device)
+            .stdin(file.try_clone()?)
             .args([
                 baud.to_string().as_str(),
                 "raw",
@@ -36,6 +41,7 @@ impl SerialTransport {
                 "cs8",
                 "-cstopb",
                 "-parenb",
+                "clocal",
             ])
             .status()?;
         if !status.success() {
@@ -44,10 +50,6 @@ impl SerialTransport {
                 device.display()
             )));
         }
-        let file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(device)?;
         let reader = file.try_clone()?;
         Self::from_stream(Box::new(reader), Box::new(file))
     }

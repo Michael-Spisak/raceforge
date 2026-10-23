@@ -60,7 +60,7 @@ pub struct Ev3Spec {
     pub os: Ev3Os,
     #[serde(default)]
     pub link: Ev3LinkKind,
-    /// Serial device for `uart` / `usb_cdc` / `bt_spp` (default per link kind).
+    /// Serial device for `uart` / `bt_spp` (default per link kind).
     #[serde(default)]
     pub device: Option<String>,
     #[serde(default = "default_baud")]
@@ -96,7 +96,6 @@ pub enum Ev3LinkKind {
     #[default]
     Udp,
     Uart,
-    UsbCdc,
     BtSpp,
 }
 
@@ -105,7 +104,6 @@ impl Ev3LinkKind {
         match self {
             Ev3LinkKind::Udp => None,
             Ev3LinkKind::Uart => Some("/dev/serial0"),
-            Ev3LinkKind::UsbCdc => Some("/dev/ttyACM0"),
             Ev3LinkKind::BtSpp => Some("/dev/rfcomm0"),
         }
     }
@@ -367,7 +365,7 @@ impl Manifest {
                 "ev3dev talks UDP over the USB gadget: ev3.link must be \"udp\"".into(),
             )),
             (Ev3Os::Ev3rt, Ev3LinkKind::Udp) => Err(BundleError::Invalid(
-                "EV3RT has no network link: use ev3.link uart, usb_cdc or bt_spp".into(),
+                "EV3RT has no network or USB serial link: use ev3.link uart or bt_spp".into(),
             )),
             (Ev3Os::Ev3rt, Ev3LinkKind::BtSpp) if self.runtime.mode == BundleMode::Race => {
                 Err(BundleError::Invalid(
@@ -477,16 +475,24 @@ mod tests {
             }
         );
         let m = load(
-            "usb",
-            ev3(", \"os\": \"ev3rt\", \"link\": \"usb_cdc\", \"device\": \"/dev/ttyACM1\", \"baud\": 230400", "race"),
+            "uart-custom",
+            ev3(", \"os\": \"ev3rt\", \"link\": \"uart\", \"device\": \"/dev/ttyAMA1\", \"baud\": 230400", "race"),
         )
-        .expect("usb cdc is wired: fine in race mode");
+        .expect("uart is wired: fine in race mode");
         assert_eq!(
             m.ev3_link().expect("link"),
             Ev3Endpoint::Serial {
-                device: "/dev/ttyACM1".into(),
+                device: "/dev/ttyAMA1".into(),
                 baud: 230_400
             }
+        );
+        assert!(
+            load(
+                "usb",
+                ev3(", \"os\": \"ev3rt\", \"link\": \"usb_cdc\"", "test")
+            )
+            .is_err(),
+            "EV3RT 1.1 has no USB serial port"
         );
         assert!(load(
             "bt-test",

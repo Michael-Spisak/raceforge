@@ -1,0 +1,38 @@
+# Car config for an EV3 running EV3RT 1.1 with the RaceForge bridge app (spec 0011). Same format as
+# car.example.yaml; only the ev3 section differs. Copy it (e.g. to car.yaml), fill in your values:
+#
+#   raceforge car ev3rt build --car car.yaml --volume /Volumes/EV3RT   # build + copy to the brick
+#   raceforge car ev3rt check --port /dev/cu.MindstormsEV3-SerialPort   # bench test from a laptop
+#
+# Link: "bt_spp" (Bluetooth) for bench tests from a laptop; "uart" (cable on sensor port 1) in the car.
+# With "uart", sensor port 1 is taken by the cable: only ports 2-4 are left for sensors.
+# EV3RT 1.1 has no USB serial port (USB only shows the SD card).
+
+robot:  # what the controller sees as RobotInfo (same as in the simulator)
+  car_name: car-1
+  sensors: [front, left, gyro]
+  max_steer_rad: 0.45  # PLACEHOLDER: full steering lock
+  max_speed_m_s: 1.5  # PLACEHOLDER
+  wheelbase_m: 0.20  # PLACEHOLDER
+  track_m: 0.15  # PLACEHOLDER
+  control_rate_hz: 50
+
+ev3:
+  os: ev3rt
+  link: bt_spp  # bench tests; use "uart" in the car (bt_spp is refused in race mode)
+  # device: /dev/serial0  # board side; defaults: uart /dev/serial0, bt_spp /dev/rfcomm0
+  steer_motor: A
+  drive_motor: B
+  steer_motor_deg_per_rad: 171.9  # PLACEHOLDER: motor degrees per radian of steering (sign!)
+  drive_counts_per_m: 2046.0  # PLACEHOLDER: tacho degrees per metre driven (sign!)
+  ultrasonic: {front: "2", left: "3"}  # sensor name -> EV3 port (not 1 when link is uart)
+  gyro: true
+  gyro_port: "4"  # EV3RT does not detect the gyro: give its port
+  estop_touch_port: null  # touch sensor used as emergency stop (needs a free port)
+  resume_button: enter
+  # gains:  # motor loops compiled into the EV3 app (defaults suit LEGO large/medium motors)
+  #   steer_kp: 1.5
+
+runtime:
+  mode: test
+  test_speed_limit_m_s: 0.8

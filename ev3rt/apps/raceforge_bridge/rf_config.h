@@ -4,7 +4,7 @@
 #define RF_CONFIG_H
 
 #define RF_CONTROL_PERIOD_MS 10
-/* Link: EV3_SERIAL_UART (sensor port 1), EV3_SERIAL_USB_CDC or EV3_SERIAL_BT (testing only) */
+/* Link: EV3_SERIAL_UART (sensor port 1) or EV3_SERIAL_BT (testing only); EV3RT has no USB serial */
 #define RF_LINK_PORT EV3_SERIAL_UART
 
 #define RF_STEER_PORT 0 /* A */

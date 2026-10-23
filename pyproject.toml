@@ -75,12 +75,14 @@ extraPaths = ["src", "ev3_side"]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
 strict = ["src/raceforge/core", "src/raceforge/api", "src/raceforge/control"]
+exclude = ["**/* 2.py", "**/node_modules", "**/__pycache__", "**/.*"]  # "* 2.py": iCloud copies
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Python ≥3.13 on macOS skips .pth files with the "hidden" flag (uv venvs may set it), so put src on the path explicitly.
 pythonpath = ["src", "ev3_side"]
-addopts = "--cov=raceforge --cov-report=term-missing -m 'not slow'"
+# "* 2.py": iCloud Drive conflict copies of test files (the repo may live in iCloud).
+addopts = "--cov=raceforge --cov-report=term-missing -m 'not slow' --ignore-glob='* 2.py'"
 markers = ["slow: long-running acceptance runs (nightly CI job; run with -m slow)"]
 
 [tool.importlinter]

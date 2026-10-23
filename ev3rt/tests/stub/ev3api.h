@@ -1,6 +1,6 @@
-/* Host stand-in for EV3RT's ev3api.h: just enough declarations (copied names/signatures from the
- * EV3RT 1.1 SDK headers) to syntax-check the EV3RT apps on a development machine (spec 0011).
- * The real build uses the EV3RT SDK (CI job "ev3rt"). */
+/* Host stand-in for EV3RT's ev3api.h: just enough declarations (names/signatures from the EV3RT 1.1
+ * SDK headers, TOPPERS/HRP3 kernel: times in microseconds) to syntax-check the EV3RT apps on a
+ * development machine (spec 0011). The real build: `raceforge car ev3rt build` with the SDK. */
 #ifndef RF_STUB_EV3API_H
 #define RF_STUB_EV3API_H
 #include <stdint.h>
@@ -8,7 +8,8 @@
 typedef int ER;
 typedef int ID;
 typedef int bool_t;
-typedef uint32_t SYSTIM;
+typedef uint64_t SYSTIM; /* HRP3: microseconds */
+typedef uint32_t RELTIM; /* HRP3: microseconds */
 #define true 1
 #define false 0
 #define TMIN_APP_TPRI 5
@@ -20,7 +21,7 @@ typedef enum { LEFT_BUTTON = 0, RIGHT_BUTTON, UP_BUTTON, DOWN_BUTTON, ENTER_BUTT
 typedef enum { LED_OFF = 0, LED_RED = 1, LED_GREEN = 2, LED_ORANGE = 3 } ledcolor_t;
 typedef enum { EV3_FONT_SMALL, EV3_FONT_MEDIUM } lcdfont_t;
 typedef enum { EV3_LCD_WHITE = 0, EV3_LCD_BLACK = 1 } lcdcolor_t;
-typedef enum { EV3_SERIAL_DEFAULT = 0, EV3_SERIAL_UART = 1, EV3_SERIAL_BT = 2, EV3_SERIAL_USB_CDC = 3 } serial_port_t;
+typedef enum { EV3_SERIAL_DEFAULT = 0, EV3_SERIAL_UART = 1, EV3_SERIAL_BT = 2, EV3_SERIAL_SPP_MASTER = 3 } serial_port_t;
 #define EV3_LCD_WIDTH (178)
 ER ev3_motor_config(motor_port_t port, motor_type_t type);
 int32_t ev3_motor_get_counts(motor_port_t port);
@@ -41,11 +42,15 @@ ER ev3_font_get_size(lcdfont_t font, int32_t *w, int32_t *h);
 ER ev3_lcd_draw_string(const char *str, int32_t x, int32_t y);
 ER ev3_lcd_fill_rect(int32_t x, int32_t y, int32_t w, int32_t h, lcdcolor_t color);
 FILE *ev3_serial_open_file(serial_port_t port);
-ER ev3_sta_cyc(ID id);
-ER ev3_stp_cyc(ID id);
-/* kernel */
+bool_t ev3_bluetooth_is_connected(void);
+/* kernel (HRP3) */
 ER act_tsk(ID id);
-ER tslp_tsk(int32_t ms);
+ER ter_tsk(ID id);
+ER sta_cyc(ID id);
+ER stp_cyc(ID id);
+ER sig_sem(ID id);
+ER wai_sem(ID id);
+ER tslp_tsk(RELTIM tmout);
 ER get_tim(SYSTIM *t);
 ER loc_mtx(ID id);
 ER unl_mtx(ID id);
@@ -56,4 +61,6 @@ void ext_tsk(void);
 #define RX_TASK 3
 #define CYC_CTRL 4
 #define MTX_BRIDGE 5
+#define TX_TASK 6
+#define SEM_TX 7
 #endif

@@ -638,38 +638,53 @@ def _cmd_deploy(args: argparse.Namespace) -> int:
 
 
 def _cmd_ev3rt(args: argparse.Namespace) -> int:
-    """`raceforge car ev3rt config|build|upload` (spec 0011)."""
-    import os
-
+    """`raceforge car ev3rt setup-sdk|config|build|install|upload|check` (spec 0011)."""
     from raceforge.car import ev3rt
-    from raceforge.car.bundle import load_manifest
+    from raceforge.car.bundle import BundleError, load_car_config, load_manifest
 
+    cmd = args.ev3rt_command
     try:
-        if args.ev3rt_command == "upload":
+        if cmd == "setup-sdk":
+            sdk = ev3rt.setup_sdk(Path(args.release).expanduser())
+            print(f"EV3RT SDK ready: {sdk}")
+            return 0
+        if cmd == "upload":
             ev3rt.upload(Path(args.file), ip=args.ip, name=args.name)
             print(
                 f"uploaded {args.file} as {args.name!r} to {args.ip}: start it in the EV3RT loader"
             )
             return 0
-        ev3 = load_manifest(Path(args.bundle)).ev3
-        if args.ev3rt_command == "config":
+        if cmd == "install":
+            target = ev3rt.install(Path(args.file), Path(args.volume), name=args.name)
+            print(f"copied to {target}: eject the drive, then start '{args.name}' on the brick")
+            return 0
+        if cmd == "check":
+            from raceforge.car.ev3rt_check import open_and_check
+
+            return 0 if open_and_check(args.port, args.baud, args.drive) else 1
+        if args.bundle:
+            ev3 = load_manifest(Path(args.bundle)).ev3
+        elif args.car:
+            ev3 = load_car_config(Path(args.car)).ev3
+        else:
+            print("error: give --car <car.yaml> or --bundle <dir>", file=sys.stderr)
+            return 2
+        if cmd == "config":
             print("# rf_config.h (compiled into the EV3 app)")
             print(ev3rt.config_header(ev3))
             print("# /ev3rt/etc/rc.conf.ini on the brick's SD card needs:")
             print(ev3rt.rc_conf(ev3))
             return 0
-        sdk = args.sdk or os.environ.get("RF_EV3RT_SDK")
-        if not sdk:
-            print("error: give --sdk or set RF_EV3RT_SDK to the EV3RT 1.1 'sdk' folder")
-            return 1
-        app = ev3rt.build(Path(sdk), ev3)
+        app = ev3rt.build(ev3rt.find_sdk(args.sdk), ev3)
         print(f"built {app}")
+        if args.volume:
+            print(f"copied to {ev3rt.install(app, Path(args.volume))}")
         if args.upload:
             ev3rt.upload(app, ip=args.ip)
             print(f"uploaded to {args.ip}: start '{ev3rt.APP}' from the EV3RT loader")
         return 0
-    except ev3rt.Ev3rtError as exc:
-        print(f"error: {exc}")
+    except (ev3rt.Ev3rtError, BundleError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 1
 
 
@@ -823,20 +838,34 @@ def main(argv: list[str] | None = None) -> int:
 
     car = sub.add_parser("car", help="the real car (EV3 bridge apps)")
     car_sub = car.add_subparsers(dest="car_command", required=True)
-    rt = car_sub.add_parser("ev3rt", help="EV3RT 1.1 bridge app: config, build, upload (spec 0011)")
+    rt = car_sub.add_parser("ev3rt", help="EV3RT 1.1 bridge app: build, install, check (spec 0011)")
     rt_sub = rt.add_subparsers(dest="ev3rt_command", required=True)
+    rt_sdk = rt_sub.add_parser("setup-sdk", help="unpack and prepare the EV3RT 1.1 SDK (~/ev3rt)")
+    rt_sdk.add_argument("--release", required=True, help="unpacked EV3RT 1.1 release folder")
     rt_cfg = rt_sub.add_parser("config", help="show rf_config.h and the rc.conf.ini settings")
     rt_build = rt_sub.add_parser("build", help="build the bridge app with the EV3RT SDK")
-    rt_build.add_argument("--sdk", help="EV3RT 1.1 'sdk' folder (default: $RF_EV3RT_SDK)")
+    rt_build.add_argument("--sdk", help="EV3RT 'sdk' folder (default: $RF_EV3RT_SDK or ~/ev3rt)")
+    rt_build.add_argument("--volume", help="also copy the app to the brick's SD card (USB drive)")
     rt_build.add_argument("--upload", action="store_true", help="upload over Bluetooth PAN")
     rt_build.add_argument("--ip", default="10.0.10.1")
     for p in (rt_cfg, rt_build):
-        p.add_argument("--bundle", required=True, help="car bundle directory (bundle.json)")
+        p.add_argument("--car", help="car config YAML (the ev3 section is used)")
+        p.add_argument("--bundle", help="car bundle directory (bundle.json)")
+    rt_inst = rt_sub.add_parser("install", help="copy an app to the brick's SD card over USB")
+    rt_inst.add_argument("file")
+    rt_inst.add_argument("--volume", required=True, help="the brick's drive, e.g. /Volumes/EV3RT")
     rt_up = rt_sub.add_parser("upload", help="send an app file to the EV3RT loader (Bluetooth PAN)")
     rt_up.add_argument("file")
     rt_up.add_argument("--ip", default="10.0.10.1")
-    rt_up.add_argument("--name", default="raceforge_bridge", help="file name on the brick")
-    for p in (rt_cfg, rt_build, rt_up):
+    for p in (rt_inst, rt_up):
+        p.add_argument("--name", default="raceforge_bridge", help="file name on the brick")
+    rt_chk = rt_sub.add_parser("check", help="bench test of the running bridge from this computer")
+    rt_chk.add_argument("--port", required=True, help="serial device, e.g. /dev/cu.MindstormsEV3")
+    rt_chk.add_argument("--baud", type=int, default=115_200)
+    rt_chk.add_argument(
+        "--drive", action="store_true", help="also drive + failsafe test (wheels OFF the ground)"
+    )
+    for p in (rt_sdk, rt_cfg, rt_build, rt_inst, rt_up, rt_chk):
         p.set_defaults(func=_cmd_ev3rt)
 
     cap = sub.add_parser("capture", help="TrackScout scans (.tscan, spec 0007)")

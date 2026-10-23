@@ -1,11 +1,14 @@
 /*
- * RaceForge EV3RT bridge (spec 0011): the EV3 under EV3RT 1.1 does what ev3_side does under ev3dev —
- * drive/steer motors and read sensors for the car runtime on the onboard board, over a serial link
- * (UART on sensor port 1 by default; COBS-framed rf-proto v1 frames).
+ * RaceForge EV3RT bridge (spec 0011): the EV3 under EV3RT 1.1 (TOPPERS/HRP3) does what ev3_side does
+ * under ev3dev: drive/steer motors and read sensors for the car runtime on the onboard board, over a
+ * serial link (UART on sensor port 1 in the car, Bluetooth SPP for bench tests; COBS-framed rf-proto
+ * v1 frames). EV3RT 1.1 has no USB serial port (USB is SD-card mass storage only).
  *
  * Tasks: RX_TASK reads bytes and hands complete commands to the bridge; CTRL_TASK runs every 10 ms
- * (failsafe, e-stop, motor loops, sensor frame back); MAIN_TASK sets up the hardware, shows link
- * statistics on the LCD and ends the app when BACK is held for 1 s.
+ * (failsafe, e-stop, motor loops) and never touches the link, so a stalled link (Bluetooth out of
+ * range) cannot stop the failsafe; TX_TASK sends the latest sensor frame; MAIN_TASK sets up the
+ * hardware, shows link statistics on the LCD and ends the app when BACK is held for 1 s.
+ * HRP3 times are microseconds (tslp_tsk, get_tim, CRE_CYC).
  */
 #include <stdio.h>
 #include <string.h>
@@ -17,11 +20,24 @@
 static rf_bridge_t bridge;
 static FILE *link_file;
 static volatile const char *status_text = "WAIT LINK";
+/* latest COBS-framed sensor frame for TX_TASK (guarded by MTX_BRIDGE) */
+static uint8_t tx_line[RF_SENSOR_LEN + RF_SENSOR_LEN / 254 + 2];
+static size_t tx_len;
+
+#define MS(x) ((RELTIM)(x) * 1000U) /* HRP3 relative times are microseconds */
 
 static uint32_t now_ms(void) {
     SYSTIM t;
-    get_tim(&t); /* EV3RT: milliseconds */
-    return (uint32_t)t;
+    get_tim(&t); /* HRP3: microseconds */
+    return (uint32_t)(t / 1000U);
+}
+
+static int link_up(void) {
+#if RF_LINK_PORT == EV3_SERIAL_BT
+    return ev3_bluetooth_is_connected() ? 1 : 0;
+#else
+    return 1;
+#endif
 }
 
 /* ---- hardware abstraction for the bridge library ---- */
@@ -72,8 +88,6 @@ static sensor_type_t sensor_type(int kind) {
     }
 }
 
-void task_activator(intptr_t tskid) { act_tsk((ID)tskid); }
-
 void rx_task(intptr_t unused) {
     static rf_stream_t stream;
     (void)unused;
@@ -81,7 +95,8 @@ void rx_task(intptr_t unused) {
     for (;;) {
         int ch = fgetc(link_file);
         if (ch == EOF) {
-            tslp_tsk(1);
+            clearerr(link_file);
+            tslp_tsk(MS(1));
             continue;
         }
         if (rf_stream_push(&stream, (uint8_t)ch)) {
@@ -95,16 +110,29 @@ void rx_task(intptr_t unused) {
 void control_task(intptr_t unused) {
     rf_sensor_t s;
     uint8_t frame[RF_SENSOR_LEN];
-    uint8_t line[RF_SENSOR_LEN + RF_SENSOR_LEN / 254 + 2];
-    size_t n;
     (void)unused;
     loc_mtx(MTX_BRIDGE);
     rf_bridge_step(&bridge, now_ms(), &s);
-    unl_mtx(MTX_BRIDGE);
     rf_sensor_encode(&s, frame);
-    n = rf_serial_frame(frame, sizeof(frame), line);
-    fwrite(line, 1, n, link_file);
-    fflush(link_file);
+    tx_len = rf_serial_frame(frame, sizeof(frame), tx_line);
+    unl_mtx(MTX_BRIDGE);
+    sig_sem(SEM_TX); /* E_QOVR when TX_TASK is behind: it sends the newest frame anyway */
+}
+
+void tx_task(intptr_t unused) {
+    uint8_t line[sizeof(tx_line)];
+    size_t n;
+    (void)unused;
+    for (;;) {
+        wai_sem(SEM_TX);
+        loc_mtx(MTX_BRIDGE);
+        n = tx_len;
+        memcpy(line, tx_line, n);
+        unl_mtx(MTX_BRIDGE);
+        if (!link_up()) continue; /* Bluetooth: writing without a peer would block */
+        fwrite(line, 1, n, link_file);
+        fflush(link_file);
+    }
 }
 
 static void draw(int row, const char *text) {
@@ -156,7 +184,8 @@ void main_task(intptr_t unused) {
     rf_bridge_init(&bridge, &cfg, &HAL, now_ms());
 
     act_tsk(RX_TASK);
-    ev3_sta_cyc(CYC_CTRL);
+    act_tsk(TX_TASK);
+    sta_cyc(CYC_CTRL);
 
     for (;;) {
         rf_bridge_stats_t st;
@@ -172,9 +201,11 @@ void main_task(intptr_t unused) {
         draw(4, "hold BACK 1s: exit");
         back_held = ev3_button_is_pressed(BACK_BUTTON) ? back_held + 1 : 0;
         if (back_held >= 5) break;
-        tslp_tsk(200);
+        tslp_tsk(MS(200));
     }
-    ev3_stp_cyc(CYC_CTRL);
+    stp_cyc(CYC_CTRL);
+    ter_tsk(RX_TASK);
+    ter_tsk(TX_TASK);
     loc_mtx(MTX_BRIDGE);
     rf_bridge_shutdown(&bridge);
     unl_mtx(MTX_BRIDGE);

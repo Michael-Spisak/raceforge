@@ -105,10 +105,10 @@ class Ev3Spec(_Model):
     # Spec 0031: touch-sensor port of the pull-away start cable (contact opens = start).
     start_touch_port: SensorPort | None = None
     # Spec 0011: firmware on the brick and how the board reaches it. ev3dev = Python bridge over UDP
-    # (USB gadget); ev3rt = C bridge over a serial link (UART on sensor port 1, USB CDC, or
-    # Bluetooth SPP for testing only).
+    # (USB gadget); ev3rt = C bridge over a serial link: UART on sensor port 1, or Bluetooth SPP for
+    # testing only (EV3RT 1.1 has no USB serial port: its USB is SD-card mass storage).
     os: Literal["ev3dev", "ev3rt"] = "ev3dev"
-    link: Literal["udp", "uart", "usb_cdc", "bt_spp"] = "udp"
+    link: Literal["udp", "uart", "bt_spp"] = "udp"
     device: str | None = None  # serial device on the board (default per link)
     baud: int = Field(default=115_200, ge=9_600, le=1_000_000)
     gyro_port: SensorPort | None = None  # EV3RT needs the port; ev3dev finds the gyro itself
@@ -119,7 +119,7 @@ class Ev3Spec(_Model):
         if self.os == "ev3dev" and self.link != "udp":
             raise ValueError('ev3dev talks UDP over the USB gadget: link must be "udp"')
         if self.os == "ev3rt" and self.link == "udp":
-            raise ValueError("EV3RT has no network link: use uart, usb_cdc or bt_spp")
+            raise ValueError("EV3RT has no network or USB serial link: use uart or bt_spp")
         used = set(self.ultrasonic.values())
         if self.estop_touch_port:
             used.add(self.estop_touch_port)

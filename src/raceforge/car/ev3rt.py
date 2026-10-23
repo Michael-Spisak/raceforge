@@ -7,6 +7,7 @@ generated from the car bundle's ``ev3`` section and runs EV3RT's own ``make app=
 EV3RT's ``make upload``.
 """
 
+import os
 import shutil
 import subprocess
 from collections.abc import Callable, Sequence
@@ -21,7 +22,7 @@ DEFAULT_IP = "10.0.10.1"  # EV3RT's Bluetooth PAN address (NAP mode)
 REPO_EV3RT = Path(__file__).resolve().parents[3] / "ev3rt"
 
 _MOTOR = {"A": 0, "B": 1, "C": 2, "D": 3}
-_LINK = {"uart": "EV3_SERIAL_UART", "usb_cdc": "EV3_SERIAL_USB_CDC", "bt_spp": "EV3_SERIAL_BT"}
+_LINK = {"uart": "EV3_SERIAL_UART", "bt_spp": "EV3_SERIAL_BT"}
 
 Runner = Callable[[Sequence[str], Path], int]
 
@@ -37,8 +38,9 @@ def sensor_kinds(ev3: Ev3Spec) -> list[str]:
         kinds[int(port) - 1] = "RF_SENSOR_ULTRASONIC"
     if ev3.gyro and ev3.gyro_port:
         kinds[int(ev3.gyro_port) - 1] = "RF_SENSOR_GYRO"
-    if ev3.estop_touch_port:
-        kinds[int(ev3.estop_touch_port) - 1] = "RF_SENSOR_TOUCH"
+    for touch in (ev3.estop_touch_port, ev3.start_touch_port):
+        if touch:
+            kinds[int(touch) - 1] = "RF_SENSOR_TOUCH"
     return kinds
 
 
@@ -84,15 +86,77 @@ def config_header(ev3: Ev3Spec, steer_medium: bool = True) -> str:
 
 
 def rc_conf(ev3: Ev3Spec) -> str:
-    """Settings the brick's ``/ev3rt/etc/rc.conf.ini`` needs for this link."""
-    lines = ["[Debug]", "DefaultPort=LCD  ; keep log output off the link"]
+    """Settings the brick's ``/ev3rt/etc/rc.conf.ini`` needs for this link (comments on their own
+    lines: EV3RT's INI reader keeps text after a value)."""
+    lines = ["[Debug]", "; keep log output off the link", "DefaultPort=LCD"]
     if ev3.link == "uart":
-        lines += ["", "[Sensors]", "DisablePort1=1  ; sensor port 1 becomes the UART link"]
-    if ev3.link == "usb_cdc":
-        lines += ["", "[USB]", "Mode=CDC  ; USB port as virtual serial port"]
+        lines += ["", "[Sensors]", "; sensor port 1 becomes the UART link", "DisablePort1=1"]
     if ev3.link == "bt_spp":
-        lines += ["", "[Bluetooth]", "TurnOff=0  ; testing only: never in race mode"]
+        lines += ["", "[Bluetooth]", "; bench tests only, never in race mode", "TurnOff=0"]
     return "\n".join(lines) + "\n"
+
+
+DEFAULT_SDK = Path.home() / "ev3rt" / "hrp3" / "sdk"
+# EV3RT 1.1 links cfg1_out.c into an executable and then links that executable again; binutils
+# >= 2.40 refuses ("cannot use executable file as input to a link"). An object file is equivalent.
+_LUM = Path("target/ev3_gcc/dmloader/app/Makefile.lum")
+_LUM_OLD = "@$(CFGLINK) $(CFLAGS) -Wl,-e,0 -o cfg1_out.o cfg1_out.c"
+_LUM_NEW = "@$(CFGLINK) $(CFLAGS) -c -o cfg1_out.o cfg1_out.c"
+
+
+def find_sdk(explicit: str | None = None) -> Path:
+    """``--sdk``, ``$RF_EV3RT_SDK`` or ``~/ev3rt/hrp3/sdk`` (where ``setup-sdk`` unpacks it)."""
+    raw = explicit or os.environ.get("RF_EV3RT_SDK")
+    sdk = Path(raw).expanduser() if raw else DEFAULT_SDK
+    if not (sdk / "workspace" / "Makefile").is_file():
+        raise Ev3rtError(
+            f"no EV3RT SDK at {sdk}: run `raceforge car ev3rt setup-sdk --release <folder>` "
+            "(the unpacked EV3RT 1.1 release) or give --sdk"
+        )
+    return sdk
+
+
+def patch_sdk(sdk: Path) -> bool:
+    """Make the EV3RT 1.1 SDK build with current Arm GNU toolchains; True if a file was changed."""
+    lum = sdk.parent / _LUM
+    if not lum.is_file():
+        raise Ev3rtError(f"{lum} missing: is {sdk} the 'sdk' folder of EV3RT 1.1 (HRP3)?")
+    text = lum.read_text(encoding="utf-8")
+    if _LUM_OLD not in text:
+        return False
+    lum.write_text(text.replace(_LUM_OLD, _LUM_NEW), encoding="utf-8")
+    return True
+
+
+def setup_sdk(release: Path, dest: Path = DEFAULT_SDK.parent.parent) -> Path:
+    """Unpack ``hrp3.tar.xz`` of the EV3RT 1.1 release to ``dest`` and patch it; returns the SDK."""
+    import tarfile
+
+    archive = release / "hrp3.tar.xz"
+    if not archive.is_file():
+        raise Ev3rtError(f"{archive} missing: give the unpacked EV3RT 1.1 release folder")
+    dest.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(archive) as tar:
+        tar.extractall(dest, filter="data")
+    sdk = dest / "hrp3" / "sdk"
+    patch_sdk(sdk)
+    return sdk
+
+
+def install(app_file: Path, volume: Path, name: str = APP) -> Path:
+    """Copy the app to the brick's SD card mounted over USB (``/Volumes/…`` on macOS).
+
+    EV3RT shows the SD card as a USB drive while the loader runs; apps live in ``ev3rt/apps/``.
+    """
+    apps = volume / "ev3rt" / "apps"
+    if not apps.is_dir():
+        raise Ev3rtError(
+            f"{apps} not found: connect the EV3 (running EV3RT) by USB and give its drive "
+            "(e.g. /Volumes/EV3RT), or copy the SD card's ev3rt folder first"
+        )
+    target = apps / name
+    shutil.copyfile(app_file, target)
+    return target
 
 
 def stage(sdk: Path, ev3: Ev3Spec, source: Path = REPO_EV3RT) -> Path:
@@ -114,13 +178,34 @@ def stage(sdk: Path, ev3: Ev3Spec, source: Path = REPO_EV3RT) -> Path:
     return target
 
 
+def toolchain_bin() -> Path | None:
+    """Folder with ``arm-none-eabi-gcc``: ``$RF_ARM_TOOLCHAIN``, the PATH or the user install
+    ``~/.local/arm-gnu-toolchain`` (Arm GNU toolchain unpacked without admin rights)."""
+    env = os.environ.get("RF_ARM_TOOLCHAIN")
+    candidates = [Path(env) / "bin", Path(env)] if env else []
+    found = shutil.which("arm-none-eabi-gcc")
+    if found:
+        candidates.append(Path(found).parent)
+    candidates.append(Path.home() / ".local" / "arm-gnu-toolchain" / "bin")
+    return next((c for c in candidates if (c / "arm-none-eabi-gcc").is_file()), None)
+
+
 def _run(cmd: Sequence[str], cwd: Path) -> int:
-    return subprocess.run(list(cmd), cwd=cwd, check=False).returncode
+    env = dict(os.environ, PWD=str(cwd))  # EV3RT's makefiles use $(PWD), not the real cwd
+    tools = toolchain_bin()
+    if tools is None:
+        raise Ev3rtError(
+            "arm-none-eabi-gcc not found: install the Arm GNU toolchain (arm-none-eabi) and put it "
+            "on the PATH, set RF_ARM_TOOLCHAIN, or unpack it to ~/.local/arm-gnu-toolchain"
+        )
+    env["PATH"] = f"{tools}{os.pathsep}{env.get('PATH', '')}"
+    return subprocess.run(list(cmd), cwd=cwd, env=env, check=False).returncode
 
 
 def build(sdk: Path, ev3: Ev3Spec, runner: Runner = _run, source: Path = REPO_EV3RT) -> Path:
     """Stage and run EV3RT's ``make app=raceforge_bridge``; returns the built ``app`` file."""
     stage(sdk, ev3, source)
+    patch_sdk(sdk)
     workspace = sdk / "workspace"
     code = runner(["make", f"app={APP}"], workspace)
     app = workspace / "app"
